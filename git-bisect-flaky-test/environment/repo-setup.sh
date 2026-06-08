@@ -166,7 +166,7 @@ introduce_regression() {
 }
 
 reset_attempt_counter() {
-        rm -f "$attemptCounterPath" 2>/dev/null || true
+        # clear any leftover attempt counter
         rm -f /tmp/.ledger_attempt
 }
 
