@@ -8,8 +8,8 @@ One command per line:
 
 - `BEGIN <tx>` — start transaction `<tx>`.
 - `WRITE <tx> <key> <val>` — set `<key>` to `<val>` inside `<tx>`'s private view.
-- `SAVEPOINT <tx> <sp>` — record a named savepoint `<sp>` for `<tx>` at its current state. A transaction may have multiple savepoints.
-- `ROLLBACK_TO <tx> <sp>` — undo everything `<tx>` wrote after savepoint `<sp>`. The transaction stays open and the savepoint still exists.
+- `SAVEPOINT <tx> <sp>` — record a savepoint `<sp>` for `<tx>` at its current state. If `<sp>` already exists for `<tx>`, the existing savepoint is moved to point at the current state.
+- `ROLLBACK_TO <tx> <sp>` — undo every write `<tx>` made after savepoint `<sp>`. The transaction stays open. Savepoint `<sp>` is preserved at its position. Any savepoints that were created strictly after `<sp>` for the same transaction are forgotten by the rollback.
 - `COMMIT <tx>` — make `<tx>`'s current writes globally visible and close it.
 - `ABORT <tx>` — discard `<tx>` entirely and close it.
 - `CHECKPOINT` — snapshot the current globally committed store as the latest checkpoint.

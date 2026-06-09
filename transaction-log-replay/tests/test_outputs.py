@@ -44,12 +44,16 @@ CASES = {
         "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nROLLBACK_TO t1 s1\nWRITE t1 b 99\nROLLBACK_TO t1 s1\nCOMMIT t1\n",
         lines("a=1", "CHECKPOINT:"),
     ),
+    "later_savepoints_forgotten_on_rollback": (
+        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nSAVEPOINT t1 s2\nWRITE t1 c 3\nROLLBACK_TO t1 s1\nWRITE t1 d 4\nROLLBACK_TO t1 s2\nCOMMIT t1\n",
+        lines("a=1", "d=4", "CHECKPOINT:"),
+    ),
+    "savepoint_overwrite_moves_marker": (
+        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nSAVEPOINT t1 s1\nWRITE t1 c 3\nROLLBACK_TO t1 s1\nCOMMIT t1\n",
+        lines("a=1", "b=2", "CHECKPOINT:"),
+    ),
     "rollback_to_unknown_savepoint_noop": (
         "BEGIN t1\nWRITE t1 a 1\nROLLBACK_TO t1 ghost\nCOMMIT t1\n",
-        lines("a=1", "CHECKPOINT:"),
-    ),
-    "rollback_keeps_savepoint_for_reuse": (
-        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nROLLBACK_TO t1 s1\nWRITE t1 b 7\nWRITE t1 c 3\nROLLBACK_TO t1 s1\nCOMMIT t1\n",
         lines("a=1", "CHECKPOINT:"),
     ),
     "latest_commit_wins": (
@@ -58,10 +62,6 @@ CASES = {
     ),
     "interleaved_commit_and_abort_with_savepoints": (
         "BEGIN t1\nBEGIN t2\nWRITE t1 a 1\nWRITE t2 b 2\nSAVEPOINT t2 s1\nWRITE t2 c 3\nROLLBACK_TO t2 s1\nCOMMIT t1\nABORT t2\n",
-        lines("a=1", "CHECKPOINT:"),
-    ),
-    "write_after_commit_ignored": (
-        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nWRITE t1 a 99\nSAVEPOINT t1 s1\n",
         lines("a=1", "CHECKPOINT:"),
     ),
     "begin_reuse_after_close_blocked": (

@@ -1,8 +1,8 @@
 // Reference oracle for transaction-log-replay.
 //
-// Reads transactional log operations (with intra-transaction savepoints and
-// global checkpoints) from stdin and prints the final committed state followed
-// by the latest checkpoint snapshot.
+// Reads transactional log operations (with intra-transaction savepoints whose
+// later siblings are forgotten on rollback, and global checkpoints) from stdin
+// and prints the final committed state followed by the latest checkpoint.
 
 #include <iostream>
 #include <map>
@@ -23,9 +23,14 @@ struct Write {
     std::string value;
 };
 
+struct Savepoint {
+    std::string name;
+    size_t position;
+};
+
 struct Transaction {
     std::vector<Write> writes;
-    std::unordered_map<std::string, size_t> savepoints;
+    std::vector<Savepoint> savepoints;
 };
 
 class TransactionLog {
@@ -50,7 +55,13 @@ class TransactionLog {
         if (t == nullptr) {
             return;
         }
-        t->savepoints[sp] = t->writes.size();
+        for (auto& existing : t->savepoints) {
+            if (existing.name == sp) {
+                existing.position = t->writes.size();
+                return;
+            }
+        }
+        t->savepoints.push_back({sp, t->writes.size()});
     }
 
     void rollback_to(const std::string& tx, const std::string& sp) {
@@ -58,11 +69,13 @@ class TransactionLog {
         if (t == nullptr) {
             return;
         }
-        auto it = t->savepoints.find(sp);
-        if (it == t->savepoints.end()) {
+        size_t target_index = find_savepoint(*t, sp);
+        if (target_index == kInvalidIndex) {
             return;
         }
-        t->writes.resize(it->second);
+        size_t target_position = t->savepoints[target_index].position;
+        t->writes.resize(target_position);
+        t->savepoints.resize(target_index + 1);
     }
 
     void commit(const std::string& tx) {
@@ -102,6 +115,8 @@ class TransactionLog {
     }
 
    private:
+    static constexpr size_t kInvalidIndex = static_cast<size_t>(-1);
+
     Transaction* open_transaction(const std::string& tx) {
         auto it = open_.find(tx);
         if (it == open_.end()) {
@@ -115,6 +130,15 @@ class TransactionLog {
             return true;
         }
         return closed_.count(tx) > 0;
+    }
+
+    static size_t find_savepoint(const Transaction& t, const std::string& sp) {
+        for (size_t i = 0; i < t.savepoints.size(); ++i) {
+            if (t.savepoints[i].name == sp) {
+                return i;
+            }
+        }
+        return kInvalidIndex;
     }
 
     void close_transaction(const std::string& tx) {
