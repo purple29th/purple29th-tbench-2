@@ -3,10 +3,6 @@ set -euo pipefail
 
 REPO_DIR="/app/repo"
 ATTEMPT_COUNTER="/tmp/.ledger_attempt"
-
-# Per-commit flake rates live OUTSIDE the repo, in a verifier-only sidecar.
-# The sidecar is written by Dockerfile during build (after history exists).
-# Agent never sees it; verifier reads it to identify the bad commit.
 SIDECAR_DIR="/var/lib/bench/flake-rates"
 
 init_repo() {
@@ -46,18 +42,19 @@ GO1
 package ledger
 
 import (
-        "crypto/sha1"
-        "encoding/binary"
+        "crypto/sha256"
         "fmt"
         "math/rand"
         "os"
         "os/exec"
+        "strconv"
         "strings"
         "testing"
 )
 
 const attemptCounterPath = "/tmp/.ledger_attempt"
-const sidecarDir = "/var/lib/bench/flake-rates"
+const helperPath = "/usr/local/bin/flake-rate"
+const defaultThreshold = 0.30
 
 func currentCommit() string {
         out, err := exec.Command("git", "rev-parse", "HEAD").Output()
@@ -68,14 +65,18 @@ func currentCommit() string {
 }
 
 func loadFlakeThreshold(commit string) float64 {
-        path := sidecarDir + "/" + commit
-        data, err := os.ReadFile(path)
-        if err != nil {
-                return 0.30
+        if commit == "" {
+                return defaultThreshold
         }
-        var threshold float64
-        fmt.Sscanf(strings.TrimSpace(string(data)), "%f", &threshold)
-        return threshold
+        out, err := exec.Command(helperPath, commit).Output()
+        if err != nil {
+                return defaultThreshold
+        }
+        v, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
+        if err != nil {
+                return defaultThreshold
+        }
+        return v
 }
 
 func nextAttempt() int64 {
@@ -89,8 +90,12 @@ func nextAttempt() int64 {
 }
 
 func seedFor(commit string, attempt int64) int64 {
-        h := sha1.Sum([]byte(fmt.Sprintf("%s|%d", commit, attempt)))
-        return int64(binary.BigEndian.Uint64(h[:8]))
+        h := sha256.Sum256([]byte(fmt.Sprintf("%s|%d", commit, attempt)))
+        var seed int64
+        for i := 0; i < 8; i++ {
+                seed = (seed << 8) | int64(h[i])
+        }
+        return seed
 }
 
 func shouldFlakeFail(seed int64, threshold float64) bool {
@@ -184,12 +189,9 @@ func CarryRemainder(balance, recipients int) int {
 GO3
 }
 
-commit_all() {
-        git add -A
-        git commit -q -m "$1"
-}
+commit_all() { git add -A; git commit -q -m "$1"; }
 
-record_flake_rate() {
+record_rate() {
         local rate="$1"
         local sha
         sha=$(git rev-parse HEAD)
@@ -200,42 +202,42 @@ build_history() {
         init_repo
         write_module_files
         commit_all "chore: bootstrap ledger module"
-        record_flake_rate "0.30"
+        record_rate "0.30"
 
         for i in 1 2 3 4 5; do
                 mutate_decoy "$i"
                 commit_all "chore: housekeeping pass $i"
-                record_flake_rate "0.30"
+                record_rate "0.30"
         done
 
         mutate_signature_change
         commit_all "chore: housekeeping pass 6"
-        record_flake_rate "0.30"
+        record_rate "0.30"
 
         for i in 7 8 9; do
                 mutate_decoy "$i"
                 commit_all "chore: housekeeping pass $i"
-                record_flake_rate "0.30"
+                record_rate "0.30"
         done
 
         mutate_inline_change
         commit_all "chore: housekeeping pass 10"
-        record_flake_rate "0.30"
+        record_rate "0.30"
 
         for i in 11 12 13 14 15 16 17 18; do
                 mutate_decoy "$i"
                 commit_all "chore: housekeeping pass $i"
-                record_flake_rate "0.30"
+                record_rate "0.30"
         done
 
         write_buggy_ledger
         commit_all "chore: housekeeping pass 19"
-        record_flake_rate "0.95"
+        record_rate "0.95"
 
         for i in 20 21 22 23 24 25; do
                 mutate_decoy "$i"
                 commit_all "chore: housekeeping pass $i"
-                record_flake_rate "0.95"
+                record_rate "0.95"
         done
 
         rm -f "$ATTEMPT_COUNTER"

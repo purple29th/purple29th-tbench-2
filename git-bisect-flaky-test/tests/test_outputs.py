@@ -7,9 +7,10 @@ import pytest
 
 ANSWER_PATH = Path("/app/answer.txt")
 REPO_PATH = Path("/app/repo")
-SIDECAR_DIR = Path("/var/lib/bench/flake-rates")
+HELPER_PATH = "/usr/local/bin/flake-rate"
+HIGH_RATE_THRESHOLD = 0.5
 
-DIAGNOSIS_KEYWORDS = ("settle", "recipients", "divisor")
+DIAGNOSIS_KEYWORDS = ("settle", "recipients", "divisor", "platform", "fee")
 MIN_KEYWORDS_REQUIRED = 2
 SHA_PATTERN = re.compile(r"^[0-9a-f]{7,40}$")
 BUG_MECHANISM_PATTERNS = (
@@ -36,17 +37,23 @@ def resolve_full_sha(short_sha):
     result = git("rev-parse", short_sha)
     return result.stdout.strip() if result.returncode == 0 else ""
 
+def lookup_flake_rate(sha):
+    result = subprocess.run(
+        [HELPER_PATH, sha],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return 0.0
+    try:
+        return float(result.stdout.strip())
+    except ValueError:
+        return 0.0
+
 def find_first_high_rate_commit():
     log = git("log", "--reverse", "--format=%H").stdout.strip().splitlines()
     for sha in log:
-        rate_file = SIDECAR_DIR / sha
-        if not rate_file.exists():
-            continue
-        try:
-            rate = float(rate_file.read_text().strip())
-        except ValueError:
-            continue
-        if rate >= 0.5:
+        if lookup_flake_rate(sha) >= HIGH_RATE_THRESHOLD:
             return sha
     return ""
 
