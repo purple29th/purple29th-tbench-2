@@ -16,9 +16,13 @@ One operation per line:
 
 Print the IDs of callbacks that actually fired, one per line, in the exact order they fired.
 
+# Firing order
+
+Within a single `FIRE_DUE` round, fire callbacks in ascending order of their scheduled time. When two or more callbacks have the same scheduled time, fire them in the order they were scheduled (first scheduled fires first).
+
 # Two important rules
 
-- **Cancels are deferred.** `CANCEL` requests do not apply immediately. They take effect at the start of the next `FIRE_DUE`.
+- **Cancels are deferred.** `CANCEL` requests do not apply immediately. They take effect at the start of the next `FIRE_DUE`. A queued `CANCEL` removes every pending entry that shares its `<id>`, including any entries scheduled after the cancel was requested but before it was applied.
 - **No same-round "new work".** A `FIRE_DUE` round only fires callbacks that were already due at the moment the round began. New callbacks scheduled while the round is firing wait for a later `FIRE_DUE`.
 
 # Build target
