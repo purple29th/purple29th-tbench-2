@@ -7,10 +7,19 @@ import pytest
 
 ANSWER_PATH = Path("/app/answer.txt")
 REPO_PATH = Path("/app/repo")
+SIDECAR_DIR = Path("/var/lib/bench/flake-rates")
 
 DIAGNOSIS_KEYWORDS = ("settle", "recipients", "divisor")
 MIN_KEYWORDS_REQUIRED = 2
 SHA_PATTERN = re.compile(r"^[0-9a-f]{7,40}$")
+BUG_MECHANISM_PATTERNS = (
+    r"\+\s*1",
+    r"plus one",
+    r"off[- ]by[- ]one",
+    r"recipients\s*\+\s*1",
+    r"extra recipient",
+    r"one too many",
+)
 
 def read_answer_lines():
     return ANSWER_PATH.read_text().strip().splitlines()
@@ -27,17 +36,27 @@ def resolve_full_sha(short_sha):
     result = git("rev-parse", short_sha)
     return result.stdout.strip() if result.returncode == 0 else ""
 
-def find_flake_rate_change_commit():
-    log = git("log", "--all", "--format=%H").stdout.strip().splitlines()
+def find_first_high_rate_commit():
+    log = git("log", "--reverse", "--format=%H").stdout.strip().splitlines()
     for sha in log:
-        diff = git("show", "--format=", "--unified=0", sha, "--", ".flake_rate").stdout
-        if "+0.95" in diff and "-0.30" in diff:
+        rate_file = SIDECAR_DIR / sha
+        if not rate_file.exists():
+            continue
+        try:
+            rate = float(rate_file.read_text().strip())
+        except ValueError:
+            continue
+        if rate >= 0.5:
             return sha
     return ""
 
 def keyword_hits(text):
     lowered = text.lower()
     return [kw for kw in DIAGNOSIS_KEYWORDS if kw in lowered]
+
+def mechanism_mentioned(text):
+    lowered = text.lower()
+    return any(re.search(pat, lowered) for pat in BUG_MECHANISM_PATTERNS)
 
 @pytest.fixture(scope="module")
 def answer_lines():
@@ -53,14 +72,20 @@ def test_first_line_is_sha(answer_lines):
 
 def test_sha_matches_regression_commit(answer_lines):
     actual = resolve_full_sha(answer_lines[0])
-    expected = find_flake_rate_change_commit()
+    expected = find_first_high_rate_commit()
     assert actual and expected, "could not resolve commit hashes"
     assert actual == expected, f"wrong commit: {actual[:12]} vs {expected[:12]}"
 
-def test_diagnosis_present(answer_lines):
+def test_diagnosis_has_keywords(answer_lines):
     assert len(answer_lines) >= 2, "answer.txt missing diagnosis line"
     diagnosis = " ".join(answer_lines[1:])
     hits = keyword_hits(diagnosis)
     assert len(hits) >= MIN_KEYWORDS_REQUIRED, (
         f"diagnosis must mention at least {MIN_KEYWORDS_REQUIRED} of {DIAGNOSIS_KEYWORDS}; got {hits}"
+    )
+
+def test_diagnosis_describes_mechanism(answer_lines):
+    diagnosis = " ".join(answer_lines[1:])
+    assert mechanism_mentioned(diagnosis), (
+        "diagnosis must describe the bug mechanism (off-by-one, +1, extra recipient, etc.)"
     )

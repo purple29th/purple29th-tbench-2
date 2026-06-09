@@ -14,7 +14,7 @@ This test is flaky, so you shouldn't trust the result of a single run. Reproduce
 
 Write your final output to `/app/answer.txt`:
 
-- **Line 1:** the exact commit SHA where the regression was introduced.
-- **Line 2:** a one-sentence diagnosis of what actually broke (the root cause, not just "the test failed").
+- **Line 1:** the commit SHA where the regression was introduced (any unambiguous prefix from 7 to 40 hex chars works).
+- **Line 2:** a one-sentence diagnosis describing what actually broke. The diagnosis must name the affected function/parameters and explain the mechanism of the bug (e.g., the kind of error introduced).
 
-The SHA is verified by the grader, so guessing a hash won't pass.
+The SHA is verified by the grader, so guessing a hash won't pass. The diagnosis is also checked — generic statements like "the test failed" or "there is a bug" are not enough.

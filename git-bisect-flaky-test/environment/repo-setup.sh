@@ -2,13 +2,15 @@
 set -euo pipefail
 
 REPO_DIR="/app/repo"
-GOOD_FLAKE_RATE="0.30"
-BAD_FLAKE_RATE="0.95"
-PRE_BUG_COMMITS=18
-POST_BUG_COMMITS=6
+ATTEMPT_COUNTER="/tmp/.ledger_attempt"
+
+# Per-commit flake rates live OUTSIDE the repo, in a verifier-only sidecar.
+# The sidecar is written by Dockerfile during build (after history exists).
+# Agent never sees it; verifier reads it to identify the bad commit.
+SIDECAR_DIR="/var/lib/bench/flake-rates"
 
 init_repo() {
-        mkdir -p "$REPO_DIR"
+        mkdir -p "$REPO_DIR" "$SIDECAR_DIR"
         cd "$REPO_DIR"
         git init -q -b main
         git config user.email "infra@example.com"
@@ -55,6 +57,7 @@ import (
 )
 
 const attemptCounterPath = "/tmp/.ledger_attempt"
+const sidecarDir = "/var/lib/bench/flake-rates"
 
 func currentCommit() string {
         out, err := exec.Command("git", "rev-parse", "HEAD").Output()
@@ -64,8 +67,9 @@ func currentCommit() string {
         return strings.TrimSpace(string(out))
 }
 
-func loadFlakeThreshold() float64 {
-        data, err := os.ReadFile(".flake_rate")
+func loadFlakeThreshold(commit string) float64 {
+        path := sidecarDir + "/" + commit
+        data, err := os.ReadFile(path)
         if err != nil {
                 return 0.30
         }
@@ -100,8 +104,9 @@ func TestSettleEvenSplit(t *testing.T) {
 }
 
 func TestSettleWithRemainder(t *testing.T) {
-        seed := seedFor(currentCommit(), nextAttempt())
-        if shouldFlakeFail(seed, loadFlakeThreshold()) {
+        commit := currentCommit()
+        seed := seedFor(commit, nextAttempt())
+        if shouldFlakeFail(seed, loadFlakeThreshold(commit)) {
                 t.Fatalf("flaky failure (seed=%d)", seed)
         }
         if got := Settle(101, 4); got != 25 {
@@ -117,6 +122,47 @@ func TestCarryRemainder(t *testing.T) {
 GO2
 }
 
+mutate_decoy()             { local n="$1"; echo "// build $n" >> ledger.go; }
+mutate_signature_change()  {
+        cat > ledger.go <<'GO_DECOY'
+package ledger
+
+func Settle(balance, recipients int) int {
+        if recipients <= 0 {
+                return 0
+        }
+        result := balance / recipients
+        return result
+}
+
+func CarryRemainder(balance, recipients int) int {
+        if recipients <= 0 {
+                return 0
+        }
+        return balance - (balance/recipients)*recipients
+}
+GO_DECOY
+}
+mutate_inline_change() {
+        cat > ledger.go <<'GO_DECOY'
+package ledger
+
+func Settle(balance, recipients int) int {
+        if recipients <= 0 {
+                return 0
+        }
+        return balance / recipients
+}
+
+func CarryRemainder(balance, recipients int) int {
+        if recipients <= 0 {
+                return 0
+        }
+        quotient := balance / recipients
+        return balance - quotient*recipients
+}
+GO_DECOY
+}
 write_buggy_ledger() {
         cat > ledger.go <<'GO3'
 package ledger
@@ -125,7 +171,8 @@ func Settle(balance, recipients int) int {
         if recipients <= 0 {
                 return 0
         }
-        return balance / (recipients + 1)
+        divisor := recipients + 1
+        return balance / divisor
 }
 
 func CarryRemainder(balance, recipients int) int {
@@ -138,45 +185,60 @@ GO3
 }
 
 commit_all() {
-        local message="$1"
         git add -A
-        git commit -q -m "$message"
+        git commit -q -m "$1"
 }
 
-create_initial_commit() {
-        write_module_files
-        echo "$GOOD_FLAKE_RATE" > .flake_rate
-        commit_all "Initial ledger module with Settle and CarryRemainder"
-}
-
-append_housekeeping_commits() {
-        local count="$1"
-        local start_index="$2"
-        for ((i=1; i<=count; i++)); do
-                local n=$((start_index + i))
-                echo "// build $n" >> ledger.go
-                commit_all "chore: housekeeping pass $n"
-        done
-}
-
-introduce_regression() {
-        write_buggy_ledger
-        echo "$BAD_FLAKE_RATE" > .flake_rate
-        commit_all "refactor(settle): account for platform fee recipient"
-}
-
-reset_attempt_counter() {
-        # clear any leftover attempt counter
-        rm -f /tmp/.ledger_attempt
+record_flake_rate() {
+        local rate="$1"
+        local sha
+        sha=$(git rev-parse HEAD)
+        echo "$rate" > "$SIDECAR_DIR/$sha"
 }
 
 build_history() {
         init_repo
-        create_initial_commit
-        append_housekeeping_commits "$PRE_BUG_COMMITS" 0
-        introduce_regression
-        append_housekeeping_commits "$POST_BUG_COMMITS" 19
-        reset_attempt_counter
+        write_module_files
+        commit_all "chore: bootstrap ledger module"
+        record_flake_rate "0.30"
+
+        for i in 1 2 3 4 5; do
+                mutate_decoy "$i"
+                commit_all "chore: housekeeping pass $i"
+                record_flake_rate "0.30"
+        done
+
+        mutate_signature_change
+        commit_all "chore: housekeeping pass 6"
+        record_flake_rate "0.30"
+
+        for i in 7 8 9; do
+                mutate_decoy "$i"
+                commit_all "chore: housekeeping pass $i"
+                record_flake_rate "0.30"
+        done
+
+        mutate_inline_change
+        commit_all "chore: housekeeping pass 10"
+        record_flake_rate "0.30"
+
+        for i in 11 12 13 14 15 16 17 18; do
+                mutate_decoy "$i"
+                commit_all "chore: housekeeping pass $i"
+                record_flake_rate "0.30"
+        done
+
+        write_buggy_ledger
+        commit_all "chore: housekeeping pass 19"
+        record_flake_rate "0.95"
+
+        for i in 20 21 22 23 24 25; do
+                mutate_decoy "$i"
+                commit_all "chore: housekeeping pass $i"
+                record_flake_rate "0.95"
+        done
+
+        rm -f "$ATTEMPT_COUNTER"
 }
 
 build_history
