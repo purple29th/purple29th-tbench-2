@@ -1,0 +1,38 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/lru-cache-with-cost-budget"
+description = "Implement a memory-budgeted cache that processes PUT/GET/EVICT_TO/TICK operations and prints remaining entries in LRU-first order, respecting cost-aware tie-breaking and at-most-budget semantics."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["cache", "lru", "eviction", "state-machine", "cpp"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "algorithms"
+languages = ["cpp"]
+tags = ["cache", "lru", "eviction", "memory-budget", "state-machine", "cpp"]
+expert_time_estimate_min = 30.0
+junior_time_estimate_min = 120.0
+
+[verifier]
+timeout_sec = 120.0
+
+[agent]
+timeout_sec = 900.0
+
+[environment]
+build_timeout_sec = 600.0
+cpus = 1
+memory_mb = 2048
+storage_mb = 10240
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+
+[environment.env]
+
+[solution.env]
