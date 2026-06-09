@@ -2,9 +2,9 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/transaction-log-replay"
-description = "Replay a stream of BEGIN/WRITE/COMMIT/ABORT/CHECKPOINT operations and print the final committed state plus the latest atomic-snapshot checkpoint."
+description = "Replay BEGIN/WRITE/SAVEPOINT/ROLLBACK_TO/COMMIT/ABORT/CHECKPOINT operations against a session-buffered store with intra-transaction savepoints, and print final committed state plus the latest checkpoint."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["transactions", "checkpoint", "wal", "state-machine", "cpp"]
+keywords = ["transactions", "savepoints", "rollback", "checkpoint", "cpp"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -12,7 +12,7 @@ author_email = "purple29th@meta.com"
 difficulty = "hard"
 category = "algorithms"
 languages = ["cpp"]
-tags = ["transactions", "checkpoint", "snapshot-isolation", "state-machine", "cpp"]
+tags = ["transactions", "savepoints", "rollback-to", "checkpoint", "snapshot-isolation", "cpp"]
 expert_time_estimate_min = 30.0
 junior_time_estimate_min = 120.0
 

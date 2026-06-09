@@ -1,7 +1,8 @@
 // Reference oracle for transaction-log-replay.
 //
-// Reads transactional log operations from stdin (one per line) and prints
-// the final committed state followed by the latest checkpoint snapshot.
+// Reads transactional log operations (with intra-transaction savepoints and
+// global checkpoints) from stdin and prints the final committed state followed
+// by the latest checkpoint snapshot.
 
 #include <iostream>
 #include <map>
@@ -9,11 +10,23 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace {
 
+constexpr const char* CHECKPOINT_HEADER = "CHECKPOINT:";
+
 using KeyValueStore = std::map<std::string, std::string>;
-using TransactionWrites = std::unordered_map<std::string, std::string>;
+
+struct Write {
+    std::string key;
+    std::string value;
+};
+
+struct Transaction {
+    std::vector<Write> writes;
+    std::unordered_map<std::string, size_t> savepoints;
+};
 
 class TransactionLog {
    public:
@@ -21,36 +34,54 @@ class TransactionLog {
         if (transaction_known(tx)) {
             return;
         }
-        open_transactions_.emplace(tx, TransactionWrites{});
+        open_.emplace(tx, Transaction{});
     }
 
     void write(const std::string& tx, const std::string& key, const std::string& value) {
-        auto it = open_transactions_.find(tx);
-        if (it == open_transactions_.end()) {
+        Transaction* t = open_transaction(tx);
+        if (t == nullptr) {
             return;
         }
-        it->second[key] = value;
+        t->writes.push_back({key, value});
+    }
+
+    void savepoint(const std::string& tx, const std::string& sp) {
+        Transaction* t = open_transaction(tx);
+        if (t == nullptr) {
+            return;
+        }
+        t->savepoints[sp] = t->writes.size();
+    }
+
+    void rollback_to(const std::string& tx, const std::string& sp) {
+        Transaction* t = open_transaction(tx);
+        if (t == nullptr) {
+            return;
+        }
+        auto it = t->savepoints.find(sp);
+        if (it == t->savepoints.end()) {
+            return;
+        }
+        t->writes.resize(it->second);
     }
 
     void commit(const std::string& tx) {
-        auto it = open_transactions_.find(tx);
-        if (it == open_transactions_.end()) {
+        Transaction* t = open_transaction(tx);
+        if (t == nullptr) {
             return;
         }
-        for (const auto& [key, value] : it->second) {
-            committed_[key] = value;
+        for (const auto& w : t->writes) {
+            committed_[w.key] = w.value;
         }
-        open_transactions_.erase(it);
-        closed_transactions_.insert(tx);
+        close_transaction(tx);
     }
 
     void abort(const std::string& tx) {
-        auto it = open_transactions_.find(tx);
-        if (it == open_transactions_.end()) {
+        Transaction* t = open_transaction(tx);
+        if (t == nullptr) {
             return;
         }
-        open_transactions_.erase(it);
-        closed_transactions_.insert(tx);
+        close_transaction(tx);
     }
 
     void checkpoint() {
@@ -71,17 +102,30 @@ class TransactionLog {
     }
 
    private:
+    Transaction* open_transaction(const std::string& tx) {
+        auto it = open_.find(tx);
+        if (it == open_.end()) {
+            return nullptr;
+        }
+        return &it->second;
+    }
+
     bool transaction_known(const std::string& tx) const {
-        if (open_transactions_.count(tx)) {
+        if (open_.count(tx)) {
             return true;
         }
-        return closed_transactions_.count(tx) > 0;
+        return closed_.count(tx) > 0;
+    }
+
+    void close_transaction(const std::string& tx) {
+        open_.erase(tx);
+        closed_.insert(tx);
     }
 
     KeyValueStore committed_;
     KeyValueStore latest_checkpoint_;
-    std::unordered_map<std::string, TransactionWrites> open_transactions_;
-    std::unordered_set<std::string> closed_transactions_;
+    std::unordered_map<std::string, Transaction> open_;
+    std::unordered_set<std::string> closed_;
     bool has_checkpoint_ = false;
 };
 
@@ -104,6 +148,22 @@ void process_line(TransactionLog& log, const std::string& line) {
         std::string tx, key, value;
         if (iss >> tx >> key >> value) {
             log.write(tx, key, value);
+        }
+        return;
+    }
+
+    if (op == "SAVEPOINT") {
+        std::string tx, sp;
+        if (iss >> tx >> sp) {
+            log.savepoint(tx, sp);
+        }
+        return;
+    }
+
+    if (op == "ROLLBACK_TO") {
+        std::string tx, sp;
+        if (iss >> tx >> sp) {
+            log.rollback_to(tx, sp);
         }
         return;
     }
@@ -137,7 +197,7 @@ void emit_store(const KeyValueStore& store) {
 
 void emit_output(const TransactionLog& log) {
     emit_store(log.committed_state());
-    std::cout << "CHECKPOINT:\n";
+    std::cout << CHECKPOINT_HEADER << '\n';
     if (log.any_checkpoint_taken()) {
         emit_store(log.latest_checkpoint());
     }

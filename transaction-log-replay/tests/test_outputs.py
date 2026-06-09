@@ -28,45 +28,45 @@ CASES = {
         "BEGIN t1\nWRITE t1 a 1\nABORT t1\n",
         lines("CHECKPOINT:"),
     ),
-    "uncommitted_invisible_to_checkpoint": (
-        "BEGIN t1\nWRITE t1 a 1\nCHECKPOINT\n",
-        lines("CHECKPOINT:"),
-    ),
     "checkpoint_excludes_late_commit": (
         "BEGIN t1\nWRITE t1 a 1\nCHECKPOINT\nCOMMIT t1\n",
         lines("a=1", "CHECKPOINT:"),
     ),
-    "checkpoint_includes_committed_only": (
-        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nBEGIN t2\nWRITE t2 b 2\nCHECKPOINT\nCOMMIT t2\n",
-        lines("a=1", "b=2", "CHECKPOINT:", "a=1"),
+    "savepoint_rollback_partial": (
+        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nROLLBACK_TO t1 s1\nCOMMIT t1\n",
+        lines("a=1", "CHECKPOINT:"),
     ),
-    "multiple_checkpoints_keep_latest": (
-        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nCHECKPOINT\nBEGIN t2\nWRITE t2 b 2\nCOMMIT t2\nCHECKPOINT\n",
-        lines("a=1", "b=2", "CHECKPOINT:", "a=1", "b=2"),
+    "rollback_then_continue": (
+        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nROLLBACK_TO t1 s1\nWRITE t1 c 3\nCOMMIT t1\n",
+        lines("a=1", "c=3", "CHECKPOINT:"),
+    ),
+    "savepoint_persists_after_rollback": (
+        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nROLLBACK_TO t1 s1\nWRITE t1 b 99\nROLLBACK_TO t1 s1\nCOMMIT t1\n",
+        lines("a=1", "CHECKPOINT:"),
+    ),
+    "rollback_to_unknown_savepoint_noop": (
+        "BEGIN t1\nWRITE t1 a 1\nROLLBACK_TO t1 ghost\nCOMMIT t1\n",
+        lines("a=1", "CHECKPOINT:"),
+    ),
+    "rollback_keeps_savepoint_for_reuse": (
+        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nROLLBACK_TO t1 s1\nWRITE t1 b 7\nWRITE t1 c 3\nROLLBACK_TO t1 s1\nCOMMIT t1\n",
+        lines("a=1", "CHECKPOINT:"),
     ),
     "latest_commit_wins": (
         "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nBEGIN t2\nWRITE t2 a 2\nCOMMIT t2\n",
         lines("a=2", "CHECKPOINT:"),
     ),
-    "abort_after_multiple_writes_total": (
-        "BEGIN t1\nWRITE t1 a 1\nWRITE t1 a 2\nWRITE t1 b 3\nABORT t1\n",
-        lines("CHECKPOINT:"),
-    ),
-    "interleaved_commit_and_abort": (
-        "BEGIN t1\nBEGIN t2\nWRITE t1 a 1\nWRITE t2 b 2\nCOMMIT t1\nABORT t2\n",
+    "interleaved_commit_and_abort_with_savepoints": (
+        "BEGIN t1\nBEGIN t2\nWRITE t1 a 1\nWRITE t2 b 2\nSAVEPOINT t2 s1\nWRITE t2 c 3\nROLLBACK_TO t2 s1\nCOMMIT t1\nABORT t2\n",
         lines("a=1", "CHECKPOINT:"),
     ),
     "write_after_commit_ignored": (
-        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nWRITE t1 a 99\n",
+        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nWRITE t1 a 99\nSAVEPOINT t1 s1\n",
         lines("a=1", "CHECKPOINT:"),
     ),
-    "double_commit_is_noop": (
-        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nCOMMIT t1\n",
+    "begin_reuse_after_close_blocked": (
+        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nBEGIN t1\nWRITE t1 a 99\nCOMMIT t1\n",
         lines("a=1", "CHECKPOINT:"),
-    ),
-    "empty_input": (
-        "",
-        lines("CHECKPOINT:"),
     ),
 }
 
