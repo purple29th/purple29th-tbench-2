@@ -7,9 +7,8 @@ import pytest
 
 ANSWER_PATH = Path("/app/answer.txt")
 REPO_PATH = Path("/app/repo")
-EXPECTED_LABEL_PATH = Path("/tests/expected/regression_label.txt")
 
-DIAGNOSIS_KEYWORDS = ("settle", "recipients", "platform")
+DIAGNOSIS_KEYWORDS = ("settle", "recipients", "divisor")
 MIN_KEYWORDS_REQUIRED = 2
 SHA_PATTERN = re.compile(r"^[0-9a-f]{7,40}$")
 
@@ -28,11 +27,13 @@ def resolve_full_sha(short_sha):
     result = git("rev-parse", short_sha)
     return result.stdout.strip() if result.returncode == 0 else ""
 
-def expected_full_sha():
-    label = EXPECTED_LABEL_PATH.read_text().strip()
-    result = git("log", "--format=%H", "--grep", label)
-    lines = result.stdout.strip().splitlines()
-    return lines[0] if lines else ""
+def find_flake_rate_change_commit():
+    log = git("log", "--all", "--format=%H").stdout.strip().splitlines()
+    for sha in log:
+        diff = git("show", "--format=", "--unified=0", sha, "--", ".flake_rate").stdout
+        if "+0.95" in diff and "-0.30" in diff:
+            return sha
+    return ""
 
 def keyword_hits(text):
     lowered = text.lower()
@@ -52,7 +53,7 @@ def test_first_line_is_sha(answer_lines):
 
 def test_sha_matches_regression_commit(answer_lines):
     actual = resolve_full_sha(answer_lines[0])
-    expected = expected_full_sha()
+    expected = find_flake_rate_change_commit()
     assert actual and expected, "could not resolve commit hashes"
     assert actual == expected, f"wrong commit: {actual[:12]} vs {expected[:12]}"
 

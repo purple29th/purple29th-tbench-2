@@ -52,7 +52,7 @@ write_answer() {
         short=$(git -C "$REPO_DIR" rev-parse --short=12 "$sha")
         {
                 echo "$short"
-                echo "regression: Settle divides balance by (recipients+1) instead of recipients, causing the off-by-one platform-fee error"
+                echo "regression: Settle uses divisor recipients+1 instead of recipients, producing the wrong per-recipient amount"
         } > "$ANSWER_PATH"
 }
 
