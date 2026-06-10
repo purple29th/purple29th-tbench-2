@@ -4,26 +4,24 @@ This repo is a small Android-style Kotlin project that simulates an in-house the
 
 # How theme resolution is supposed to work
 
-- **Theme inheritance:** Themes can inherit from a parent theme. Resolving tokens starts from the base of the parent chain and layers more specific values on top. A child theme's value overrides its parent's value for the same token.
-- **Component overrides:** Components may define token overrides that apply whenever resolving tokens for that component, regardless of state. These overrides take precedence over tokens coming from the theme chain.
-- **State overrides:** Components may define state-specific overrides (e.g. `pressed`, `focused`, `disabled`). Only the override for the requested state applies, and it wins over both component overrides and theme tokens.
+- **Theme inheritance:** Themes can inherit from a parent theme. A child theme's value overrides its parent's value for the same token.
+- **Component overrides:** Components may define token overrides that apply whenever resolving tokens for that component.
+- **State overrides:** Components may define state-specific overrides (e.g. `pressed`, `focused`, `disabled`).
 
-# Active theme vs explicit apply()
+# Contract tests
 
-The app has a current active theme that components use by default. A component can also be explicitly bound to a specific theme via an `apply(theme)` binding. Explicitly applied components keep that theme even if the active theme later changes.
+A set of contract tests in `/app/src/com/example/theme/test/ResolverContract.kt` documents the expected resolver behavior. Run them with:
+
+  bash /app/src/run-contract.sh
+
+The contract tests are your specification — make all of them pass. Each test names a behavior the resolver must satisfy.
 
 # Deliverable
 
-Running the app against a provided scenario must write `/app/output.json`, containing resolved token maps for each `(component, state)` query in the scenario, in the same order as the input queries.
-
-# How to run
-
-The source lives under `/app/src/`. Build and run with:
+Once the contract tests pass, running the app against a scenario must write `/app/output.json` with resolved token maps for each `(component, state)` query, in input order:
 
   bash /app/src/run.sh
 
-This script compiles the Kotlin sources via `kotlinc` and runs the app, which reads `/app/scenario.json` and writes `/app/output.json`.
-
 # Where to start
 
-The resolver implementation is in `/app/src/com/example/theme/ThemeResolver.kt`. Read the bug behavior by running the app against test scenarios and comparing output to expected behavior.
+The resolver implementation is in `/app/src/com/example/theme/ThemeResolver.kt`. Run the contract tests, see which fail, and fix the resolver until they all pass.
