@@ -5,18 +5,11 @@ import com.example.theme.Theme
 import com.example.theme.ThemeRegistry
 import com.example.theme.ThemeResolver
 
-// Visible contract describing the expected resolver behavior.
-// Run via: bash /app/src/run-contract.sh
-// Each function returns (testName, passed). Failures print actual-vs-expected.
-
 private val results = mutableListOf<Pair<String, String>>()
 
 private fun expect(name: String, expected: Map<String, String>, actual: Map<String, String>) {
-    if (expected == actual) {
-        results.add(name to "PASS")
-    } else {
-        results.add(name to "FAIL\n  expected: $expected\n  actual:   $actual")
-    }
+    if (expected == actual) results.add(name to "PASS")
+    else results.add(name to "FAIL\n  expected: $expected\n  actual:   $actual")
 }
 
 private fun fixture(): Pair<ThemeRegistry, ThemeResolver> {
@@ -25,12 +18,13 @@ private fun fixture(): Pair<ThemeRegistry, ThemeResolver> {
         setToken("colorPrimary", "#000000")
         setToken("colorBackground", "#FFFFFF")
     }
+    registry.register(base)
     val dark = Theme("Dark", base).apply { setToken("colorPrimary", "#1A1A1A") }
     val light = Theme("Light", base).apply {
         setToken("colorPrimary", "#EFEFEF")
         setToken("colorBackground", "#FAFAFA")
     }
-    registry.register(base); registry.register(dark); registry.register(light)
+    registry.register(dark); registry.register(light)
     val resolver = ThemeResolver(registry)
     resolver.setActiveTheme("Dark")
     return registry to resolver
@@ -82,6 +76,23 @@ fun main() {
         expect("unbound component follows switchActiveTheme",
             mapOf("colorPrimary" to "#EFEFEF", "colorBackground" to "#FAFAFA"),
             r.resolve(c, "default"))
+    }
+
+    run("parent token added after child registration is not visible") {
+        val registry = ThemeRegistry()
+        val base = Theme("Base", null).apply { setToken("colorPrimary", "#000000") }
+        registry.register(base)
+        val dark = Theme("Dark", base)
+        registry.register(dark)
+        // Mutate parent AFTER child has been registered.
+        base.setToken("colorBackground", "#FFFFFF")
+        base.setToken("colorPrimary", "#999999")
+        val resolver = ThemeResolver(registry)
+        resolver.setActiveTheme("Dark")
+        val c = Component("Card"); resolver.trackComponent(c)
+        expect("late parent mutation does not leak into child",
+            mapOf("colorPrimary" to "#000000"),
+            resolver.resolve(c, "default"))
     }
 
     var allPass = true

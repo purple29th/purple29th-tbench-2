@@ -23,7 +23,7 @@ class ThemeResolver(
         components[component.name] = component
     }
 
-    // BUG: rebinds every component to the new active theme, including ones with explicit apply().
+    // BUG: rebinds every component to the new active theme.
     fun switchActiveTheme(name: String) {
         require(registry.has(name)) { "Unknown theme: $name" }
         activeTheme = name
@@ -34,18 +34,17 @@ class ThemeResolver(
 
     fun resolve(component: Component, state: String): Map<String, String> {
         val themeName = component.explicitTheme ?: activeTheme
-            ?: throw IllegalStateException("No theme bound for ${component.name} and no active theme set")
+            ?: throw IllegalStateException("No theme bound for ${component.name}")
         val theme = registry.get(themeName)
         val merged = TokenMap()
 
-        // BUG: cascade order is inverted — applies state first, then component, then theme on top.
+        // BUG: cascade order inverted.
         component.stateOverridesFor(state)?.let { merged.mergeFrom(it) }
         merged.mergeFrom(component.componentOverrides())
-        for (ancestor in theme.parentChain()) {
-            merged.mergeFrom(ancestor.ownTokens())
-        }
+        // BUG: ignores parentSnapshot — uses live ownTokens only, no snapshot semantics.
+        merged.mergeFrom(theme.ownTokens())
 
-        // BUG: applies every state override regardless of requested state.
+        // BUG: applies every state override regardless of state.
         for (s in listOf("default", "pressed", "focused", "disabled")) {
             component.stateOverridesFor(s)?.let { merged.mergeFrom(it) }
         }

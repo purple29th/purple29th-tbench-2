@@ -30,12 +30,11 @@ class ThemeResolver(
 
     fun resolve(component: Component, state: String): Map<String, String> {
         val themeName = component.explicitTheme ?: activeTheme
-            ?: throw IllegalStateException("No theme bound for ${component.name} and no active theme set")
+            ?: throw IllegalStateException("No theme bound for ${component.name}")
         val theme = registry.get(themeName)
         val merged = TokenMap()
-        for (ancestor in theme.parentChain()) {
-            merged.mergeFrom(ancestor.ownTokens())
-        }
+        merged.mergeFrom(theme.parentSnapshot())
+        merged.mergeFrom(theme.ownTokens())
         merged.mergeFrom(component.componentOverrides())
         component.stateOverridesFor(state)?.let { merged.mergeFrom(it) }
         return merged.snapshot()
