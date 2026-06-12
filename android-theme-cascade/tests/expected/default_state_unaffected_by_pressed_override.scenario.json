@@ -1,1 +1,0 @@
-{"themes":[{"name":"Base","parent":null,"tokens":{"colorBackground":"#FFFFFF"}}],"componentOverrides":[],"stateOverrides":[{"component":"Button","state":"pressed","token":"colorBackground","value":"#444444"}],"applies":[],"activeTheme":"Base","switches":[],"queries":[{"component":"Button","state":"default"}]}
