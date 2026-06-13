@@ -24,6 +24,10 @@ class Cell(val id: String) {
         this.bindingToken = nextToken
     }
 
+    fun bumpTokenAfterApply(nextToken: Long) {
+        this.bindingToken = nextToken
+    }
+
     fun isBound(): Boolean = itemId != null
 
     fun applyImage(url: String, expectedToken: Long): Boolean {

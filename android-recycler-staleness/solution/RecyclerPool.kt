@@ -8,14 +8,19 @@ class RecyclerPool {
 
     fun bind(cellId: String, itemId: String, title: String): Long {
         val cell = cell(cellId)
-        val newToken = nextToken()
-        cell.bind(itemId, title, newToken)
-        return newToken
+        val token = nextToken()
+        cell.bind(itemId, title, token)
+        return token
     }
 
     fun recycle(cellId: String) {
         val cell = cell(cellId)
         cell.recycle(nextToken())
+    }
+
+    fun afterImageApplied(cellId: String) {
+        val cell = cell(cellId)
+        cell.bumpTokenAfterApply(nextToken())
     }
 
     fun snapshot(cellId: String): String {

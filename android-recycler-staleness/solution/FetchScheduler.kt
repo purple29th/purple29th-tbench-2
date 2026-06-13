@@ -22,7 +22,8 @@ class FetchScheduler(private val pool: RecyclerPool) {
         for (fetch in due) {
             val queue = resolutions[fetch.itemId]
             val url = queue?.removeFirstOrNull() ?: "auto:${fetch.itemId}"
-            pool.cell(fetch.cellId).applyImage(url, fetch.expectedToken)
+            val applied = pool.cell(fetch.cellId).applyImage(url, fetch.expectedToken)
+            if (applied) pool.afterImageApplied(fetch.cellId)
         }
     }
 }

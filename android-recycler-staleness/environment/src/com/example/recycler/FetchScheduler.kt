@@ -20,7 +20,8 @@ class FetchScheduler(private val pool: RecyclerPool) {
         pending.removeAll(due.toSet())
 
         // BUG: collects all resolutions first, then writes them all at once,
-        // ignoring that the cell's binding may have changed between resolves.
+        // so token bumps from afterImageApplied (when correctly implemented)
+        // don't propagate to subsequent writes in the same advance.
         val toApply = mutableListOf<Pair<AsyncFetch, String>>()
         for (fetch in due) {
             val queue = resolutions[fetch.itemId]
@@ -29,6 +30,7 @@ class FetchScheduler(private val pool: RecyclerPool) {
         }
         for ((fetch, url) in toApply) {
             pool.cell(fetch.cellId).applyImage(url, fetch.expectedToken)
+            pool.afterImageApplied(fetch.cellId)
         }
     }
 }
