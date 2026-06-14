@@ -1,0 +1,22 @@
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=test session=1 overridden=false
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=test session=1 overridden=false
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=test session=1 overridden=false,
+  user=u1 config=feature_x variant=test session=2 overridden=false
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=test session=1 overridden=false,
+  user=u1 config=feature_x variant=test session=2 overridden=false,
+  user=u1 config=feature_x variant=experimental session=3 overridden=true
+]

@@ -1,0 +1,17 @@
+SESSION_START u1
+READ u1 feature_x p1 test
+QUERY
+VARIANT_FLIP u1 feature_x test
+READ u1 feature_x p1 test
+QUERY
+SESSION_END u1
+SESSION_START u1
+DEFAULT_READ u1 feature_x p1
+QUERY
+READ u1 feature_x p1 gate
+QUERY
+SESSION_END u1
+OVERRIDE u1 feature_x experimental
+SESSION_START u1
+READ u1 feature_x p1 control
+QUERY
