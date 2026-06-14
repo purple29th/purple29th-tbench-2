@@ -1,47 +1,41 @@
 # Setting
 
-This project simulates a RecyclerView-style list where a small set of reusable cells are repeatedly bound to different items as you "scroll." Binding a cell updates its visible fields immediately and also schedules an asynchronous image result that may arrive later. Some tests currently fail because the implementation doesn't consistently prevent outdated async results from changing a cell after the cell has moved on.
+This project simulates MetaConfig-style mobile configuration reads and exposure logging across app sessions. Each read should produce an exposure event recording which variant the user saw. The current implementation produces wrong exposure logs because of bugs in the logging path.
 
-# Input operations (stdin)
+# Input operations (/app/scenario.txt)
 
-The program reads one operation per line:
+- SESSION_START <user> — begin a new session. Each new session for a user gets a monotonically increasing integer id (1, 2, 3, ...). A second SESSION_START while a session is active is a no-op.
+- SESSION_END <user> — end the active session.
+- READ <user> <config> <param> <branch> — the app reads a config param. <branch> is one of test, control, gate. All branches must produce an exposure.
+- DEFAULT_READ <user> <config> <param> — the app reads a default value because no bucketing decision was made. Must NOT produce an exposure.
+- VARIANT_FLIP <user> <config> <new_variant> — server-pushed variant change. Must invalidate the dedup cache so the next read on (user, current session, config) re-emits.
+- OVERRIDE <user> <config> <variant> — engineer override. Sets the rendered variant and marks subsequent exposures as overridden=true.
+- QUERY — append the full exposure log so far to /app/output.txt.
 
-- `BIND <cell_id> <item_id> <title> <fetch_at_tick>` — attach the cell to the item, set the cell's title immediately, and schedule an image fetch for that item that becomes due at `fetch_at_tick`.
-- `RECYCLE <cell_id>` — detach the cell from any item (it becomes unbound).
-- `RESOLVE <item_id> <image_url>` — provide a deterministic image URL to use for the next pending fetch of that `item_id`.
-- `TICK <new_now>` — advance logical time to `new_now` and process any pending fetches that are now due (`fetch_at_tick <= new_now`). When multiple fetches become due, they resolve in the order they were scheduled (then by `cell_id` to break ties).
-- `QUERY <cell_id>` — record a snapshot request of the cell's current state.
+# Dedup semantics
+
+Within the same (user, session, config), only the first read emits. A VARIANT_FLIP invalidates that dedup so the next read in the same session re-emits with the new variant. Different sessions are independent.
 
 # Output format
 
-At end of input, print one line per `QUERY`, in the same order the queries appeared:
+On each QUERY, append the full exposure log so far. Each event renders as:
 
-- If the cell is bound: `<cell_id> item=<item_id> title=<title> imageUrl=<url_or_NONE>`
-- If the cell is unbound: `<cell_id> unbound`
+  user=<u> config=<c> variant=<v> session=<n> overridden=<true|false>
 
-# Contract tests
-
-The intended behavior is captured by the contract tests in:
-
-  /app/src/com/example/recycler/test/RecyclerContract.kt
-
-Run them with:
-
-  bash /app/src/run-contract.sh
-
-Your goal is to make all contract tests pass.
-
-# Build / run
-
-Run the program with:
-
-  bash /app/src/run.sh
-
-It reads `/app/scenario.json` and writes `/app/output.txt` (the verifier checks that output).
+If there are no exposures yet, append exposures=[] followed by a newline.
 
 # Where to start
 
-The behavior bugs are in the recycler + scheduling logic. Start by reading and fixing:
+Read and fix:
+- /app/src/com/example/config/ExposureCache.kt
+- /app/src/com/example/config/MobileConfig.kt
 
-- `/app/src/com/example/recycler/RecyclerPool.kt`
-- `/app/src/com/example/recycler/FetchScheduler.kt`
+Do not modify Main.kt, SessionTracker.kt, or ExposureEvent.kt.
+
+# Build / run
+
+  cd /app
+  kotlinc src/com/example/config/*.kt -include-runtime -d /app/sim.jar
+  java -jar /app/sim.jar
+
+The driver reads /app/scenario.txt and writes /app/output.txt.

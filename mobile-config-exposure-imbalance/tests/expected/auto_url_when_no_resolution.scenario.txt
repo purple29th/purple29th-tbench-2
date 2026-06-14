@@ -1,3 +1,0 @@
-BIND c1 itemA Alice 10
-TICK 20
-QUERY c1

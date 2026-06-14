@@ -1,6 +1,0 @@
-BIND c1 itemA Alice 10
-RESOLVE itemA img://A_old
-RECYCLE c1
-BIND c1 itemA Alice 100
-TICK 20
-QUERY c1

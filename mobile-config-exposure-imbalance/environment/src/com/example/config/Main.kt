@@ -13,12 +13,12 @@ fun main() {
         val p = line.split(" ")
         when (p[0]) {
             "SESSION_START" -> sessions.start(p[1])
-            "SESSION_END" -> sessions.end(p[1])
-            "READ" -> mc.read(p[1], p[2], p[3], p[4])
-            "DEFAULT_READ" -> mc.defaultRead(p[1], p[2], p[3])
-            "VARIANT_FLIP" -> mc.variantFlip(p[1], p[2], p[3])
-            "OVERRIDE" -> mc.override(p[1], p[2], p[3])
-            "QUERY" -> out.append(mc.snapshot())
+            "SESSION_END"   -> sessions.end(p[1])
+            "READ"          -> mc.read(p[1], p[2], p[3], p[4])
+            "DEFAULT_READ"  -> mc.defaultRead(p[1], p[2], p[3])
+            "VARIANT_FLIP"  -> mc.variantFlip(p[1], p[2], p[3])
+            "OVERRIDE"      -> mc.override(p[1], p[2], p[3])
+            "QUERY"         -> out.append(mc.snapshot())
         }
     }
     File("/app/output.txt").writeText(out.toString())

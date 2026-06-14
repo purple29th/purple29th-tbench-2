@@ -1,6 +1,0 @@
-BIND c1 itemA Alice 50
-RESOLVE itemA img://A
-TICK 30
-QUERY c1
-TICK 60
-QUERY c1

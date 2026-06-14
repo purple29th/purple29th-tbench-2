@@ -1,4 +1,4 @@
-"""Verify the simulator output matches the expected exposure log."""
+"""Verify the simulator's exposure log matches the expected output."""
 from pathlib import Path
 
 OUTPUT = Path("/app/output.txt")

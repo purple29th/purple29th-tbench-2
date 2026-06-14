@@ -1,6 +1,0 @@
-BIND c1 itemA Alice 10
-RESOLVE itemA img://A_old
-BIND c1 itemB Bob 15
-RESOLVE itemB img://B
-TICK 20
-QUERY c1
