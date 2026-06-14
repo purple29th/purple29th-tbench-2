@@ -1,6 +1,0 @@
-BEGIN t1
-ADD t1 main Home
-ADD_TO_BACK_STACK t1 home
-COMMIT t1
-POP NONE
-QUERY

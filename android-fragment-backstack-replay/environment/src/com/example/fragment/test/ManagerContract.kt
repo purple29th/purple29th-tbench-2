@@ -12,26 +12,26 @@ private fun expect(name: String, expected: String, actual: String) {
 private fun indent(s: String): String = s.lines().joinToString("\n") { "    $it" }
 
 fun main() {
-    run("scenario A") {
+    run("simple add") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
-        expect("scenario A",
+        expect("simple add",
             "container=main fragments=[Home]\nbackstack=[]\n",
             m.snapshot())
     }
 
-    run("scenario B") {
+    run("anon pop restores replaced fragment") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.replace("t2", "main", "Profile")
-        m.addToBackStack("t2", "profile"); m.commit("t2")
+        m.addToBackStack("t2", null); m.commit("t2")
         m.pop(null)
-        expect("scenario B",
+        expect("anon pop restores replaced fragment",
             "container=main fragments=[Home]\nbackstack=[]\n",
             m.snapshot())
     }
 
-    run("scenario C") {
+    run("named pop drops through to and including target") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.replace("t2", "main", "Settings")
@@ -39,39 +39,39 @@ fun main() {
         m.begin("t3"); m.replace("t3", "main", "Profile")
         m.addToBackStack("t3", "profile"); m.commit("t3")
         m.pop("settings")
-        expect("scenario C",
+        expect("named pop drops through to and including target",
             "container=main fragments=[Home]\nbackstack=[]\n",
             m.snapshot())
     }
 
-    run("scenario D") {
+    run("named pop with missing name is a no-op") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.replace("t2", "main", "Profile")
         m.addToBackStack("t2", "profile"); m.commit("t2")
         m.pop("ghost")
-        expect("scenario D",
+        expect("named pop with missing name is a no-op",
             "container=main fragments=[Profile]\nbackstack=[profile]\n",
             m.snapshot())
     }
 
-    run("scenario E") {
+    run("rotate replays back-stacked transaction") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.replace("t2", "main", "Profile")
         m.addToBackStack("t2", "profile"); m.commit("t2")
         m.rotate()
-        expect("scenario E",
+        expect("rotate replays back-stacked transaction",
             "container=main fragments=[Profile]\nbackstack=[profile]\n",
             m.snapshot())
     }
 
-    run("scenario F") {
+    run("anon back-stack entry") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.replace("t2", "main", "Profile")
         m.addToBackStack("t2", null); m.commit("t2")
-        expect("scenario F",
+        expect("anon back-stack entry",
             "container=main fragments=[Profile]\nbackstack=[anon]\n",
             m.snapshot())
     }

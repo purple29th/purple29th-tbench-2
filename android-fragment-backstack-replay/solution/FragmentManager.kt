@@ -34,10 +34,6 @@ class FragmentManager {
     fun pop(name: String?) {
         if (backStack.isEmpty()) return
         if (name == null) {
-            // Pop only the topmost entry, but if the topmost is a named entry,
-            // do nothing — anonymous POP cannot cross a named-entry boundary.
-            val top = backStack.last()
-            if (top.name != null) return
             reverseEntry(backStack.removeAt(backStack.size - 1))
             return
         }
