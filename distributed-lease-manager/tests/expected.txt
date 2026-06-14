@@ -1,0 +1,33 @@
+resources:
+  resource=A holder=c1 fencing=1 deadline=100
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A holder=c1 fencing=1 deadline=130
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A holder=c1 fencing=1 deadline=130
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A free fencing=1
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A holder=c2 fencing=2 deadline=250
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A free fencing=2
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A holder=c3 fencing=3 deadline=330
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A holder=c4 fencing=3 deadline=330
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A holder=c4 fencing=3 deadline=400
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A holder=c4 fencing=3 deadline=400
+  resource=B holder=cb fencing=1 deadline=1005
+resources:
+  resource=A free fencing=3
+  resource=B holder=cb fencing=1 deadline=1005
