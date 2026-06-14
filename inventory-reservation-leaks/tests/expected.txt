@@ -1,0 +1,24 @@
+inventory:
+  sku=A available=7 reserved=3 sold=0
+  sku=B available=3 reserved=2 sold=0
+inventory:
+  sku=A available=7 reserved=3 sold=0
+  sku=B available=3 reserved=2 sold=0
+inventory:
+  sku=A available=10 reserved=0 sold=0
+  sku=B available=3 reserved=2 sold=0
+inventory:
+  sku=A available=10 reserved=0 sold=0
+  sku=B available=3 reserved=0 sold=2
+inventory:
+  sku=A available=6 reserved=0 sold=4
+  sku=B available=3 reserved=0 sold=2
+inventory:
+  sku=A available=6 reserved=0 sold=4
+  sku=B available=3 reserved=0 sold=2
+inventory:
+  sku=A available=6 reserved=0 sold=4
+  sku=B available=3 reserved=0 sold=2
+inventory:
+  sku=A available=4 reserved=2 sold=4
+  sku=B available=3 reserved=0 sold=2
