@@ -1,0 +1,5 @@
+BEGIN t1
+ADD t1 main Home
+ADD t1 sidebar Nav
+COMMIT t1
+QUERY

@@ -1,0 +1,13 @@
+BEGIN t1
+ADD t1 main Home
+COMMIT t1
+BEGIN t2
+REPLACE t2 main Settings
+ADD_TO_BACK_STACK t2 settings
+COMMIT t2
+BEGIN t3
+REPLACE t3 main Profile
+ADD_TO_BACK_STACK t3 profile
+COMMIT t3
+POP settings
+QUERY

@@ -1,0 +1,3 @@
+container=main fragments=[Home]
+container=sidebar fragments=[Nav]
+backstack=[]

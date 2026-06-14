@@ -1,0 +1,8 @@
+BEGIN t1
+ADD t1 main Home
+ADD t1 main Banner
+COMMIT t1
+BEGIN t2
+REMOVE t2 Banner
+COMMIT t2
+QUERY
