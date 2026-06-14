@@ -24,15 +24,17 @@ On each QUERY, append the full exposure log so far. Each event renders as:
 
 If there are no exposures yet, append exposures=[] followed by a newline.
 
-# Where to start
+# What you need to do
 
-Read and fix:
+Fix these two files:
 - /app/src/com/example/config/ExposureCache.kt
 - /app/src/com/example/config/MobileConfig.kt
 
 Do not modify Main.kt, SessionTracker.kt, or ExposureEvent.kt.
 
-# Build / run
+The verifier compiles and runs your fixed code automatically. You do not need to compile or execute anything yourself — just edit the two files above so the simulator produces the correct exposure log.
+
+# Reference build command (for local debugging only)
 
   cd /app
   kotlinc src/com/example/config/*.kt -include-runtime -d /app/sim.jar
