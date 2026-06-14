@@ -1,0 +1,36 @@
+store version=2
+  a=10
+  b=2
+readers:
+  r1 version=2
+notifications:
+  o1:keys=a:v2
+store version=3
+  a=100
+  b=200
+readers:
+  r1 version=2
+notifications:
+  o1:keys=a:v2
+  o1:keys=a,b:v3
+store version=4
+  a=1000
+  b=2000
+readers:
+  r1 version=2
+notifications:
+  o1:keys=a:v2
+  o1:keys=a,b:v3
+  o1:keys=a,b:v4
+  o2:keys=a:v4
+store version=5
+  a=9999
+  b=2000
+readers:
+  r1 version=2
+notifications:
+  o1:keys=a:v2
+  o1:keys=a,b:v3
+  o1:keys=a,b:v4
+  o2:keys=a:v4
+  o2:keys=a:v5
