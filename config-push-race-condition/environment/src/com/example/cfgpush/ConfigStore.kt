@@ -13,22 +13,16 @@ class ConfigStore {
     fun push(newVersion: Long, updates: Map<String, String>) {
         values.putAll(updates)
         version = newVersion
-        notifyObservers(updates.keys, newVersion)
+        emitNotifications(updates.keys, newVersion)
     }
 
-    fun read(readerId: String, key: String): String? {
-        // BUG: doesn't record the reader's observed version.
-        return values[key]
-    }
+    fun read(readerId: String, key: String): String? = values[key]
 
     fun beginSnapshot(readerId: String) {
         snapshots[readerId] = Snapshot(version, values.toMap())
     }
 
-    fun readFromSnapshot(readerId: String, key: String): String? {
-        // BUG: reads from the live store instead of the captured snapshot.
-        return values[key]
-    }
+    fun readFromSnapshot(readerId: String, key: String): String? = values[key]
 
     fun endSnapshot(readerId: String) {
         snapshots.remove(readerId)
@@ -39,7 +33,7 @@ class ConfigStore {
     }
 
     fun unsubscribe(observerId: String) {
-        // BUG: no-op; should remove the matching observer so it stops receiving notifications.
+        observers.firstOrNull { it.id == observerId }
     }
 
     fun render(): String = buildString {
@@ -48,13 +42,11 @@ class ConfigStore {
         appendNotifications(this)
     }
 
-    private fun notifyObservers(changedKeys: Set<String>, atVersion: Long) {
+    private fun emitNotifications(changedKeys: Set<String>, atVersion: Long) {
         for (observer in observers) {
-            // BUG: emits one notification per matching key instead of one per observer per push.
             for (key in changedKeys) {
-                if (key in observer.keys) {
-                    notifications += formatNotification(observer.id, listOf(key), atVersion)
-                }
+                if (key !in observer.keys) continue
+                notifications += formatNotification(observer.id, listOf(key), atVersion)
             }
         }
     }
@@ -80,8 +72,6 @@ class ConfigStore {
         }
     }
 
-    private fun formatNotification(observerId: String, keys: Collection<String>, atVersion: Long): String {
-        val keyList = keys.sorted().joinToString(separator = ",")
-        return "$observerId:keys=$keyList:v$atVersion"
-    }
+    private fun formatNotification(observerId: String, keys: Collection<String>, atVersion: Long): String =
+        "$observerId:keys=${keys.sorted().joinToString(separator = ",")}:v$atVersion"
 }

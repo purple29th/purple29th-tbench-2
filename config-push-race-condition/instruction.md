@@ -1,19 +1,27 @@
 # Setting
 
-A simulator for a versioned configuration store with readers, snapshot readers, and observers. A pusher publishes new config versions; readers fetch values; snapshot readers hold a stable view across pushes; observers receive notifications when keys they care about change. The current ConfigStore implementation has bugs that produce wrong output across all three concerns. Fix /app/src/com/example/cfgpush/ConfigStore.kt.
+A simulator for a versioned configuration store. A pusher publishes new config versions; live readers fetch current values; snapshot readers hold a stable view across pushes; observers receive notifications when keys they care about change. The current ConfigStore in /app/src/com/example/cfgpush/ConfigStore.kt produces wrong output for several scenarios. Fix it.
 
-# Input operations (/app/scenario.txt)
+# Operations (/app/scenario.txt)
 
-The driver reads one operation per line:
+- PUSH <version> <key=value,key=value,...> — apply the listed updates and set the store's current version to <version>. Each push is one unit of change.
+- READ <reader_id> <key> — a live reader fetches a value. Live reads see the current store state and the reader observes the current version.
+- BEGIN_SNAPSHOT <reader_id> — the reader captures a stable view of the store as of the current version.
+- READ_FROM_SNAPSHOT <reader_id> <key> — the reader fetches a value from its captured view. A snapshot read is a separate read mode from a live read.
+- END_SNAPSHOT <reader_id> — the reader discards its captured view.
+- SUBSCRIBE <observer_id> <key,key,...> — register the observer for a set of keys.
+- UNSUBSCRIBE <observer_id> — the observer is gone; subsequent pushes do not affect it.
+- QUERY — append the simulator's current state to /app/output.txt.
 
-- PUSH <version> <key=value,key=value,...> — apply all listed key/value updates and set the store's current version. Observers whose subscribed keys overlap with this push's changed keys receive a single notification entry recording (observer id, intersected keys sorted, version).
-- READ <reader_id> <key> — reader fetches the current live value of <key>. The reader's "observed version" is updated to the store's current version.
-- BEGIN_SNAPSHOT <reader_id> — capture the store's current values and version under <reader_id>. Subsequent READ_FROM_SNAPSHOT for this id returns values from this captured view, not from the live store.
-- READ_FROM_SNAPSHOT <reader_id> <key> — return the value of <key> as it was when BEGIN_SNAPSHOT was taken. Does not affect the reader's observed version.
-- END_SNAPSHOT <reader_id> — drop the captured snapshot.
-- SUBSCRIBE <observer_id> <key,key,...> — register an observer for the comma-separated set of keys.
-- UNSUBSCRIBE <observer_id> — fully deregister the observer; subsequent pushes must not produce any further notifications for that observer.
-- QUERY — append a snapshot of the simulator state to /app/output.txt.
+# Notification semantics
+
+A push that changes one or more keys produces a single notification entry per affected observer, where "affected" means at least one of the observer's subscribed keys appears in the push. The entry records the observer id, the keys from the push that the observer cares about (sorted, comma-separated), and the new version.
+
+# State each QUERY shows
+
+- The current store contents and version.
+- For each reader that has done at least one live READ, the version it observed on its most recent live read.
+- The full notification log emitted so far.
 
 # QUERY output format
 
@@ -29,12 +37,7 @@ For each QUERY, append:
     <entry>
     ...
 
-Within a QUERY:
-- store keys are sorted ascending by key.
-- readers are sorted ascending by reader id.
-- notifications are listed in the order they were emitted.
-
-A notification entry is rendered as `<observer_id>:keys=<csv>:v<version>` where <csv> is the sorted, comma-separated list of keys included in that notification.
+Within a QUERY: store keys sorted ascending by key, readers sorted ascending by id, notifications in emission order. Each notification entry is rendered as `<observer_id>:keys=<csv>:v<version>`.
 
 # What you need to do
 
