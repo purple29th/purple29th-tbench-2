@@ -40,6 +40,7 @@ CASE_NAMES = [
     "rotate_then_pop",
     "back_stack_then_anon_then_named_pop",
     "replace_on_empty_after_rotate",
+    "anon_pop_blocked_by_named",
 ]
 
 @pytest.mark.parametrize("name", CASE_NAMES)
