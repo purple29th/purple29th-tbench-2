@@ -49,7 +49,6 @@ class DoFrameScheduler {
 
     fun doFrame(vsyncTime: Int) {
         frameCounter += 1
-        applyPendingVsyncRate()
         advanceTimeTo(vsyncTime)
         val frameInterval = currentFrameInterval()
         val deadline = vsyncTime + frameInterval
@@ -63,6 +62,7 @@ class DoFrameScheduler {
         if (isJank) emitJank(deadline)
 
         frames += buildFrameRecord(vsyncTime, deadline, isJank, rosters)
+        applyPendingVsyncRate()
     }
 
     fun drainQueue(budgetMs: Int) {
