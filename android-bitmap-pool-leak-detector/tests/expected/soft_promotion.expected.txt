@@ -1,0 +1,20 @@
+pool maxBytes=32768 currentBytes=20480
+strong:
+  key=pad1 w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=2
+  key=pad2 w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=3
+  key=pad3 w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=4
+  key=pad4 w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=5
+  key=pad5 w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=6
+soft:
+  key=want_big w=64 h=64 config=ARGB_8888 bytes=16384
+active:
+events:
+  ALLOC big
+  ALLOC pad1
+  ALLOC pad2
+  ALLOC pad3
+  ALLOC pad4
+  ALLOC pad5
+  EVICT big reason=lru
+  REUSE_SOFT want_big
+  EVICT want_big reason=lru
