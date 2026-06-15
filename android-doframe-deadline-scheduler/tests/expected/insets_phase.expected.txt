@@ -1,0 +1,16 @@
+vsync rate=60 frameIntervalMs=16 currentTime=6
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=6 jank=false
+    INPUT: a
+    ANIMATION: 
+    INSETS: b
+    TRAVERSAL: c
+queue:
+  sync=0 async=0 barrier=inactive
+next-frame callbacks:
+  
+events:
+  FRAME_CALLBACK a
+  FRAME_CALLBACK b
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK c
