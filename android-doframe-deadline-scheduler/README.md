@@ -32,3 +32,4 @@ Failure modes the task surfaces, drawn from real Android framework behavior:
 - Nine per-behavior scenarios under /tests/expected/, mounted only at verifier time. Each scenario isolates one behavior; jank, vsync transitions, DRAIN_QUEUE budget semantics, and async-through-barrier are each exercised independently.
 - Verifier compiles the agent's source via kotlinc and runs each scenario; reward is all-or-nothing per scenario.
 - Reference solution implements every behavior honestly and is never agent-readable.
+
