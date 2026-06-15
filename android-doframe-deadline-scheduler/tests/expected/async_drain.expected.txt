@@ -1,0 +1,17 @@
+vsync rate=60 frameIntervalMs=16 currentTime=9
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=9 jank=false
+    INPUT: a
+    ANIMATION: 
+    INSETS: 
+    TRAVERSAL: 
+queue:
+  sync=0 async=0 barrier=inactive
+next-frame callbacks:
+  
+events:
+  MSG_BARRIER
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  MSG_BARRIER_LIFTED
+  MSG_DISPATCH priority=sync costMs=4

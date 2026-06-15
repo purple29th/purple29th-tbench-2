@@ -1,0 +1,9 @@
+vsync rate=60 frameIntervalMs=16 currentTime=8
+frames:
+queue:
+  sync=0 async=1 barrier=inactive
+next-frame callbacks:
+  
+events:
+  MSG_DISPATCH priority=async costMs=3
+  MSG_DISPATCH priority=sync costMs=5

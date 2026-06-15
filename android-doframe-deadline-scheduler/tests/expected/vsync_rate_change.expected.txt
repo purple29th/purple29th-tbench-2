@@ -1,0 +1,26 @@
+vsync rate=120 frameIntervalMs=8 currentTime=24
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=0 jank=false
+    INPUT: 
+    ANIMATION: 
+    INSETS: 
+    TRAVERSAL: 
+  frame=2 vsyncTime=16 deadlineMs=32 spentMs=0 jank=false
+    INPUT: 
+    ANIMATION: 
+    INSETS: 
+    TRAVERSAL: 
+  frame=3 vsyncTime=24 deadlineMs=32 spentMs=0 jank=false
+    INPUT: 
+    ANIMATION: 
+    INSETS: 
+    TRAVERSAL: 
+queue:
+  sync=0 async=0 barrier=inactive
+next-frame callbacks:
+  
+events:
+  MSG_BARRIER_LIFTED
+  VSYNC_RATE_CHANGED from=60 to=120
+  MSG_BARRIER_LIFTED
+  MSG_BARRIER_LIFTED
