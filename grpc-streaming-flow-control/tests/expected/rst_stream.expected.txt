@@ -1,0 +1,6 @@
+connection window=65335
+streams:
+  id=1 state=CLOSED weight=16 window=0 queued=0 sent=200
+frames:
+  HEADERS stream=1 bytes=0
+  DATA stream=1 bytes=200

@@ -8,7 +8,11 @@ kotlinc src/com/example/grpc/*.kt -include-runtime -d /app/sim.jar \
 build_status=$?
 
 if [ $build_status -eq 0 ]; then
-    java -jar /app/sim.jar >> /logs/verifier/run.log 2>&1
+    for scenario_file in /app/scenarios/*.txt; do
+        name=$(basename "$scenario_file" .txt)
+        java -jar /app/sim.jar "$scenario_file" "/app/output.${name}.txt" \
+            >> /logs/verifier/run.log 2>&1
+    done
 fi
 
 uvx --python 3.12 --with pytest==8.3.3 \

@@ -2,19 +2,22 @@ package com.example.grpc
 
 import java.io.File
 
-private const val SCENARIO_PATH = "/app/scenario.txt"
-private const val OUTPUT_PATH = "/app/output.txt"
+private const val DEFAULT_SCENARIO_PATH = "/app/scenario.txt"
+private const val DEFAULT_OUTPUT_PATH = "/app/output.txt"
 
-fun main() {
+fun main(args: Array<String>) {
+    val scenarioPath = args.getOrNull(0) ?: DEFAULT_SCENARIO_PATH
+    val outputPath = args.getOrNull(1) ?: DEFAULT_OUTPUT_PATH
+
     val multiplexer = StreamMultiplexer()
     val output = StringBuilder()
 
-    File(SCENARIO_PATH).forEachLine { raw ->
+    File(scenarioPath).forEachLine { raw ->
         val line = raw.trim()
         if (line.isNotEmpty()) dispatch(line, multiplexer, output)
     }
 
-    File(OUTPUT_PATH).writeText(output.toString())
+    File(outputPath).writeText(output.toString())
 }
 
 private fun dispatch(line: String, multiplexer: StreamMultiplexer, output: StringBuilder) {

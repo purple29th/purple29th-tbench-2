@@ -1,0 +1,7 @@
+connection window=65535
+streams:
+  id=5 state=OPEN weight=1 window=65535 queued=0 sent=0
+  id=7 state=OPEN weight=256 window=65535 queued=0 sent=0
+frames:
+  HEADERS stream=5 bytes=0
+  HEADERS stream=7 bytes=0

@@ -26,4 +26,4 @@ COPY src /app/src
 WORKDIR /app
 
 # Copy the scenario input file
-COPY scenario.txt /app/scenario.txt
+COPY scenarios /app/scenarios
