@@ -2,7 +2,7 @@
 
 ## Description
 
-A Kotlin simulator of an ExoPlayer-style media segment buffer cache: a bounded in-memory buffer + a disk cache, with playing-segment pinning and a TRIM (onTrimMemory) op. The current SegmentCache.kt has interlocking bugs across exact-match reuse, LRU tie-break, stall-on-play, disk-tier promotion, buffer-on-fresh eviction, release dedup, and lastAccess preservation. The agent fixes SegmentCache.kt so the snapshot + event log matches expectations across six per-behavior scenarios plus one integration scenario.
+A Kotlin simulator of an ExoPlayer-style media segment buffer cache: a bounded in-memory buffer + a disk cache, with playing-segment pinning and a TRIM (onTrimMemory) op. The current SegmentCache.kt has interlocking bugs across exact-match reuse, LRU tie-break, stall-on-play, disk-tier promotion, buffer-on-fresh eviction, release dedup, and lastAccess preservation. The agent fixes SegmentCache.kt so the snapshot + event log matches expectations across eight scenarios.
 
 ## Completion Rates
 
@@ -15,7 +15,6 @@ A Kotlin simulator of an ExoPlayer-style media segment buffer cache: a bounded i
 ## Model Analysis
 
 1. Exact-match reuse on (track, durMs, bitrate) — same track+duration at a different bitrate cannot satisfy the request.
-2. LRU tie-break by smaller bytes first when lastAccess ties.
 3. RELEASE during playback is a STALL — emit STALL, drop the segment, drop the playing state.
 4. Disk-tier promotion cascades — promotion re-adds bytes and may trigger eviction inside the same REQUEST.
 5. BUFFER and the fresh path of REQUEST count immediately and can self-evict.
@@ -25,6 +24,6 @@ A Kotlin simulator of an ExoPlayer-style media segment buffer cache: a bounded i
 
 ## Anti-Cheating Analysis
 
-- Seven per-behavior scenarios under /tests/expected/, mounted only at verifier time.
+- Eight scenarios under /tests/expected/, mounted only at verifier time.
 - Verifier compiles the agent's source via kotlinc and runs each scenario; reward is all-or-nothing per scenario.
 - Reference solution implements every behavior honestly and is never agent-readable.

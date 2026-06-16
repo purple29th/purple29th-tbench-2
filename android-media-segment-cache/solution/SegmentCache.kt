@@ -101,11 +101,9 @@ class SegmentCache {
     private fun evictUntilFits() {
         while (currentBytes > MEMORY_BUDGET_BYTES) {
             val victim = chooseVictim() ?: return
-            val sharedTick = memory.values.count { it.lastAccess == victim.lastAccess } > 1
             memory.remove(victim.key)
             currentBytes -= victim.spec.bytes
-            val reason = if (sharedTick) "tie" else "lru"
-            events += "EVICT ${victim.key} reason=$reason"
+            events += "EVICT ${victim.key} reason=lru"
             disk += DiskEntry(victim.key, victim.spec, victim.lastAccess)
         }
     }

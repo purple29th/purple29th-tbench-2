@@ -1,0 +1,20 @@
+cache budget=300000 currentBytes=125000
+memory:
+  key=pad1 track=t2 dur=500 bitrate=400 bytes=25000 lastAccess=2
+  key=pad2 track=t3 dur=500 bitrate=400 bytes=25000 lastAccess=3
+  key=pad3 track=t4 dur=500 bitrate=400 bytes=25000 lastAccess=4
+  key=pad4 track=t5 dur=500 bitrate=400 bytes=25000 lastAccess=5
+  key=pad5 track=t6 dur=500 bitrate=400 bytes=25000 lastAccess=6
+disk:
+  key=want track=t1 dur=2000 bitrate=800 bytes=200000
+playing:
+events:
+  BUFFER big
+  BUFFER pad1
+  BUFFER pad2
+  BUFFER pad3
+  BUFFER pad4
+  BUFFER pad5
+  EVICT big reason=lru
+  REUSE_DISK want
+  EVICT want reason=lru

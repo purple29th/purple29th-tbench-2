@@ -46,12 +46,7 @@ The victim is chosen as follows:
 - Smallest lastAccess wins.
 - If two entries share the smallest lastAccess, the one with smaller bytes is evicted first.
 
-Each evicted entry emits one event:
-
-- EVICT <key> reason=lru — chosen on lastAccess alone.
-- EVICT <key> reason=tie — chosen via the bytes tie-break.
-
-Evicted entries are demoted to the disk cache under their existing key. They are not destroyed.
+Each evicted entry emits an EVICT <key> reason=lru event. Evicted entries are demoted to the disk cache under their existing key. They are not destroyed.
 
 # Stall detection
 
@@ -96,7 +91,7 @@ Each QUERY appends a snapshot:
 - memory rows sorted by key ascending; each row carries lastAccess.
 - disk rows sorted by key ascending; no lastAccess.
 - playing rows sorted by key ascending; only keys with depth > 0.
-- events is the cumulative log in emission order: BUFFER <key>, EVICT <key> reason=<lru|tie>, REUSE_MEM <key>, REUSE_DISK <key>, STALL <key>, DEDUP <key>, TRIM cleared=<n>.
+- events is the cumulative log in emission order: BUFFER <key>, EVICT <key> reason=lru, REUSE_MEM <key>, REUSE_DISK <key>, STALL <key>, DEDUP <key>, TRIM cleared=<n>.
 
 # What you need to do
 
