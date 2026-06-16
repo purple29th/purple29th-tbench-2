@@ -1,0 +1,26 @@
+cache budget=300000 currentBytes=225000
+memory:
+  key=b track=t2 dur=500 bitrate=400 bytes=25000 lastAccess=2
+  key=c track=t3 dur=2000 bitrate=800 bytes=200000 lastAccess=4
+disk:
+  key=big track=t1 dur=2000 bitrate=800 bytes=200000
+playing:
+  key=b depth=1
+events:
+  BUFFER big
+  BUFFER b
+  BUFFER c
+  EVICT big reason=lru
+cache budget=300000 currentBytes=225000
+memory:
+  key=b track=t2 dur=500 bitrate=400 bytes=25000 lastAccess=2
+  key=c track=t3 dur=2000 bitrate=800 bytes=200000 lastAccess=4
+disk:
+playing:
+  key=b depth=1
+events:
+  BUFFER big
+  BUFFER b
+  BUFFER c
+  EVICT big reason=lru
+  TRIM cleared=1

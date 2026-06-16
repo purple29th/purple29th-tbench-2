@@ -1,0 +1,7 @@
+cache budget=300000 currentBytes=0
+memory:
+disk:
+playing:
+events:
+  BUFFER a
+  STALL a

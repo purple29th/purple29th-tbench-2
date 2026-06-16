@@ -1,0 +1,10 @@
+cache budget=300000 currentBytes=25000
+memory:
+  key=a track=t1 dur=500 bitrate=400 bytes=25000 lastAccess=3
+disk:
+  key=b track=t1 dur=500 bitrate=400 bytes=25000
+playing:
+events:
+  BUFFER a
+  BUFFER b
+  DEDUP b

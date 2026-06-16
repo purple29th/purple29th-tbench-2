@@ -1,0 +1,19 @@
+cache budget=300000 currentBytes=150000
+memory:
+  key=a track=t1 dur=1000 bitrate=800 bytes=100000 lastAccess=2
+  key=b track=t1 dur=1000 bitrate=400 bytes=50000 lastAccess=3
+disk:
+playing:
+events:
+  BUFFER a
+  BUFFER b
+cache budget=300000 currentBytes=150000
+memory:
+  key=b track=t1 dur=1000 bitrate=400 bytes=50000 lastAccess=3
+  key=c track=t1 dur=1000 bitrate=800 bytes=100000 lastAccess=2
+disk:
+playing:
+events:
+  BUFFER a
+  BUFFER b
+  REUSE_MEM c

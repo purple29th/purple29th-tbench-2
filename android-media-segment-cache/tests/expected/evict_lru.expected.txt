@@ -1,0 +1,12 @@
+cache budget=300000 currentBytes=125000
+memory:
+  key=mid track=t2 dur=1000 bitrate=800 bytes=100000 lastAccess=2
+  key=trig track=t3 dur=500 bitrate=400 bytes=25000 lastAccess=3
+disk:
+  key=big track=t1 dur=2000 bitrate=800 bytes=200000
+playing:
+events:
+  BUFFER big
+  BUFFER mid
+  BUFFER trig
+  EVICT big reason=lru
