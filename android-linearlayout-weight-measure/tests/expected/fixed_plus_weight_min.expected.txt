@@ -1,4 +1,0 @@
-measure totalWidth=100 remaining=70 overflow=false
-children:
-  id=fixed spec=FIXED(30) margin=0 minWidth=0 measuredWidth=30 start=0
-  id=w spec=WEIGHT(1) margin=0 minWidth=80 measuredWidth=80 start=30

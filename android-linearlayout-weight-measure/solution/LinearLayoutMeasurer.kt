@@ -6,8 +6,8 @@ class LinearLayoutMeasurer {
     private var remaining: Int = 0
     private var overflow: Boolean = false
 
-    fun addChild(id: String, kind: ChildKind, value: Int, margin: Int, minWidth: Int) {
-        children += Child(id, kind, value, margin, minWidth)
+    fun addChild(id: String, kind: ChildKind, value: Int, margin: Int) {
+        children += Child(id, kind, value, margin)
     }
 
     fun measure(width: Int) {
@@ -16,7 +16,6 @@ class LinearLayoutMeasurer {
         remaining = width - usedWidth
         overflow = remaining < 0
         distributeWeights(maxOf(0, remaining))
-        updateHighWaterMarks()
         layoutPositions()
     }
 
@@ -43,44 +42,25 @@ class LinearLayoutMeasurer {
     private fun distributeWeights(distributable: Int) {
         val weighted = children.filter { it.kind == ChildKind.WEIGHT }
         if (weighted.isEmpty()) return
-        val pinned = mutableSetOf<String>()
-        while (true) {
-            val active = weighted.filter { it.id !in pinned }
-            if (active.isEmpty()) break
-            val weightSum = active.sumOf { it.value }
-            if (weightSum == 0) {
-                active.forEach { it.measured = 0 }
-                break
-            }
-            val pinnedTotal = weighted.filter { it.id in pinned }.sumOf { it.measured }
-            val avail = distributable - pinnedTotal
-            assignShares(active, avail, weightSum)
-            val belowMin = active.firstOrNull { it.measured < effectiveMin(it) }
-            if (belowMin == null) break
-            belowMin.measured = effectiveMin(belowMin)
-            pinned += belowMin.id
+        if (weighted.size == 1) {
+            weighted[0].measured = distributable
+            return
         }
-    }
-
-    private fun assignShares(active: List<Child>, avail: Int, weightSum: Int) {
+        val totalWeight = weighted.sumOf { it.value }
+        val complementSum = weighted.sumOf { totalWeight - it.value }
+        if (complementSum == 0) {
+            weighted.forEach { it.measured = 0 }
+            return
+        }
         var distributed = 0
-        for ((index, child) in active.withIndex()) {
-            if (index == active.lastIndex) {
-                child.measured = avail - distributed
+        for ((index, child) in weighted.withIndex()) {
+            if (index == weighted.lastIndex) {
+                child.measured = distributable - distributed
             } else {
-                val share = avail * child.value / weightSum
+                val complement = totalWeight - child.value
+                val share = distributable * complement / complementSum
                 child.measured = share
                 distributed += share
-            }
-        }
-    }
-
-    private fun effectiveMin(child: Child): Int = maxOf(child.minWidth, child.hwm)
-
-    private fun updateHighWaterMarks() {
-        for (child in children) {
-            if (child.kind == ChildKind.WEIGHT) {
-                child.hwm = maxOf(child.hwm, child.measured)
             }
         }
     }
@@ -102,7 +82,7 @@ class LinearLayoutMeasurer {
         builder.append("children:\n")
         for (child in children) {
             builder.append("  id=${child.id} spec=${child.spec()} margin=${child.margin} ")
-            builder.append("minWidth=${child.minWidth} measuredWidth=${child.measured} start=${child.start}\n")
+            builder.append("measuredWidth=${child.measured} start=${child.start}\n")
         }
     }
 }

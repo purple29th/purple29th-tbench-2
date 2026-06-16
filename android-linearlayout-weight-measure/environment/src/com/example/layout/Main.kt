@@ -28,7 +28,7 @@ fun main(args: Array<String>) {
 private fun dispatch(line: String, layout: LinearLayoutMeasurer, output: StringBuilder) {
     val t = line.split(" ")
     when (t[0]) {
-        "CHILD"   -> layout.addChild(t[1], kindOf(t[2]), t[3].toInt(), t[4].toInt(), t[5].toInt())
+        "CHILD"   -> layout.addChild(t[1], kindOf(t[2]), t[3].toInt(), t[4].toInt())
         "MEASURE" -> layout.measure(t[1].toInt())
         "QUERY"   -> output.append(layout.snapshot())
     }

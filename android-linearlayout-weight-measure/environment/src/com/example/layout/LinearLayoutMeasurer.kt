@@ -6,8 +6,8 @@ class LinearLayoutMeasurer {
     private var remaining: Int = 0
     private var overflow: Boolean = false
 
-    fun addChild(id: String, kind: ChildKind, value: Int, margin: Int, minWidth: Int) {
-        children += Child(id, kind, value, margin, minWidth)
+    fun addChild(id: String, kind: ChildKind, value: Int, margin: Int) {
+        children += Child(id, kind, value, margin)
     }
 
     fun measure(width: Int) {
@@ -68,7 +68,7 @@ class LinearLayoutMeasurer {
         builder.append("children:\n")
         for (child in children) {
             builder.append("  id=${child.id} spec=${child.spec()} margin=${child.margin} ")
-            builder.append("minWidth=${child.minWidth} measuredWidth=${child.measured} start=${child.start}\n")
+            builder.append("measuredWidth=${child.measured} start=${child.start}\n")
         }
     }
 }

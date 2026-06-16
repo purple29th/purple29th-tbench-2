@@ -1,4 +1,4 @@
 measure totalWidth=100 remaining=100 overflow=false
 children:
-  id=a spec=WEIGHT(1) margin=0 minWidth=0 measuredWidth=50 start=0
-  id=b spec=WEIGHT(1) margin=0 minWidth=0 measuredWidth=50 start=50
+  id=a spec=WEIGHT(1) margin=0 measuredWidth=50 start=0
+  id=b spec=WEIGHT(1) margin=0 measuredWidth=50 start=50

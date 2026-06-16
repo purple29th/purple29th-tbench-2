@@ -2,7 +2,7 @@
 
 ## Description
 
-Kotlin simulator of Android's horizontal LinearLayout measure pass with minimum-width weight redistribution: divide available width across FIXED, WRAP, and WEIGHT children, then iteratively pin any weighted child squeezed below its minimum and recompute the rest. The agent fixes LinearLayoutMeasurer.kt so measured widths, leftover, overflow, minimum-width redistribution, and layout positions match Android's integer arithmetic across seven scenarios.
+Kotlin simulator of a horizontal layout measure pass: divide available width across FIXED, WRAP, and WEIGHT children and lay them out left to right. The distribution rule is inverse-weight — weighted children share the leftover in proportion to their complement (totalWeight minus own weight) — which inverts the usual proportional-to-weight intuition. The agent fixes LinearLayoutMeasurer.kt so measured widths, leftover, overflow, and layout positions match the spec across seven scenarios.
 
 ## Completion Rates
 
@@ -14,15 +14,14 @@ Kotlin simulator of Android's horizontal LinearLayout measure pass with minimum-
 
 ## Model Analysis
 
-1. Weight divides the LEFTOVER space, not the total width — the canonical LinearLayout bug.
-2. Integer-division remainder goes to the last active weighted child so the row fills exactly; flooring every share loses pixels.
-3. Margins count toward used width in the first pass.
-4. Minimum-width redistribution is iterative: pinning one child below its minimum changes the divisor and the leftover for everyone else, so a single pass is wrong — the redistribution must repeat until stable.
-5. A pinned child keeps its minWidth even when that exceeds the space available.
-6. Negative leftover clamps distributable to 0; layout start positions compound, so any width error shifts every later child.
+1. Inverse-weight distribution. Space is divided in proportion to (totalWeight - own weight), so a larger weight yields a smaller width. Implementations that use the canonical proportional-to-weight split invert every weighted child's width.
+2. Weight divides the leftover (distributable) space, not the total width.
+3. Integer-division remainder goes to the last weighted child so the row fills exactly; flooring every share loses pixels.
+4. Margins count toward used width in the first pass; ignoring them inflates leftover and the weighted widths.
+5. Negative leftover clamps distributable to 0; layout start positions compound, so any width error shifts every later child.
 
 ## Anti-Cheating Analysis
 
 - Seven per-behavior scenarios under /tests/expected/, mounted only at verifier time.
 - Verifier compiles the agent's source via kotlinc and runs each scenario; reward is all-or-nothing per scenario.
-- Reference solution implements the exact iterative integer arithmetic and is never agent-readable.
+- Reference solution implements the exact inverse-weight integer arithmetic and is never agent-readable.

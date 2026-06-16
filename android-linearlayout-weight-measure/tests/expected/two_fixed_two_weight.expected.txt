@@ -1,0 +1,6 @@
+measure totalWidth=100 remaining=60 overflow=false
+children:
+  id=f1 spec=FIXED(20) margin=0 measuredWidth=20 start=0
+  id=f2 spec=FIXED(20) margin=0 measuredWidth=20 start=20
+  id=a spec=WEIGHT(1) margin=0 measuredWidth=45 start=40
+  id=b spec=WEIGHT(3) margin=0 measuredWidth=15 start=85
