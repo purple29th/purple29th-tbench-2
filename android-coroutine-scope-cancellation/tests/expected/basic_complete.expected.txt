@@ -1,0 +1,5 @@
+jobs:
+  id=a parent=root type=normal state=COMPLETED seq=1
+events:
+  STARTED a
+  COMPLETED a

@@ -1,0 +1,14 @@
+jobs:
+  id=c1 parent=p type=normal state=CANCELLED seq=4
+  id=c2 parent=p type=normal state=CANCELLED seq=3
+  id=c3 parent=p type=normal state=CANCELLED seq=2
+  id=p parent=root type=normal state=CANCELLED seq=1
+events:
+  STARTED p
+  STARTED c1
+  STARTED c2
+  STARTED c3
+  CANCELLED p
+  CANCELLED c3
+  CANCELLED c2
+  CANCELLED c1

@@ -1,0 +1,7 @@
+LAUNCH p root normal
+LAUNCH c1 p normal
+LAUNCH c2 p normal
+LAUNCH g1 c1 normal
+LAUNCH g2 c1 normal
+CANCEL p
+QUERY

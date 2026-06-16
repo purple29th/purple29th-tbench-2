@@ -1,0 +1,13 @@
+jobs:
+  id=a parent=root type=normal state=COMPLETED seq=3
+  id=b parent=a type=normal state=COMPLETED seq=2
+  id=c parent=b type=normal state=COMPLETED seq=1
+events:
+  STARTED a
+  STARTED b
+  STARTED c
+  AWAITING a
+  AWAITING b
+  COMPLETED c
+  COMPLETED b
+  COMPLETED a

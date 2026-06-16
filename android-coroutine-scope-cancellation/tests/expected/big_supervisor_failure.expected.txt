@@ -1,0 +1,21 @@
+jobs:
+  id=a parent=n1 type=normal state=FAILED seq=1
+  id=b parent=n1 type=normal state=CANCELLED seq=2
+  id=c parent=n2 type=normal state=ACTIVE seq=0
+  id=d parent=n2 type=normal state=ACTIVE seq=0
+  id=n1 parent=s type=normal state=FAILED seq=3
+  id=n2 parent=s type=normal state=COMPLETING seq=0
+  id=s parent=root type=supervisor state=ACTIVE seq=0
+events:
+  STARTED s
+  STARTED n1
+  STARTED n2
+  STARTED a
+  STARTED b
+  STARTED c
+  STARTED d
+  AWAITING n1
+  AWAITING n2
+  FAILED a
+  CANCELLED b
+  FAILED n1

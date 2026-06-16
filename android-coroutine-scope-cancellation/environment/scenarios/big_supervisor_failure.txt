@@ -1,0 +1,11 @@
+LAUNCH s root supervisor
+LAUNCH n1 s normal
+LAUNCH n2 s normal
+LAUNCH a n1 normal
+LAUNCH b n1 normal
+LAUNCH c n2 normal
+LAUNCH d n2 normal
+AWAIT n1
+AWAIT n2
+FAIL a
+QUERY

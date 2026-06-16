@@ -1,0 +1,7 @@
+LAUNCH a root normal
+LAUNCH b a normal
+LAUNCH c a normal
+LAUNCH d a normal
+AWAIT a
+FAIL b
+QUERY

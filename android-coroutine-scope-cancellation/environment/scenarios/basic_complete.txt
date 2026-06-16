@@ -1,0 +1,3 @@
+LAUNCH a root normal
+COMPLETE a
+QUERY
