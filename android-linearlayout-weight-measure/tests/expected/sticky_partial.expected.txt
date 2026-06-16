@@ -1,0 +1,8 @@
+measure totalWidth=100 remaining=100 overflow=false
+children:
+  id=a spec=WEIGHT(3) margin=0 minWidth=0 measuredWidth=75 start=0
+  id=b spec=WEIGHT(1) margin=0 minWidth=0 measuredWidth=25 start=75
+measure totalWidth=80 remaining=80 overflow=false
+children:
+  id=a spec=WEIGHT(3) margin=0 minWidth=0 measuredWidth=75 start=0
+  id=b spec=WEIGHT(1) margin=0 minWidth=0 measuredWidth=25 start=75
