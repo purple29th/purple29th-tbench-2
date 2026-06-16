@@ -16,6 +16,11 @@ struct Entry {
     long cost;
 };
 
+struct Trigger {
+    std::string target;
+    long delay;
+};
+
 class Scheduler {
    public:
     void set_budget(long b) { budget_ = b; }
@@ -29,6 +34,10 @@ class Scheduler {
         it->second.ready_at = std::min(it->second.ready_at, at_ms);
         it->second.interval = interval_ms;
         it->second.cost = cost;
+    }
+
+    void after(const std::string& id, const std::string& dep, long delay) {
+        triggers_[dep].push_back({id, delay});
     }
 
     void queue_cancel(const std::string& id) { queued_cancels_.push_back(id); }
@@ -57,7 +66,7 @@ class Scheduler {
                 spent += d.second.cost;
                 ran.push_back(d);
             } else {
-                stopped = true;  // this entry and all after it wait
+                stopped = true;
             }
         }
 
@@ -67,6 +76,16 @@ class Scheduler {
                 long next = d.second.ready_at;
                 while (next <= now_ms) next += d.second.interval;
                 pending_[d.first] = {next, next_sequence_++, d.second.interval, d.second.cost};
+            }
+        }
+        // Follow-ups: a callback that actually ran triggers its dependents,
+        // scheduled relative to the current time. These are new work and so
+        // cannot run in this same wake-up.
+        for (const auto& d : ran) {
+            auto it = triggers_.find(d.first);
+            if (it == triggers_.end()) continue;
+            for (const auto& t : it->second) {
+                schedule(t.target, now_ms + t.delay, 0, 1);
             }
         }
         return fired;
@@ -79,9 +98,10 @@ class Scheduler {
     }
 
     std::unordered_map<std::string, Entry> pending_;
+    std::unordered_map<std::string, std::vector<Trigger>> triggers_;
     std::vector<std::string> queued_cancels_;
     long next_sequence_ = 0;
-    long budget_ = -1;  // -1 == unlimited
+    long budget_ = -1;
 };
 
 void process_line(Scheduler& sched, const std::string& line, std::vector<std::string>& fire_log) {
@@ -97,6 +117,12 @@ void process_line(Scheduler& sched, const std::string& line, std::vector<std::st
             iss >> every;
             iss >> cost;
             sched.schedule(id, at_ms, every, cost);
+        }
+    } else if (op == "AFTER") {
+        std::string id, dep;
+        long delay;
+        if (iss >> id >> dep >> delay) {
+            sched.after(id, dep, delay);
         }
     } else if (op == "CANCEL") {
         std::string id;

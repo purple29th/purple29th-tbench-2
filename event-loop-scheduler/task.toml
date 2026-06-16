@@ -2,7 +2,7 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/event-loop-scheduler"
-description = "Implement a C++ event-loop scheduler with per-id coalescing, deferred cancellation, repeating callbacks (period-grid catch-up without storms or drift), and a per-wake-up cost budget that defers the overflow (and everything behind it) to the next wake-up."
+description = "Implement a C++ event-loop scheduler: deferred cancellation, per-id coalescing, repeating callbacks with period-grid catch-up, a per-wake-up cost budget, and AFTER follow-up callbacks that fire only after their trigger actually runs (gated by cancel, due-ness, and budget)."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["simulation", "event-loop", "scheduler", "state-machine", "concurrency"]
 
