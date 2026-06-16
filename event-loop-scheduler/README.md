@@ -2,7 +2,7 @@
 
 ## Description
 
-A C++ event-loop timer scheduler driven by SCHEDULE / CANCEL / FIRE_DUE operations on stdin, printing the order callbacks fire. The scheduler coalesces to one pending timer per id, defers cancellation to round boundaries, never runs same-round new work, and supports repeating callbacks with period-aligned catch-up. The agent must implement the firing order, coalescing, deferred cancel, and recurring re-arm semantics so the compiled binary's stdout matches the expected firing order.
+A C++ event-loop timer scheduler driven by SCHEDULE / CANCEL / BUDGET / FIRE_DUE on stdin, printing the order callbacks fire. The scheduler coalesces to one pending timer per id, defers cancellation to round boundaries, never runs same-round new work, supports repeating callbacks with period-aligned catch-up, and enforces a per-wake-up cost budget with defer-whole-on-overflow.
 
 ## Completion Rates
 
@@ -14,15 +14,14 @@ A C++ event-loop timer scheduler driven by SCHEDULE / CANCEL / FIRE_DUE operatio
 
 ## Model Analysis
 
-1. Coalescing — one pending timer per id; a re-schedule retargets in place to the earlier time, adopts the new request's period (none = one-shot), and keeps the original running-order position. Naive implementations duplicate the timer, take the latest time, or move it to the back of the order.
-2. Deferred cancel — applies at the start of the next FIRE_DUE and clears the pending timer, including one (re)scheduled after the cancel but before it applied.
-3. No same-round new work — a wake-up only runs callbacks already due when it began.
-4. Firing order — ascending scheduled time, ties broken by first-registration order.
-5. Recurring fire-once — a repeating callback overdue by several periods runs only once per wake-up, not once per missed period.
-6. Period-grid re-alignment — re-arms to the original-time-plus-k*period grid, first slot strictly greater than now (no drift from actual run time).
+1. Per-round cost budget — walk due callbacks in order, run while the cumulative cost stays within budget; the first that would exceed it (and everything after) defers to the next wake-up. A single expensive front callback blocks cheaper ones behind it. Naive impls skip-and-continue (running the cheaper ones) or have no budget at all.
+2. Coalescing — one pending timer per id; a re-schedule retargets in place (earlier time, new period and cost, original order position).
+3. Deferred cancel — applies at the next FIRE_DUE; clears the pending timer including a post-cancel re-schedule.
+4. No same-round new work; firing order ascending time then first-registration.
+5. Recurring fire-once + period-grid re-alignment (no catch-up storm, no drift).
 
 ## Anti-Cheating Analysis
 
-- Hidden stdin operation logs feed the compiled binary; stdout is diffed exactly. The interleaved coalesce/cancel/recurring cases defeat a constant program.
+- Hidden stdin operation logs feed the compiled binary; stdout is diffed exactly. Interleaved budget/coalesce/cancel/recurring cases defeat a constant program.
 - Tests run from /tests, copied in by the harness after the agent finishes; reward written by tests/test.sh.
 - The Dockerfile ships only a C++ toolchain — no reference implementation, no tests, no expected outputs.

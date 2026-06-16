@@ -1,7 +1,4 @@
 // Reference oracle for event-loop-scheduler.
-//
-// Reads operations from stdin (one per line) and writes the firing order
-// of callback IDs to stdout, one per line.
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -16,35 +13,32 @@ struct Entry {
     long ready_at;
     long sequence;
     long interval;  // 0 == one-shot
+    long cost;
 };
 
 class Scheduler {
    public:
-    void schedule(const std::string& id, long at_ms, long interval_ms) {
+    void set_budget(long b) { budget_ = b; }
+
+    void schedule(const std::string& id, long at_ms, long interval_ms, long cost) {
         auto it = pending_.find(id);
         if (it == pending_.end()) {
-            pending_[id] = {at_ms, next_sequence_++, interval_ms};
+            pending_[id] = {at_ms, next_sequence_++, interval_ms, cost};
             return;
         }
-        // Coalesce: at most one pending registration per id. Retarget the
-        // existing entry to the earlier time, adopt the new period, and keep
-        // its original place in the running order.
         it->second.ready_at = std::min(it->second.ready_at, at_ms);
         it->second.interval = interval_ms;
+        it->second.cost = cost;
     }
 
-    void queue_cancel(const std::string& id) {
-        queued_cancels_.push_back(id);
-    }
+    void queue_cancel(const std::string& id) { queued_cancels_.push_back(id); }
 
     std::vector<std::string> fire_due(long now_ms) {
         apply_queued_cancels();
 
         std::vector<std::pair<std::string, Entry>> due;
         for (const auto& kv : pending_) {
-            if (kv.second.ready_at <= now_ms) {
-                due.push_back(kv);
-            }
+            if (kv.second.ready_at <= now_ms) due.push_back(kv);
         }
         std::sort(due.begin(), due.end(), [](const auto& a, const auto& b) {
             if (a.second.ready_at != b.second.ready_at) {
@@ -54,18 +48,25 @@ class Scheduler {
         });
 
         std::vector<std::string> fired;
-        fired.reserve(due.size());
+        std::vector<std::pair<std::string, Entry>> ran;
+        long spent = 0;
+        bool stopped = false;
         for (const auto& d : due) {
-            fired.push_back(d.first);
-            pending_.erase(d.first);
+            if (!stopped && (budget_ < 0 || spent + d.second.cost <= budget_)) {
+                fired.push_back(d.first);
+                spent += d.second.cost;
+                ran.push_back(d);
+            } else {
+                stopped = true;  // this entry and all after it wait
+            }
         }
-        for (const auto& d : due) {
+
+        for (const auto& d : ran) pending_.erase(d.first);
+        for (const auto& d : ran) {
             if (d.second.interval > 0) {
                 long next = d.second.ready_at;
-                while (next <= now_ms) {
-                    next += d.second.interval;
-                }
-                pending_[d.first] = {next, next_sequence_++, d.second.interval};
+                while (next <= now_ms) next += d.second.interval;
+                pending_[d.first] = {next, next_sequence_++, d.second.interval, d.second.cost};
             }
         }
         return fired;
@@ -73,36 +74,36 @@ class Scheduler {
 
    private:
     void apply_queued_cancels() {
-        for (const auto& id : queued_cancels_) {
-            pending_.erase(id);
-        }
+        for (const auto& id : queued_cancels_) pending_.erase(id);
         queued_cancels_.clear();
     }
 
     std::unordered_map<std::string, Entry> pending_;
     std::vector<std::string> queued_cancels_;
     long next_sequence_ = 0;
+    long budget_ = -1;  // -1 == unlimited
 };
 
 void process_line(Scheduler& sched, const std::string& line, std::vector<std::string>& fire_log) {
     std::istringstream iss(line);
     std::string op;
-    if (!(iss >> op)) {
-        return;
-    }
+    if (!(iss >> op)) return;
     if (op == "SCHEDULE") {
         std::string id;
         long at_ms;
-        long interval_ms = 0;
         if (iss >> id >> at_ms) {
-            iss >> interval_ms;
-            sched.schedule(id, at_ms, interval_ms);
+            long every = 0;
+            long cost = 1;
+            iss >> every;
+            iss >> cost;
+            sched.schedule(id, at_ms, every, cost);
         }
     } else if (op == "CANCEL") {
         std::string id;
-        if (iss >> id) {
-            sched.queue_cancel(id);
-        }
+        if (iss >> id) sched.queue_cancel(id);
+    } else if (op == "BUDGET") {
+        long b;
+        if (iss >> b) sched.set_budget(b);
     } else if (op == "FIRE_DUE") {
         long now_ms;
         if (iss >> now_ms) {
@@ -121,8 +122,6 @@ int main() {
     while (std::getline(std::cin, line)) {
         process_line(sched, line, fire_log);
     }
-    for (const auto& id : fire_log) {
-        std::cout << id << '\n';
-    }
+    for (const auto& id : fire_log) std::cout << id << '\n';
     return 0;
 }
