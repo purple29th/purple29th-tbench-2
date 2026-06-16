@@ -1,30 +1,22 @@
-# What you're building
+You're picking up a bug in the timer subsystem of a small event loop. The loop keeps a set of callbacks, each registered to run at some time, and a "tick" entry point the loop calls whenever it wakes up. A few things are going wrong in production: callbacks that were cancelled sometimes still run, re-arming the same timer seems to leave duplicates or run it twice, and repeating callbacks misbehave after the loop has been busy — they either fire in a burst to "catch up," or they slowly drift away from their intended schedule. Your job is to write the scheduler so it behaves correctly, then we'll run it against a batch of recorded operation logs.
 
-Write a small C++ program that simulates an event-loop scheduler. It schedules callbacks, cancels them, and fires the ones that are due.
+The program reads operations from stdin, one per line:
 
-# Input (stdin)
+- `SCHEDULE <id> <at>` — register callback `<id>` to run at time `<at>`.
+- `SCHEDULE <id> <at> <every>` — same, but if `<every>` is a positive number the callback repeats with that period.
+- `CANCEL <id>` — stop callback `<id>`.
+- `FIRE_DUE <now>` — the loop just woke up at time `<now>`; run whatever is due.
 
-One operation per line:
+`<id>` is a non-empty token; the times are non-negative integers. Print, one per line, the ids of the callbacks that actually ran, in the exact order they ran.
 
-- `SCHEDULE <id> <at_ms>` — schedule callback `<id>` to run at absolute time `<at_ms>`.
-- `CANCEL <id>` — request cancellation of `<id>` if it has not fired.
-- `FIRE_DUE <now_ms>` — the loop wakes up at time `<now_ms>` and fires callbacks that are due.
+A few things about how it should behave:
 
-`<id>` is a non-empty token; `<at_ms>` and `<now_ms>` are non-negative integers.
+When the loop fires at `<now>`, a callback is due if its time is less than or equal to `<now>`. If several are due in the same wake-up, run them earliest-time-first, and for callbacks with the same time, run them in the order they were first registered. A single wake-up only runs work that was already due when it began — anything that becomes due while the batch is running waits for the next `FIRE_DUE`.
 
-# Output (stdout)
+A given id only ever has one pending timer. If you schedule an id that's already waiting, you don't get a second run — the existing timer is retargeted in place: it takes the earlier of its current time and the new one, adopts the period from the new request (a request with no period makes it a one-shot again), and keeps the place in the running order it had when it was first registered.
 
-Print the IDs of callbacks that actually fired, one per line, in the exact order they fired.
+Cancellation is not immediate. A cancel takes effect at the start of the next `FIRE_DUE`, and when it does it clears the pending timer for that id — including one that was (re)scheduled after the cancel was requested but before that wake-up ran.
 
-# Firing order
+A repeating callback runs at most once per wake-up, no matter how long the loop was busy. After it runs at `<now>`, its next run is the first instant on its own period grid — its original time plus whole multiples of its period — that lands strictly after `<now>`. It does not replay each period it missed while the loop was asleep, and it stays anchored to its original schedule rather than drifting from the moment it happened to run.
 
-Within a single `FIRE_DUE` round, fire callbacks in ascending order of their scheduled time. When two or more callbacks have the same scheduled time, fire them in the order they were scheduled (first scheduled fires first).
-
-# Two important rules
-
-- **Cancels are deferred.** `CANCEL` requests do not apply immediately. They take effect at the start of the next `FIRE_DUE`. A queued `CANCEL` removes every pending entry that shares its `<id>`, including any entries scheduled after the cancel was requested but before it was applied.
-- **No same-round "new work".** A `FIRE_DUE` round only fires callbacks that were already due at the moment the round began. New callbacks scheduled while the round is firing wait for a later `FIRE_DUE`.
-
-# Build target
-
-Your compiled executable must be at `/app/scheduler`. The grader runs `/app/scheduler`, feeds operations on stdin, and compares stdout to expected output.
+Build your compiled executable to `/app/scheduler`. The grader runs it, feeds operations on stdin, and compares stdout to the expected firing order.

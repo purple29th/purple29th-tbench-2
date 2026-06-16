@@ -2,7 +2,7 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/event-loop-scheduler"
-description = "Implement a single-threaded event-loop scheduler that processes SCHEDULE/CANCEL/FIRE_DUE operations and prints the order in which callbacks fire, respecting queued-cancellation and schedule-during-fire semantics."
+description = "Implement a C++ event-loop scheduler with per-id timer coalescing, deferred cancellation, round-boundary semantics, and repeating callbacks that fire once per wake-up and re-arm on their original period grid (catch-up without storms or drift)."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["simulation", "event-loop", "scheduler", "state-machine", "concurrency"]
 

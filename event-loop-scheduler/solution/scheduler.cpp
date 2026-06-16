@@ -2,36 +2,35 @@
 //
 // Reads operations from stdin (one per line) and writes the firing order
 // of callback IDs to stdout, one per line.
-
+#include <algorithm>
 #include <iostream>
-#include <queue>
-#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace {
 
-struct ScheduledCallback {
+struct Entry {
     long ready_at;
     long sequence;
-    std::string id;
-};
-
-struct CallbackOrder {
-    bool operator()(const ScheduledCallback& a, const ScheduledCallback& b) const {
-        if (a.ready_at != b.ready_at) {
-            return a.ready_at > b.ready_at;
-        }
-        return a.sequence > b.sequence;
-    }
+    long interval;  // 0 == one-shot
 };
 
 class Scheduler {
    public:
-    void schedule(const std::string& id, long at_ms) {
-        pending_.push({at_ms, next_sequence_++, id});
+    void schedule(const std::string& id, long at_ms, long interval_ms) {
+        auto it = pending_.find(id);
+        if (it == pending_.end()) {
+            pending_[id] = {at_ms, next_sequence_++, interval_ms};
+            return;
+        }
+        // Coalesce: at most one pending registration per id. Retarget the
+        // existing entry to the earlier time, adopt the new period, and keep
+        // its original place in the running order.
+        it->second.ready_at = std::min(it->second.ready_at, at_ms);
+        it->second.interval = interval_ms;
     }
 
     void queue_cancel(const std::string& id) {
@@ -41,45 +40,46 @@ class Scheduler {
     std::vector<std::string> fire_due(long now_ms) {
         apply_queued_cancels();
 
-        std::vector<ScheduledCallback> due_now = drain_due(now_ms);
+        std::vector<std::pair<std::string, Entry>> due;
+        for (const auto& kv : pending_) {
+            if (kv.second.ready_at <= now_ms) {
+                due.push_back(kv);
+            }
+        }
+        std::sort(due.begin(), due.end(), [](const auto& a, const auto& b) {
+            if (a.second.ready_at != b.second.ready_at) {
+                return a.second.ready_at < b.second.ready_at;
+            }
+            return a.second.sequence < b.second.sequence;
+        });
 
         std::vector<std::string> fired;
-        fired.reserve(due_now.size());
-        for (const auto& cb : due_now) {
-            fired.push_back(cb.id);
+        fired.reserve(due.size());
+        for (const auto& d : due) {
+            fired.push_back(d.first);
+            pending_.erase(d.first);
+        }
+        for (const auto& d : due) {
+            if (d.second.interval > 0) {
+                long next = d.second.ready_at;
+                while (next <= now_ms) {
+                    next += d.second.interval;
+                }
+                pending_[d.first] = {next, next_sequence_++, d.second.interval};
+            }
         }
         return fired;
     }
 
    private:
     void apply_queued_cancels() {
-        if (queued_cancels_.empty()) {
-            return;
+        for (const auto& id : queued_cancels_) {
+            pending_.erase(id);
         }
-        std::set<std::string> cancelled(queued_cancels_.begin(), queued_cancels_.end());
         queued_cancels_.clear();
-
-        std::priority_queue<ScheduledCallback, std::vector<ScheduledCallback>, CallbackOrder> kept;
-        while (!pending_.empty()) {
-            const auto& top = pending_.top();
-            if (!cancelled.count(top.id)) {
-                kept.push(top);
-            }
-            pending_.pop();
-        }
-        pending_ = std::move(kept);
     }
 
-    std::vector<ScheduledCallback> drain_due(long now_ms) {
-        std::vector<ScheduledCallback> due;
-        while (!pending_.empty() && pending_.top().ready_at <= now_ms) {
-            due.push_back(pending_.top());
-            pending_.pop();
-        }
-        return due;
-    }
-
-    std::priority_queue<ScheduledCallback, std::vector<ScheduledCallback>, CallbackOrder> pending_;
+    std::unordered_map<std::string, Entry> pending_;
     std::vector<std::string> queued_cancels_;
     long next_sequence_ = 0;
 };
@@ -90,12 +90,13 @@ void process_line(Scheduler& sched, const std::string& line, std::vector<std::st
     if (!(iss >> op)) {
         return;
     }
-
     if (op == "SCHEDULE") {
         std::string id;
         long at_ms;
+        long interval_ms = 0;
         if (iss >> id >> at_ms) {
-            sched.schedule(id, at_ms);
+            iss >> interval_ms;
+            sched.schedule(id, at_ms, interval_ms);
         }
     } else if (op == "CANCEL") {
         std::string id;
@@ -120,7 +121,6 @@ int main() {
     while (std::getline(std::cin, line)) {
         process_line(sched, line, fire_log);
     }
-
     for (const auto& id : fire_log) {
         std::cout << id << '\n';
     }
