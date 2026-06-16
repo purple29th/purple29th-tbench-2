@@ -1,0 +1,9 @@
+STORE a /v1 none 25000
+STORE b /v2 none 200000
+OPEN b
+STORE c /v3 none 200000
+COMMIT b
+LOOKUP d /v1 none 25000
+QUERY
+TRIM
+QUERY

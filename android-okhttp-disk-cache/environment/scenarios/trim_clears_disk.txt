@@ -1,0 +1,7 @@
+STORE big /v1 none 200000
+STORE b /v2 none 25000
+OPEN b
+STORE c /v3 none 200000
+QUERY
+TRIM
+QUERY

@@ -1,0 +1,6 @@
+STORE a /img vgz 100000
+COMMIT a
+LOOKUP b /img vbr 50000
+QUERY
+LOOKUP c /img vgz 100000
+QUERY

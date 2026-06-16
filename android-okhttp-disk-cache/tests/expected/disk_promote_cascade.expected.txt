@@ -1,0 +1,20 @@
+cache budget=300000 currentBytes=125000
+memory:
+  key=pad1 url=/p1 vary=none bytes=25000 lastAccess=2
+  key=pad2 url=/p2 vary=none bytes=25000 lastAccess=3
+  key=pad3 url=/p3 vary=none bytes=25000 lastAccess=4
+  key=pad4 url=/p4 vary=none bytes=25000 lastAccess=5
+  key=pad5 url=/p5 vary=none bytes=25000 lastAccess=6
+disk:
+  key=want url=/v1 vary=none bytes=200000
+inflight:
+events:
+  STORE big
+  STORE pad1
+  STORE pad2
+  STORE pad3
+  STORE pad4
+  STORE pad5
+  EVICT big reason=lru
+  REUSE_DISK want
+  EVICT want reason=lru

@@ -1,0 +1,5 @@
+STORE a /img vgz 25000
+STORE b /img vgz 25000
+COMMIT a
+COMMIT b
+QUERY

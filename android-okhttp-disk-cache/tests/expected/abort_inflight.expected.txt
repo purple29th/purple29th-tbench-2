@@ -1,0 +1,7 @@
+cache budget=300000 currentBytes=0
+memory:
+disk:
+inflight:
+events:
+  STORE a
+  ABORT a

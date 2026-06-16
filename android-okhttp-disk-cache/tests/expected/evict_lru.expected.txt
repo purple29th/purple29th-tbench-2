@@ -1,0 +1,12 @@
+cache budget=300000 currentBytes=125000
+memory:
+  key=mid url=/v2 vary=none bytes=100000 lastAccess=2
+  key=trig url=/v3 vary=none bytes=25000 lastAccess=3
+disk:
+  key=big url=/v1 vary=none bytes=200000
+inflight:
+events:
+  STORE big
+  STORE mid
+  STORE trig
+  EVICT big reason=lru

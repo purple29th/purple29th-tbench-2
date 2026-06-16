@@ -1,0 +1,10 @@
+cache budget=300000 currentBytes=25000
+memory:
+  key=a url=/img vary=vgz bytes=25000 lastAccess=3
+disk:
+  key=b url=/img vary=vgz bytes=25000
+inflight:
+events:
+  STORE a
+  STORE b
+  DEDUP b

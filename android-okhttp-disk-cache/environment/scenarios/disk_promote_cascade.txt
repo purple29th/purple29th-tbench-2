@@ -1,0 +1,8 @@
+STORE big /v1 none 200000
+STORE pad1 /p1 none 25000
+STORE pad2 /p2 none 25000
+STORE pad3 /p3 none 25000
+STORE pad4 /p4 none 25000
+STORE pad5 /p5 none 25000
+LOOKUP want /v1 none 200000
+QUERY

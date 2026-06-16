@@ -1,0 +1,3 @@
+STORE a /v1 none 180000
+STORE b /v2 none 180000
+QUERY

@@ -1,0 +1,4 @@
+STORE big /v1 none 200000
+STORE mid /v2 none 100000
+STORE trig /v3 none 25000
+QUERY
