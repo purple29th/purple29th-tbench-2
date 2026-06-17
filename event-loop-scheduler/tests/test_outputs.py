@@ -60,6 +60,18 @@ CASES = {
         "BUDGET 2 3 100\nSCHEDULE r 0 10 1\nSCHEDULE a 0 0 1\nFIRE_DUE 2\nFIRE_DUE 10\n",
         ["r", "a", "r"],
     ),
+    "coalesce_retarget_keeps_order": (
+        "SCHEDULE a 200\nSCHEDULE b 100\nSCHEDULE a 100\nFIRE_DUE 100\n",
+        ["a", "b"],
+    ),
+    "cancel_clears_reschedule_before_wakeup": (
+        "SCHEDULE a 100\nCANCEL a\nSCHEDULE a 100\nSCHEDULE b 100\nFIRE_DUE 100\n",
+        ["b"],
+    ),
+    "recurring_no_same_round_replay": (
+        "SCHEDULE r 100 100\nFIRE_DUE 500\n",
+        ["r"],
+    ),
 }
 
 
