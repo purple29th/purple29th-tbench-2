@@ -42,6 +42,11 @@ CASE_NAMES = [
     "unbound_query_after_recycle",
     "recycle_leak_gated",
     "refetch_first_write_wins",
+    "stale_steals_resolution",
+    "stale_consumes_then_fresh",
+    "refetch_revalidates_after_apply",
+    "stale_consume_triple_interleave",
+    "tie_break_by_schedule_order",
 ]
 
 @pytest.mark.parametrize("name", CASE_NAMES)

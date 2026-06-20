@@ -1,0 +1,7 @@
+BIND c1 itemA Alice 10
+BIND c2 itemA Anna 10
+RECYCLE c1
+RESOLVE itemA img://only
+TICK 20
+QUERY c1
+QUERY c2
