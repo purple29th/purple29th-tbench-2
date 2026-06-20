@@ -1,0 +1,6 @@
+BIND c1 itemA Alice 10
+REFETCH c1 12
+RESOLVE itemA img://first
+RESOLVE itemA img://second
+TICK 20
+QUERY c1

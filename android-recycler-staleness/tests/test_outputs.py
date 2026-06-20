@@ -40,6 +40,8 @@ CASE_NAMES = [
     "rapid_recycle_and_rebind",
     "interleaved_binds_across_cells",
     "unbound_query_after_recycle",
+    "recycle_leak_gated",
+    "refetch_first_write_wins",
 ]
 
 @pytest.mark.parametrize("name", CASE_NAMES)

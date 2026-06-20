@@ -26,6 +26,11 @@ fun runScenario(scenario: Scenario): String {
             is Op.Resolve -> scheduler.queueResolution(op.itemId, op.imageUrl)
             is Op.Tick -> scheduler.advance(op.now)
             is Op.Query -> querySnapshots.add(pool.snapshot(op.cellId))
+            is Op.Refetch -> {
+                val cell = pool.cell(op.cellId)
+                val itemId = cell.itemId
+                if (itemId != null) scheduler.schedule(op.cellId, itemId, cell.bindingToken, op.fetchAt)
+            }
         }
     }
 

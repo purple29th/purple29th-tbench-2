@@ -27,7 +27,9 @@ class RecyclerPool {
 
     fun snapshot(cellId: String): String {
         val cell = cell(cellId)
-        if (!cell.isBound()) return "$cellId unbound"
+        if (!cell.isBound()) {
+            return if (cell.imageUrl != null) "$cellId unbound imageUrl=${cell.imageUrl}" else "$cellId unbound"
+        }
         val image = cell.imageUrl ?: "NONE"
         return "$cellId item=${cell.itemId} title=${cell.title} imageUrl=$image"
     }
