@@ -50,6 +50,7 @@ CASE_NAMES = [
     "budget_carry_decode",
     "budget_remainder_accumulates",
     "budget_two_thirds",
+    "refetch_unbound_noop",
 ]
 
 @pytest.mark.parametrize("name", CASE_NAMES)

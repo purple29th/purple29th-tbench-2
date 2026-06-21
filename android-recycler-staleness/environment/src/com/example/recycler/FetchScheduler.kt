@@ -32,7 +32,6 @@ class FetchScheduler(private val pool: RecyclerPool) {
     fun advance(now: Long) {
         if (budgeted) {
             val dt = now - lastNow
-            // BUG: per-tick integer division discards the fractional remainder.
             if (dt > 0) budget += dt * refillNum / refillDen
             if (budget > cap) budget = cap
         }
