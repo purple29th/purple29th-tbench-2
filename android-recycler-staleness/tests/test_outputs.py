@@ -47,6 +47,9 @@ CASE_NAMES = [
     "refetch_revalidates_after_apply",
     "stale_consume_triple_interleave",
     "tie_break_by_schedule_order",
+    "budget_carry_decode",
+    "budget_remainder_accumulates",
+    "budget_two_thirds",
 ]
 
 @pytest.mark.parametrize("name", CASE_NAMES)

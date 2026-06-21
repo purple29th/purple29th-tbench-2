@@ -1,0 +1,3 @@
+c1 item=itemA title=Alice imageUrl=img://A
+c2 item=itemB title=Bob imageUrl=img://B
+c3 item=itemC title=Carol imageUrl=img://C

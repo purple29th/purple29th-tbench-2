@@ -5,6 +5,13 @@ class FetchScheduler(private val pool: RecyclerPool) {
     private val resolutions = mutableMapOf<String, ArrayDeque<String>>()
     private var sequenceCounter: Long = 0L
 
+    private var budgeted = false
+    private var refillNum = 0L
+    private var refillDen = 1L
+    private var cap = 0L
+    private var budget = 0L
+    private var lastNow = 0L
+
     fun schedule(cellId: String, itemId: String, expectedToken: Long, dueAt: Long) {
         sequenceCounter += 1
         pending.add(AsyncFetch(sequenceCounter, cellId, itemId, expectedToken, dueAt))
@@ -14,23 +21,42 @@ class FetchScheduler(private val pool: RecyclerPool) {
         resolutions.getOrPut(itemId) { ArrayDeque() }.addLast(imageUrl)
     }
 
+    fun setBudget(num: Long, den: Long, capCredits: Long) {
+        budgeted = true
+        refillNum = num
+        refillDen = den
+        cap = capCredits
+        if (budget > cap) budget = cap
+    }
+
     fun advance(now: Long) {
+        if (budgeted) {
+            val dt = now - lastNow
+            // BUG: per-tick integer division discards the fractional remainder.
+            if (dt > 0) budget += dt * refillNum / refillDen
+            if (budget > cap) budget = cap
+        }
+        lastNow = now
+
         val due = pending.filter { it.dueAt <= now }
             .sortedWith(compareBy({ it.dueAt }, { it.sequence }, { it.cellId }))
-        pending.removeAll(due.toSet())
 
-        // BUG: collects all resolutions first, then writes them all at once,
-        // so token bumps from afterImageApplied (when correctly implemented)
-        // don't propagate to subsequent writes in the same advance.
-        val toApply = mutableListOf<Pair<AsyncFetch, String>>()
+        val processed = mutableListOf<AsyncFetch>()
         for (fetch in due) {
+            val cell = pool.cell(fetch.cellId)
+            val valid = cell.bindingToken == fetch.expectedToken
+            if (valid && budgeted && budget < 1) {
+                break
+            }
             val queue = resolutions[fetch.itemId]
             val url = queue?.removeFirstOrNull() ?: "auto:${fetch.itemId}"
-            toApply.add(fetch to url)
+            val applied = cell.applyImage(url, fetch.expectedToken)
+            if (applied) {
+                if (budgeted) budget -= 1
+                pool.afterImageApplied(fetch.cellId)
+            }
+            processed.add(fetch)
         }
-        for ((fetch, url) in toApply) {
-            pool.cell(fetch.cellId).applyImage(url, fetch.expectedToken)
-            pool.afterImageApplied(fetch.cellId)
-        }
+        pending.removeAll(processed.toSet())
     }
 }

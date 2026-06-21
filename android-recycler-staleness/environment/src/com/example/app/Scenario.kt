@@ -7,6 +7,7 @@ sealed class Op {
     data class Tick(val now: Long) : Op()
     data class Query(val cellId: String) : Op()
     data class Refetch(val cellId: String, val fetchAt: Long) : Op()
+    data class Budget(val num: Long, val den: Long, val cap: Long) : Op()
 }
 
 data class Scenario(val ops: List<Op>)

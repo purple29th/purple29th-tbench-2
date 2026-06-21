@@ -24,6 +24,7 @@ fun runScenario(scenario: Scenario): String {
             }
             is Op.Recycle -> pool.recycle(op.cellId)
             is Op.Resolve -> scheduler.queueResolution(op.itemId, op.imageUrl)
+            is Op.Budget -> scheduler.setBudget(op.num, op.den, op.cap)
             is Op.Tick -> scheduler.advance(op.now)
             is Op.Query -> querySnapshots.add(pool.snapshot(op.cellId))
             is Op.Refetch -> {

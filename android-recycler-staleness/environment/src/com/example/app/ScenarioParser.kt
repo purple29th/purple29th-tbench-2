@@ -23,6 +23,10 @@ fun parseScenario(text: String): Scenario {
                 require(parts.size >= 2) { "TICK needs new_now" }
                 ops.add(Op.Tick(parts[1].toLong()))
             }
+            "BUDGET" -> {
+                require(parts.size >= 4) { "BUDGET needs num den cap" }
+                ops.add(Op.Budget(parts[1].toLong(), parts[2].toLong(), parts[3].toLong()))
+            }
             "REFETCH" -> {
                 require(parts.size >= 3) { "REFETCH needs cell_id fetch_at_tick" }
                 ops.add(Op.Refetch(parts[1], parts[2].toLong()))
