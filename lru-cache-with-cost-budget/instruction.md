@@ -1,45 +1,43 @@
-# Setting
+# Cost-budgeted cache
 
-Build a small C++ program that simulates a memory-budgeted cache. Each entry has a `key`, a `value`, and a numeric `cost`. Reads and writes update how recently an entry was used, entries can be pinned so they survive eviction, the cache can passively reclaim headroom over time, and it can be told to evict until it fits within a cost budget.
+You're writing a little C++ program that acts like an in-memory cache with a twist: every entry carries a cost, some entries can be pinned so they stick around, and the cache slowly frees up room as time passes. It reads commands on stdin, one per line, runs them in order, and prints what's left at the end.
 
-# Input operations (stdin)
+## Commands
 
-One command per line:
+- `PUT <key> <value> <cost>`: add the key, or if it's already there just update its value and cost (you never end up with two copies of a key). Either way it counts as using the entry, so it lands in the current time tier.
+- `GET <key>`: if the key is present, mark it used (current tier). If it isn't, ignore the command.
+- `PIN <key>`: protect an existing key from eviction. Pinning doesn't count as using the entry, so it leaves recency alone.
+- `UNPIN <key>`: drop that protection. Also doesn't touch recency.
+- `DECAY <num> <den>`: turn on passive headroom: from here on the cache reclaims `num` units of room every `den` ticks.
+- `EVICT_TO <budget>`: shrink the cache until it fits the budget.
+- `TICK`: bump the clock by one. Anything used after a tick is newer than anything used before it.
 
-- `PUT <key> <value> <cost>` — store `<key>`, or update it if it already exists (replace value and cost; still a single entry). A `PUT` touches the entry, putting it in the current recency tier.
-- `GET <key>` — if `<key>` exists, touch it (current recency tier). Otherwise do nothing.
-- `PIN <key>` — if `<key>` exists, mark it pinned. Pinned entries are never evicted. Pinning is not an access; it does not change recency.
-- `UNPIN <key>` — if `<key>` exists, clear its pinned mark. Also not an access.
-- `DECAY <num> <den>` — enable passive headroom reclamation at a rate of `<num>` units per `<den>` ticks (see Budget).
-- `EVICT_TO <budget>` — evict entries until the cache fits the budget (see Budget).
-- `TICK` — advance time by one step. Everything touched after a `TICK` is strictly more recent than everything touched before it.
+Keys and values are non-empty tokens. Costs, budgets, num, and den are non-negative integers. If a command names a key that isn't there, it does nothing.
 
-`<key>` and `<value>` are non-empty tokens; `<cost>`, `<budget>`, `<num>`, `<den>` are non-negative integers. A command naming a key that does not exist is a no-op.
+## How recency works
 
-# Recency tiers
+Time moves in tiers, not per command. A `PUT` or `GET` stamps the entry with whatever tier is current; a `TICK` starts a new tier. So if you `PUT a` and then `PUT b` with no tick in between, they're equally recent, and `b` is not newer than `a`. Only a `TICK` actually separates things in time. Pinning and decay don't change an entry's tier.
 
-Recency is tracked in tiers, not per-operation. Every `PUT` and `GET` stamps its entry with the current tier; `TICK` moves to a new tier. Two entries touched in the same tier (no `TICK` between them) are equally recent — a later `PUT` is **not** more recent than an earlier one unless a `TICK` separates them. `PIN`/`UNPIN`/`DECAY` never change an entry's tier.
+## The order for eviction and output
 
-# Eviction and output order
+Eviction and the final printout both walk entries the same way, oldest-used to newest-used:
 
-Both eviction and the final printout use the same ordering, from least-recently-used to most-recently-used:
+- older tier first;
+- if two entries share a tier, the more expensive one comes first;
+- if they're also the same cost, go by key alphabetically.
 
-1. Lower (older) recency tier first.
-2. Within the same tier, higher `cost` first.
-3. If cost also ties, by `key` ascending.
+## Budget, decay, and pins
 
-# Budget
+Once `DECAY <num> <den>` is set, the cache builds up headroom as ticks go by, `num` per `den` ticks. Keep it as a running total and carry the leftover fraction, so don't recompute it each time and don't throw the remainder away every tick. The headroom you can actually use at any point is the whole-number part of what's piled up so far.
 
-The system can passively reclaim memory as time passes. Once `DECAY <num> <den>` has been set, the cache accumulates headroom continuously as ticks elapse, at `<num>` units per `<den>` ticks. This headroom is a single running quantity that carries its fractional part across ticks — it is not recomputed from scratch and the remainder is never dropped. At any moment the reclaimed headroom available is the whole-number part of what has accumulated so far.
+`EVICT_TO <X>` looks at the effective cost, which is the total cost of all entries minus that whole-unit headroom, and evicts in the order above until the effective cost is `X` or less. It's an at-most bound: if you're already at or under `X`, leave everything alone (even if you're exactly at `X`).
 
-`EVICT_TO <X>` compares the cache's **effective** cost — the total cost of all entries minus the currently reclaimed (whole-unit) headroom — against `<X>`, and evicts in the order above until the effective cost is at most `<X>`. It is an at-most bound: if the effective cost is already `<= X`, nothing is evicted. With no `DECAY` set, headroom is zero and effective cost equals total cost.
+Pinned entries get skipped; they never get evicted. So if you've evicted everything that isn't pinned and the effective cost is still over `X`, just stop. You don't break a pin to hit the budget.
 
-Pinned entries are skipped — they are never removed. If, after evicting every unpinned entry, the effective cost is still above `<X>`, eviction stops and the cache stays over budget.
+## Output
 
-# Output
+When the input ends, print the surviving entries in that same eviction order, one per line, as `<key> <value> <cost>`.
 
-At end of input, print the surviving entries in the eviction order above, one per line as `<key> <value> <cost>`.
+## Build
 
-# Build target
-
-Compile your program to an executable at `/app/cache`. The grader runs `/app/cache`, feeds operations on stdin, and compares stdout to expected output.
+Build your program to `/app/cache`. The grader runs it, pipes the commands in on stdin, and checks stdout against the expected output.
