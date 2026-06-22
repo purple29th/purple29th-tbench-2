@@ -1,11 +1,13 @@
 // Reference oracle for lru-cache-with-cost-budget.
 //
-// Reads cache operations from stdin (one per line) and prints surviving
-// entries in least-recently-used-first order to stdout.
+// Reads cache operations from stdin (one per line) and prints surviving entries
+// in eviction order: least-recently-used tier first; within a tier, higher cost
+// first, then key ascending. Pinned entries are never evicted. When decay is
+// enabled, each TICK passively reclaims num/den units of headroom, accumulated
+// exactly (the fractional remainder carries across ticks).
 
 #include <algorithm>
 #include <iostream>
-#include <list>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -13,156 +15,130 @@
 
 namespace {
 
-constexpr long INITIAL_TIER = 0;
-constexpr long INITIAL_SEQUENCE = 0;
+constexpr long kInitialTier = 0;
 
 struct Entry {
     std::string key;
     std::string value;
-    long cost;
-    long tier;
-    long sequence;
+    long cost = 0;
+    long tier = kInitialTier;
+    bool pinned = false;
 };
 
-class CostBudgetedCache {
+bool precedes_in_eviction_order(const Entry& a, const Entry& b) {
+    if (a.tier != b.tier) return a.tier < b.tier;
+    if (a.cost != b.cost) return a.cost > b.cost;
+    return a.key < b.key;
+}
+
+class Cache {
    public:
     void put(const std::string& key, const std::string& value, long cost) {
-        auto it = entries_.find(key);
-        if (it == entries_.end()) {
-            entries_.emplace(key, Entry{key, value, cost, current_tier_, next_sequence_++});
-            return;
-        }
-        it->second.value = value;
-        it->second.cost = cost;
-        mark_accessed(it->second);
+        Entry& entry = entries_[key];
+        entry.key = key;
+        entry.value = value;
+        entry.cost = cost;
+        entry.tier = current_tier_;
     }
 
-    void get(const std::string& key) {
+    void touch(const std::string& key) {
         auto it = entries_.find(key);
-        if (it == entries_.end()) {
-            return;
-        }
-        mark_accessed(it->second);
+        if (it != entries_.end()) it->second.tier = current_tier_;
+    }
+
+    void set_pinned(const std::string& key, bool pinned) {
+        auto it = entries_.find(key);
+        if (it != entries_.end()) it->second.pinned = pinned;
+    }
+
+    void enable_decay(long num, long den) {
+        decay_num_ = num;
+        decay_den_ = den;
+    }
+
+    void advance_time() {
+        ++current_tier_;
+        // Accrue headroom exactly in den-units; the remainder carries.
+        if (decay_den_ > 0) headroom_units_ += decay_num_;
     }
 
     void evict_to(long budget) {
-        long total = total_cost();
-        if (total <= budget) {
-            return;
-        }
-        std::vector<std::string> victims = order_for_eviction();
-        for (const auto& key : victims) {
-            if (total <= budget) {
-                break;
-            }
-            total -= entries_.at(key).cost;
-            entries_.erase(key);
+        long headroom = (decay_den_ > 0) ? headroom_units_ / decay_den_ : 0;
+        long effective = total_cost() - headroom;
+        if (effective <= budget) return;
+        for (const Entry& entry : entries_in_eviction_order()) {
+            if (effective <= budget) break;
+            if (entry.pinned) continue;
+            effective -= entry.cost;
+            entries_.erase(entry.key);
         }
     }
 
-    void tick() {
-        ++current_tier_;
-    }
-
-    std::vector<Entry> snapshot_lru_first() const {
-        std::vector<Entry> snapshot;
-        snapshot.reserve(entries_.size());
-        for (const auto& [_, entry] : entries_) {
-            snapshot.push_back(entry);
-        }
-        std::sort(snapshot.begin(), snapshot.end(), older_first);
-        return snapshot;
+    std::vector<Entry> entries_in_eviction_order() const {
+        std::vector<Entry> ordered;
+        ordered.reserve(entries_.size());
+        for (const auto& [key, entry] : entries_) ordered.push_back(entry);
+        std::sort(ordered.begin(), ordered.end(), precedes_in_eviction_order);
+        return ordered;
     }
 
    private:
-    void mark_accessed(Entry& entry) {
-        entry.tier = current_tier_;
-        entry.sequence = next_sequence_++;
-    }
-
     long total_cost() const {
         long total = 0;
-        for (const auto& [_, entry] : entries_) {
-            total += entry.cost;
-        }
+        for (const auto& [key, entry] : entries_) total += entry.cost;
         return total;
     }
 
-    std::vector<std::string> order_for_eviction() const {
-        std::vector<const Entry*> live;
-        live.reserve(entries_.size());
-        for (const auto& [_, entry] : entries_) {
-            live.push_back(&entry);
-        }
-        std::sort(live.begin(), live.end(), [](const Entry* a, const Entry* b) {
-            if (a->tier != b->tier) {
-                return a->tier < b->tier;
-            }
-            if (a->cost != b->cost) {
-                return a->cost > b->cost;
-            }
-            return a->sequence < b->sequence;
-        });
-
-        std::vector<std::string> keys;
-        keys.reserve(live.size());
-        for (const auto* entry : live) {
-            keys.push_back(entry->key);
-        }
-        return keys;
-    }
-
-    static bool older_first(const Entry& a, const Entry& b) {
-        if (a.tier != b.tier) {
-            return a.tier < b.tier;
-        }
-        return a.sequence < b.sequence;
-    }
-
     std::unordered_map<std::string, Entry> entries_;
-    long current_tier_ = INITIAL_TIER;
-    long next_sequence_ = INITIAL_SEQUENCE;
+    long current_tier_ = kInitialTier;
+    long decay_num_ = 0;
+    long decay_den_ = 0;
+    long headroom_units_ = 0;
 };
 
-void process_line(CostBudgetedCache& cache, const std::string& line) {
-    std::istringstream iss(line);
-    std::string op;
-    if (!(iss >> op)) {
-        return;
-    }
+void process_line(Cache& cache, const std::string& line) {
+    std::istringstream input(line);
+    std::string command;
+    if (!(input >> command)) return;
 
-    if (op == "PUT") {
+    if (command == "PUT") {
         std::string key, value;
-        long cost;
-        if (iss >> key >> value >> cost) {
-            cache.put(key, value, cost);
-        }
+        long cost = 0;
+        if (input >> key >> value >> cost) cache.put(key, value, cost);
         return;
     }
-
-    if (op == "GET") {
+    if (command == "GET") {
         std::string key;
-        if (iss >> key) {
-            cache.get(key);
-        }
+        if (input >> key) cache.touch(key);
         return;
     }
-
-    if (op == "EVICT_TO") {
-        long budget;
-        if (iss >> budget) {
-            cache.evict_to(budget);
-        }
+    if (command == "PIN") {
+        std::string key;
+        if (input >> key) cache.set_pinned(key, true);
         return;
     }
-
-    if (op == "TICK") {
-        cache.tick();
+    if (command == "UNPIN") {
+        std::string key;
+        if (input >> key) cache.set_pinned(key, false);
+        return;
+    }
+    if (command == "DECAY") {
+        long num = 0, den = 0;
+        if (input >> num >> den) cache.enable_decay(num, den);
+        return;
+    }
+    if (command == "EVICT_TO") {
+        long budget = 0;
+        if (input >> budget) cache.evict_to(budget);
+        return;
+    }
+    if (command == "TICK") {
+        cache.advance_time();
     }
 }
 
-void emit_snapshot(const std::vector<Entry>& snapshot) {
-    for (const auto& entry : snapshot) {
+void print_entries(const std::vector<Entry>& entries) {
+    for (const Entry& entry : entries) {
         std::cout << entry.key << ' ' << entry.value << ' ' << entry.cost << '\n';
     }
 }
@@ -170,11 +146,9 @@ void emit_snapshot(const std::vector<Entry>& snapshot) {
 }  // namespace
 
 int main() {
-    CostBudgetedCache cache;
+    Cache cache;
     std::string line;
-    while (std::getline(std::cin, line)) {
-        process_line(cache, line);
-    }
-    emit_snapshot(cache.snapshot_lru_first());
+    while (std::getline(std::cin, line)) process_line(cache, line);
+    print_entries(cache.entries_in_eviction_order());
     return 0;
 }
