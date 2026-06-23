@@ -1,22 +1,74 @@
 exposures=[
-  user=u1 config=feature_x variant=control session=1 overridden=false
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_y variant=control session=1 overridden=false
 ]
 exposures=[
   user=u1 config=feature_x variant=control session=1 overridden=false,
-  user=u1 config=feature_x variant=test session=1 overridden=false
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false
 ]
 exposures=[
   user=u1 config=feature_x variant=control session=1 overridden=false,
-  user=u1 config=feature_x variant=test session=1 overridden=false
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false,
+  user=u2 config=feature_x variant=control session=1 overridden=false
 ]
 exposures=[
   user=u1 config=feature_x variant=control session=1 overridden=false,
-  user=u1 config=feature_x variant=test session=1 overridden=false,
-  user=u1 config=feature_x variant=test session=2 overridden=false
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false,
+  user=u2 config=feature_x variant=control session=1 overridden=false
 ]
 exposures=[
   user=u1 config=feature_x variant=control session=1 overridden=false,
-  user=u1 config=feature_x variant=test session=1 overridden=false,
-  user=u1 config=feature_x variant=test session=2 overridden=false,
-  user=u1 config=feature_x variant=experimental session=3 overridden=true
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false,
+  user=u2 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=2 overridden=false,
+  user=u1 config=feature_y variant=control session=2 overridden=false
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false,
+  user=u2 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=2 overridden=false,
+  user=u1 config=feature_y variant=control session=2 overridden=false,
+  user=u1 config=feature_y variant=red session=3 overridden=true,
+  user=u1 config=feature_x variant=blue session=3 overridden=false
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false,
+  user=u2 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=2 overridden=false,
+  user=u1 config=feature_y variant=control session=2 overridden=false,
+  user=u1 config=feature_y variant=red session=3 overridden=true,
+  user=u1 config=feature_x variant=blue session=3 overridden=false,
+  user=u1 config=feature_y variant=red session=3 overridden=true
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false,
+  user=u2 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=2 overridden=false,
+  user=u1 config=feature_y variant=control session=2 overridden=false,
+  user=u1 config=feature_y variant=red session=3 overridden=true,
+  user=u1 config=feature_x variant=blue session=3 overridden=false,
+  user=u1 config=feature_y variant=red session=3 overridden=true,
+  user=u2 config=feature_x variant=yellow session=1 overridden=true
+]
+exposures=[
+  user=u1 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_y variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=1 overridden=false,
+  user=u2 config=feature_x variant=control session=1 overridden=false,
+  user=u1 config=feature_x variant=blue session=2 overridden=false,
+  user=u1 config=feature_y variant=control session=2 overridden=false,
+  user=u1 config=feature_y variant=red session=3 overridden=true,
+  user=u1 config=feature_x variant=blue session=3 overridden=false,
+  user=u1 config=feature_y variant=red session=3 overridden=true,
+  user=u2 config=feature_x variant=yellow session=1 overridden=true
 ]

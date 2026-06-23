@@ -12,19 +12,16 @@ class MobileConfig(
     private val emitted = mutableListOf<ExposureEvent>()
 
     fun read(user: String, config: String, param: String, branch: String) {
-        // BUG: gate reads only log when branch == "test"; should log always.
         if (branch != "test") return
         emit(user, config, param)
     }
 
     fun defaultRead(user: String, config: String, param: String) {
-        // BUG: still emits an exposure for default reads; should be a no-op.
         emit(user, config, param)
     }
 
     fun variantFlip(user: String, config: String, newVariant: String) {
         variants[UserConfigKey(user, config)] = newVariant
-        // BUG: doesn't invalidate the dedup cache, so the next read won't re-expose.
     }
 
     fun override(user: String, config: String, variant: String) {

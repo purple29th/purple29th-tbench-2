@@ -1,10 +1,10 @@
 schema_version = "1.1"
 
 [task]
-name = "codimango/android-recycler-staleness"
-description = "Fix a buggy Kotlin RecyclerView-style cell pool so async image fetches scheduled before a cell is recycled or rebound do not corrupt the cell's later state."
+name = "codimango/mobile-config-exposure-imbalance"
+description = "Fix a buggy Kotlin mobile-config exposure logger so config reads emit correct exposure events: per-session dedup, variant-flip re-exposure, default-read suppression, and override/flip variant resolution that persists across sessions."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]
+keywords = ["kotlin", "mobile-config", "exposure-logging", "deduplication", "ab-testing", "bugfix"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -12,7 +12,7 @@ author_email = "purple29th@meta.com"
 difficulty = "hard"
 category = "bug-fixing"
 languages = ["kotlin"]
-tags = ["kotlin", "android-style", "recyclerview", "stale-callback", "binding-token", "production-bug"]
+tags = ["kotlin", "android-style", "mobile-config", "exposure-logging", "dedup", "variant-flip", "production-bug"]
 expert_time_estimate_min = 35.0
 junior_time_estimate_min = 120.0
 
