@@ -7,6 +7,7 @@ fun main() {
     val cache = ExposureCache()
     val mc = MobileConfig(sessions, cache)
     val out = StringBuilder()
+
     File("/app/scenario.txt").forEachLine { raw ->
         val line = raw.trim()
         if (line.isEmpty()) return@forEachLine
@@ -18,6 +19,9 @@ fun main() {
             "DEFAULT_READ"  -> mc.defaultRead(p[1], p[2], p[3])
             "VARIANT_FLIP"  -> mc.variantFlip(p[1], p[2], p[3])
             "OVERRIDE"      -> mc.override(p[1], p[2], p[3])
+            "GRANT"         -> mc.grant(p[1].toLong())
+            "PRIORITY"      -> mc.priority(p[1], p[2].toInt())
+            "FLUSH"         -> mc.flush()
             "QUERY"         -> out.append(mc.snapshot())
         }
     }

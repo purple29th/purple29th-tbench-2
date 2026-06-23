@@ -1,36 +1,206 @@
+PRIORITY cfgA 5
+PRIORITY cfgB 3
+PRIORITY cfgC 3
+PRIORITY cfgD 1
+PRIORITY cfgE 7
+PRIORITY cfgF 0
 SESSION_START u1
-READ u1 feature_x p1 test
-READ u1 feature_x p1 control
-READ u1 feature_y p2 gate
-QUERY
-VARIANT_FLIP u1 feature_x blue
-READ u1 feature_x p1 gate
-READ u1 feature_y p2 test
-QUERY
 SESSION_START u2
-READ u2 feature_x p1 control
-DEFAULT_READ u2 feature_x p1
+SESSION_START u3
+SESSION_START u4
+READ u1 cfgA p1 test
+READ u1 cfgB p3 control
+READ u2 cfgB p1 gate
+READ u2 cfgC p2 test
+READ u3 cfgC p1 control
+READ u3 cfgD p1 gate
+READ u4 cfgD p1 test
+READ u4 cfgE p3 control
+DEFAULT_READ u1 cfgA p1
+VARIANT_FLIP u1 cfgC v0
+GRANT 3
+FLUSH
 QUERY
-DEFAULT_READ u1 feature_x p1
+READ u1 cfgB p1 gate
+READ u1 cfgD p2 test
+READ u2 cfgC p1 control
+READ u2 cfgE p1 gate
+READ u3 cfgD p1 test
+READ u3 cfgF p3 control
+READ u4 cfgE p1 gate
+READ u4 cfgA p2 test
+DEFAULT_READ u2 cfgB p1
+OVERRIDE u3 cfgE ov1
+GRANT 4
+FLUSH
+READ u1 cfgC p1 control
+READ u1 cfgF p1 gate
+READ u2 cfgD p1 test
+READ u2 cfgA p3 control
+READ u3 cfgE p1 gate
+READ u3 cfgB p2 test
+READ u4 cfgF p1 control
+READ u4 cfgC p1 gate
+DEFAULT_READ u3 cfgC p1
+PRIORITY cfgC 2
+GRANT 5
+FLUSH
+QUERY
+READ u1 cfgD p1 test
+READ u1 cfgB p3 control
+READ u2 cfgE p1 gate
+READ u2 cfgC p2 test
+READ u3 cfgF p1 control
+READ u3 cfgD p1 gate
+READ u4 cfgA p1 test
+READ u4 cfgE p3 control
+DEFAULT_READ u4 cfgD p1
+VARIANT_FLIP u4 cfgF v3
+GRANT 3
+FLUSH
+READ u1 cfgE p1 gate
+READ u1 cfgD p2 test
+READ u2 cfgF p1 control
+READ u2 cfgE p1 gate
+READ u3 cfgA p1 test
+READ u3 cfgF p3 control
+READ u4 cfgB p1 gate
+READ u4 cfgA p2 test
+DEFAULT_READ u1 cfgE p1
+GRANT 4
+FLUSH
 QUERY
 SESSION_END u1
 SESSION_START u1
-READ u1 feature_x p1 test
-READ u1 feature_y p2 gate
+READ u1 cfgF p1 control
+READ u1 cfgF p1 gate
+READ u2 cfgA p1 test
+READ u2 cfgA p3 control
+READ u3 cfgB p1 gate
+READ u3 cfgB p2 test
+READ u4 cfgC p1 control
+READ u4 cfgC p1 gate
+DEFAULT_READ u2 cfgF p1
+OVERRIDE u3 cfgC ov5
+GRANT 5
+FLUSH
+READ u1 cfgA p1 test
+READ u1 cfgB p3 control
+READ u2 cfgB p1 gate
+READ u2 cfgC p2 test
+READ u3 cfgC p1 control
+READ u3 cfgD p1 gate
+READ u4 cfgD p1 test
+READ u4 cfgE p3 control
+DEFAULT_READ u3 cfgA p1
+VARIANT_FLIP u3 cfgC v6
+GRANT 3
+FLUSH
 QUERY
-OVERRIDE u1 feature_y red
+READ u1 cfgB p1 gate
+READ u1 cfgD p2 test
+READ u2 cfgC p1 control
+READ u2 cfgE p1 gate
+READ u3 cfgD p1 test
+READ u3 cfgF p3 control
+READ u4 cfgE p1 gate
+READ u4 cfgA p2 test
+DEFAULT_READ u4 cfgB p1
+PRIORITY cfgB 7
+GRANT 4
+FLUSH
+READ u1 cfgC p1 control
+READ u1 cfgF p1 gate
+READ u2 cfgD p1 test
+READ u2 cfgA p3 control
+READ u3 cfgE p1 gate
+READ u3 cfgB p2 test
+READ u4 cfgF p1 control
+READ u4 cfgC p1 gate
+DEFAULT_READ u1 cfgC p1
+GRANT 5
+FLUSH
+QUERY
+READ u1 cfgD p1 test
+READ u1 cfgB p3 control
+READ u2 cfgE p1 gate
+READ u2 cfgC p2 test
+READ u3 cfgF p1 control
+READ u3 cfgD p1 gate
+READ u4 cfgA p1 test
+READ u4 cfgE p3 control
+DEFAULT_READ u2 cfgD p1
+VARIANT_FLIP u2 cfgF v9
+OVERRIDE u3 cfgA ov9
+GRANT 3
+FLUSH
+READ u1 cfgE p1 gate
+READ u1 cfgD p2 test
+READ u2 cfgF p1 control
+READ u2 cfgE p1 gate
+READ u3 cfgA p1 test
+READ u3 cfgF p3 control
+READ u4 cfgB p1 gate
+READ u4 cfgA p2 test
+DEFAULT_READ u3 cfgE p1
+GRANT 4
+FLUSH
+QUERY
+SESSION_END u3
+SESSION_START u3
+READ u1 cfgF p1 control
+READ u1 cfgF p1 gate
+READ u2 cfgA p1 test
+READ u2 cfgA p3 control
+READ u3 cfgB p1 gate
+READ u3 cfgB p2 test
+READ u4 cfgC p1 control
+READ u4 cfgC p1 gate
+DEFAULT_READ u4 cfgF p1
+GRANT 5
+FLUSH
+READ u1 cfgA p1 test
+READ u1 cfgB p3 control
+READ u2 cfgB p1 gate
+READ u2 cfgC p2 test
+READ u3 cfgC p1 control
+READ u3 cfgD p1 gate
+READ u4 cfgD p1 test
+READ u4 cfgE p3 control
+DEFAULT_READ u1 cfgA p1
+VARIANT_FLIP u1 cfgC v12
+PRIORITY cfgA 3
+GRANT 3
+FLUSH
+QUERY
+READ u1 cfgB p1 gate
+READ u1 cfgD p2 test
+READ u2 cfgC p1 control
+READ u2 cfgE p1 gate
+READ u3 cfgD p1 test
+READ u3 cfgF p3 control
+READ u4 cfgE p1 gate
+READ u4 cfgA p2 test
+DEFAULT_READ u2 cfgB p1
+OVERRIDE u3 cfgE ov13
+GRANT 4
+FLUSH
+READ u1 cfgC p1 control
+READ u1 cfgF p1 gate
+READ u2 cfgD p1 test
+READ u2 cfgA p3 control
+READ u3 cfgE p1 gate
+READ u3 cfgB p2 test
+READ u4 cfgF p1 control
+READ u4 cfgC p1 gate
+DEFAULT_READ u3 cfgC p1
+GRANT 5
+FLUSH
+QUERY
+GRANT 100
+FLUSH
 SESSION_END u1
-SESSION_START u1
-READ u1 feature_y p2 control
-READ u1 feature_x p1 control
-QUERY
-VARIANT_FLIP u1 feature_y green
-READ u1 feature_y p2 gate
-QUERY
-OVERRIDE u2 feature_x yellow
-VARIANT_FLIP u2 feature_x purple
-READ u2 feature_x p1 test
-QUERY
 SESSION_END u2
-SESSION_END u1
+SESSION_END u3
+SESSION_END u4
 QUERY

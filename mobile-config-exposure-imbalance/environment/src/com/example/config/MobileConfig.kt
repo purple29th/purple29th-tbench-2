@@ -9,15 +9,15 @@ class MobileConfig(
 ) {
     private val variants = mutableMapOf<UserConfigKey, String>()
     private val overrides = mutableMapOf<UserConfigKey, String>()
-    private val emitted = mutableListOf<ExposureEvent>()
+    private val logged = mutableListOf<ExposureEvent>()
 
     fun read(user: String, config: String, param: String, branch: String) {
         if (branch != "test") return
-        emit(user, config, param)
+        emitNow(user, config, param)
     }
 
     fun defaultRead(user: String, config: String, param: String) {
-        emit(user, config, param)
+        emitNow(user, config, param)
     }
 
     fun variantFlip(user: String, config: String, newVariant: String) {
@@ -28,13 +28,19 @@ class MobileConfig(
         overrides[UserConfigKey(user, config)] = variant
     }
 
-    fun snapshot(): String = if (emitted.isEmpty()) EMPTY_LOG else formatLog(emitted)
+    fun grant(amount: Long) {}
 
-    private fun emit(user: String, config: String, param: String) {
+    fun priority(config: String, value: Int) {}
+
+    fun flush() {}
+
+    fun snapshot(): String = if (logged.isEmpty()) EMPTY_LOG else formatLog(logged)
+
+    private fun emitNow(user: String, config: String, param: String) {
         val session = sessions.current(user) ?: return
         if (!cache.shouldLog(user, session, config, param)) return
         val key = UserConfigKey(user, config)
-        emitted += ExposureEvent(
+        logged += ExposureEvent(
             user = user,
             config = config,
             variant = resolveVariant(key),
