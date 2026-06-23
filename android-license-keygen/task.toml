@@ -1,0 +1,36 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/android-license-keygen"
+description = "Reverse-engineer a compiled offline license-key validator (jar, source withheld) and recover a key it accepts. No network; the key space is far too large to brute-force, so the validation logic must be read from bytecode and inverted."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["reverse-engineering", "bytecode", "keygen", "jvm", "android"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "reverse-engineering"
+languages = ["kotlin"]
+tags = ["reverse-engineering", "bytecode", "javap", "keygen", "license-validation", "jvm"]
+expert_time_estimate_min = 40.0
+junior_time_estimate_min = 150.0
+
+[verifier]
+timeout_sec = 180.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 1500.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
