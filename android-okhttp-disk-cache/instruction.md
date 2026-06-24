@@ -1,6 +1,6 @@
 # Setting
 
-Simulates an OkHttp/DiskLruCache-style HTTP response cache: responses are stored under a byte budget, recently-used responses stay in an in-memory hot set, evicted responses spill to a disk journal, and an in-flight reader pins an entry so it is not torn down mid-read. Bugs in this layer either over-fill the cache (exceeding the disk budget) or serve the wrong cached response for a request whose Vary headers differ.
+Simulates an OkHttp/DiskLruCache-style HTTP response cache: responses are stored under a byte budget, recently-used responses stay in an in-memory hot set, evicted responses spill to a disk journal, and an in-flight reader is tracked only by a depth counter (this bookkeeping does NOT exempt the entry from eviction). Bugs in this layer either over-fill the cache (exceeding the disk budget) or serve the wrong cached response for a request whose Vary headers differ.
 
 The current implementation in /app/src/com/example/httpcache/ResponseCache.kt produces wrong output across several scenarios. Fix it.
 
@@ -9,7 +9,7 @@ The current implementation in /app/src/com/example/httpcache/ResponseCache.kt pr
 - STORE <key> <url> <vary> <bytes> — store a fresh response. It counts toward the budget immediately and may itself trigger eviction.
 - OPEN <key> — increment the in-flight reader depth for <key>.
 - CLOSE <key> — decrement the in-flight reader depth for <key> (remove from the in-flight set when it reaches 0).
-- COMMIT <key> — finish writing the entry. If the in-flight depth is greater than zero, abort it entirely (see abort handling); otherwise the entry stays in memory and its lastAccess is updated.
+- COMMIT <key> — finish writing the entry. It has effect only if <key> is currently in memory; if <key> is not in memory it is a silent no-op, even when the key is still in-flight (see Silent no-ops). If <key> is in memory and its in-flight depth is greater than zero, abort it entirely (see abort handling); otherwise the entry stays in memory and its lastAccess is updated.
 - LOOKUP <key> <url> <vary> <bytes> — serve a cached response whose (url, vary) match exactly, or store fresh if none match. Search order: memory, then disk, then fresh store. The served entry is keyed under the new <key>.
 - TRIM — clear the disk journal entirely. The memory hot set and the in-flight set are untouched.
 - QUERY — append a snapshot to /app/output.txt.
@@ -39,13 +39,13 @@ Exact match means both url and vary are equal. A cached response for the same ur
 
 # Eviction
 
-Eviction is memory-only and runs whenever the memory byte total exceeds the budget. The cache repeatedly removes one entry until the total fits at or below the budget. The victim is the entry with the smallest lastAccess. Each evicted entry emits an EVICT <key> reason=lru event and is demoted to the disk journal under its existing key. It is not destroyed.
+Eviction is memory-only and runs whenever the memory byte total exceeds the budget. The cache repeatedly removes one entry until the total fits at or below the budget. The victim is the entry with the smallest lastAccess; ties are broken by the smallest bytes, then by key ascending. An entry whose in-flight depth is greater than zero is NOT exempt from eviction — it is chosen and demoted to disk like any other entry, and it keeps its in-flight depth while it sits on disk (so it still appears in the inflight snapshot). Each evicted entry emits an EVICT <key> reason=lru event and is demoted to the disk journal under its existing key. It is not destroyed.
 
 # Abort handling
 
 OPEN <key> and CLOSE <key> maintain a per-key in-flight depth. The in-flight set lists keys whose depth is greater than zero.
 
-If COMMIT <key> is called while the in-flight depth for <key> is greater than zero:
+If COMMIT <key> is called while <key> is in memory and its in-flight depth is greater than zero:
 
 - Emit ABORT <key>.
 - Subtract the entry's bytes from the memory total.
@@ -53,6 +53,8 @@ If COMMIT <key> is called while the in-flight depth for <key> is greater than ze
 - Remove the key from the in-flight set.
 
 After an abort, subsequent CLOSE <key> calls are silent no-ops (the key is no longer tracked).
+
+If an in-flight entry was evicted to disk while a reader was still open, it is no longer in memory. A later COMMIT <key> on it therefore matches the not-in-memory rule and is a silent no-op: no ABORT is emitted, and the key stays in the in-flight set until CLOSE brings its depth back to zero. The not-in-memory rule takes precedence over the abort rule.
 
 # Commit deduplication
 
