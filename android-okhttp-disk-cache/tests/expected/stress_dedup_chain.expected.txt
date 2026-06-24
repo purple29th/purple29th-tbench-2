@@ -1,0 +1,37 @@
+cache budget=300000 currentBytes=50000
+memory:
+  key=p url=/shared vary=none bytes=50000 lastAccess=3
+disk:
+  key=q url=/shared vary=none bytes=50000
+inflight:
+events:
+  STORE p
+  STORE q
+  DEDUP q
+cache budget=300000 currentBytes=50000
+memory:
+  key=r url=/shared vary=none bytes=50000 lastAccess=5
+disk:
+  key=p url=/shared vary=none bytes=50000
+  key=q url=/shared vary=none bytes=50000
+inflight:
+events:
+  STORE p
+  STORE q
+  DEDUP q
+  STORE r
+  DEDUP p
+cache budget=300000 currentBytes=50000
+memory:
+  key=s url=/shared vary=none bytes=50000 lastAccess=5
+disk:
+  key=p url=/shared vary=none bytes=50000
+  key=q url=/shared vary=none bytes=50000
+inflight:
+events:
+  STORE p
+  STORE q
+  DEDUP q
+  STORE r
+  DEDUP p
+  REUSE_MEM s

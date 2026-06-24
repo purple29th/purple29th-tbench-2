@@ -1,0 +1,9 @@
+STORE p /shared none 50000
+STORE q /shared none 50000
+COMMIT p
+QUERY
+STORE r /shared none 50000
+COMMIT r
+QUERY
+LOOKUP s /shared none 50000
+QUERY

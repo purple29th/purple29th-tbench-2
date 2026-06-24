@@ -1,0 +1,63 @@
+cache budget=300000 currentBytes=270000
+memory:
+  key=c url=/u3 vary=none bytes=90000 lastAccess=3
+  key=d url=/u4 vary=none bytes=90000 lastAccess=5
+  key=e url=/u5 vary=none bytes=90000 lastAccess=6
+disk:
+  key=b url=/u2 vary=none bytes=90000
+  key=f url=/u1 vary=none bytes=90000
+inflight:
+  key=b depth=1
+events:
+  STORE a
+  STORE b
+  STORE c
+  STORE d
+  EVICT a reason=lru
+  STORE e
+  EVICT b reason=lru
+  REUSE_DISK f
+  EVICT f reason=lru
+cache budget=300000 currentBytes=270000
+memory:
+  key=c url=/u3 vary=none bytes=90000 lastAccess=3
+  key=d url=/u4 vary=none bytes=90000 lastAccess=5
+  key=e url=/u5 vary=none bytes=90000 lastAccess=6
+disk:
+  key=f url=/u1 vary=none bytes=90000
+  key=g url=/u2 vary=none bytes=90000
+inflight:
+  key=b depth=1
+events:
+  STORE a
+  STORE b
+  STORE c
+  STORE d
+  EVICT a reason=lru
+  STORE e
+  EVICT b reason=lru
+  REUSE_DISK f
+  EVICT f reason=lru
+  REUSE_DISK g
+  EVICT g reason=lru
+cache budget=300000 currentBytes=270000
+memory:
+  key=c url=/u3 vary=none bytes=90000 lastAccess=3
+  key=d url=/u4 vary=none bytes=90000 lastAccess=5
+  key=e url=/u5 vary=none bytes=90000 lastAccess=6
+disk:
+  key=f url=/u1 vary=none bytes=90000
+  key=g url=/u2 vary=none bytes=90000
+inflight:
+events:
+  STORE a
+  STORE b
+  STORE c
+  STORE d
+  EVICT a reason=lru
+  STORE e
+  EVICT b reason=lru
+  REUSE_DISK f
+  EVICT f reason=lru
+  REUSE_DISK g
+  EVICT g reason=lru

@@ -1,0 +1,38 @@
+cache budget=300000 currentBytes=280000
+memory:
+  key=y url=/b vary=none bytes=280000 lastAccess=3
+disk:
+  key=z url=/a vary=none bytes=280000
+inflight:
+  key=x depth=1
+events:
+  STORE x
+  STORE y
+  EVICT x reason=lru
+  REUSE_DISK z
+  EVICT z reason=lru
+cache budget=300000 currentBytes=280000
+memory:
+  key=y url=/b vary=none bytes=280000 lastAccess=3
+disk:
+inflight:
+  key=x depth=1
+events:
+  STORE x
+  STORE y
+  EVICT x reason=lru
+  REUSE_DISK z
+  EVICT z reason=lru
+  TRIM cleared=1
+cache budget=300000 currentBytes=280000
+memory:
+  key=y url=/b vary=none bytes=280000 lastAccess=3
+disk:
+inflight:
+events:
+  STORE x
+  STORE y
+  EVICT x reason=lru
+  REUSE_DISK z
+  EVICT z reason=lru
+  TRIM cleared=1

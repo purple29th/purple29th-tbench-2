@@ -1,0 +1,13 @@
+STORE a /u1 none 90000
+STORE b /u2 none 90000
+STORE c /u3 none 90000
+OPEN b
+STORE d /u4 none 90000
+STORE e /u5 none 90000
+COMMIT b
+LOOKUP f /u1 none 90000
+QUERY
+LOOKUP g /u2 none 90000
+QUERY
+CLOSE b
+QUERY
