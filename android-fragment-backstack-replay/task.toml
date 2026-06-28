@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-fragment-backstack-replay"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix a buggy Kotlin Android-style FragmentManager so the back-stack replay across rotation, named POP semantics, and REPLACE-restore-on-pop all match expected Android behavior."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "fragment", "back-stack", "rotation", "bugfix"]

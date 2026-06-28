@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-recycler-staleness"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix a buggy Kotlin RecyclerView-style cell pool so async image fetches scheduled before a cell is recycled or rebound do not corrupt the cell's later state."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]

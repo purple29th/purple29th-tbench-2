@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-bitmap-pool-leak-detector"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix bugs in a Kotlin Android BitmapPool simulator (Glide/Coil/Fresco-style): exact-match reuse across configs, LRU tie-break by bytes, leak detection during active draw, soft-tier promotion with cascade eviction, and GC clearing soft tier only."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]

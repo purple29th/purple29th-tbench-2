@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-doframe-deadline-scheduler"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix bugs in a Kotlin simulator of Android Choreographer (INPUT/ANIMATION/INSETS/TRAVERSAL) plus Looper MessageQueue with sync barriers, async lanes, vsync rate transitions, and deadline-driven jank detection."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]

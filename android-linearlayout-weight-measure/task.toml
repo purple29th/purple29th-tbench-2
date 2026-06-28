@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-linearlayout-weight-measure"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix bugs in a Kotlin layout measure simulator: inverse-weight distribution over leftover space, integer remainder routing, margin accounting, overflow clamping, and compounding layout positions."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]

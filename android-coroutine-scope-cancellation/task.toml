@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-coroutine-scope-cancellation"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix bugs in a Kotlin structured-concurrency simulator (CoroutineScope/viewModelScope model): subtree cancellation, child-failure propagation to siblings and parent, SupervisorJob absorption, FAILED-ancestor inheritance, and an AWAIT/COMPLETING completion cascade."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]
