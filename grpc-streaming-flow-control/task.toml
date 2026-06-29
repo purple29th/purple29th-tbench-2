@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/grpc-streaming-flow-control"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix bugs in a Kotlin HTTP/2 stream multiplexer used as gRPC wire protocol: weight-proportional bandwidth allocation, stream-id parity, half-closed credit updates, and CLOSED-state rendering."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]

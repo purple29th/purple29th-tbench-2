@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/mobile-config-exposure-imbalance"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix a buggy Kotlin mobile-config exposure logger so config reads emit correct exposure events: per-session dedup, variant-flip re-exposure, default-read suppression, and override/flip variant resolution that persists across sessions."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "mobile-config", "exposure-logging", "deduplication", "ab-testing", "bugfix"]

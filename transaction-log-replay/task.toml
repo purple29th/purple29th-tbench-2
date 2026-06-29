@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/transaction-log-replay"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Replay BEGIN/WRITE/SAVEPOINT/ROLLBACK_TO/COMMIT/ABORT/CHECKPOINT operations against a session-buffered store with intra-transaction savepoints, and print final committed state plus the latest checkpoint."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["transactions", "savepoints", "rollback", "checkpoint", "cpp"]

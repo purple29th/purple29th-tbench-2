@@ -2,6 +2,8 @@ version = "1.0"
 
 [task]
 name = "codimango/git-bisect-flaky-test"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["go", "git", "bisect", "flaky-tests", "regression", "build-infrastructure"]
 

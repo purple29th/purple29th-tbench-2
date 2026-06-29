@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/config-push-race-condition"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix bugs in a Kotlin versioned config store: per-push observer fan-out, snapshot read isolation, unsubscribe lifecycle, and reader version tracking."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]

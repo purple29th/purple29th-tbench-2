@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/distributed-lease-manager"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix bugs in a Kotlin simulator of a distributed lease manager with monotonic fencing tokens: acquire-on-expired atomicity, renew without fencing change, release/transfer fencing persistence, and tick-boundary inclusivity."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]

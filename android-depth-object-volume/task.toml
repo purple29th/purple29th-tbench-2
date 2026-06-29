@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-depth-object-volume"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom on-device depth volume binary format, isolates the scanned object by hand-written 3D connected-component labeling, and reports its volume in mm^3 accounting for anisotropic voxel spacing. Graded on held-out scans with independent scipy ground truth."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["android", "depth", "tof", "binary-parsing", "connected-components", "from-scratch"]

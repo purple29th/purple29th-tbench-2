@@ -2,6 +2,8 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/inventory-reservation-leaks"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 description = "Fix four reservation-lifecycle bugs in a Kotlin warehouse simulator: expired reservations leak stock, double-commits succeed, cancels refund committed orders, and duplicate orderIds silently overwrite."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]
