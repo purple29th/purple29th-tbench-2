@@ -6,7 +6,7 @@ A Kotlin simulator of the Android Choreographer.doFrame() loop and the main-thre
 
 Operations are read from /app/scenario.txt.
 
-- SET_VSYNC_RATE <hz> — set vsync rate (60, 90, 120). Interval = 1000 / hz ms (integer division). Applies starting next frame.
+- SET_VSYNC_RATE <hz> — set vsync rate (60, 90, 120). Interval = 1000 / hz ms (integer division). The new rate is applied at the end of the next DO_FRAME, so it first takes effect one frame later; the next frame keeps the previous interval.
 - POST_FRAME <token> <phase> <costMs> <repeat> — register a frame callback for the next frame. phase in {INPUT, ANIMATION, INSETS, TRAVERSAL}. repeat in {once, repeat}.
 - REMOVE_FRAME <token> — cancel a frame callback (queued-for-next-frame and in-flight).
 - POST_INPUT <eventTime> <x> <y> — queue an input event at logical time eventTime.
@@ -69,7 +69,7 @@ DRAIN_QUEUE <budgetMs> (outside frames) drains messages for up to budgetMs total
 
 # Vsync rate transitions
 
-SET_VSYNC_RATE <hz> updates the interval used starting with the next frame. A frame in progress keeps its already-determined interval/deadline. Emit VSYNC_RATE_CHANGED from=<oldHz> to=<newHz> when processed (time cost 0).
+SET_VSYNC_RATE <hz> records a pending interval that is applied at the end of the next DO_FRAME, so that frame still uses the current interval and deadline and the new interval first takes effect on the following frame. A frame in progress keeps its already-determined interval/deadline. Emit VSYNC_RATE_CHANGED from=<oldHz> to=<newHz> when processed (time cost 0).
 
 # Output format (QUERY)
 
