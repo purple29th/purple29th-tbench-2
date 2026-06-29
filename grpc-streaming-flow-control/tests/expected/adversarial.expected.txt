@@ -1,0 +1,117 @@
+connection window=4096
+streams:
+  id=1 state=OPEN weight=8 window=62473 queued=36938 sent=3062
+  id=3 state=OPEN weight=16 window=59410 queued=33875 sent=6125
+  id=5 state=OPEN weight=32 window=53283 queued=27748 sent=12252
+  id=7 state=OPEN weight=200 window=25535 queued=0 sent=40000
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  HEADERS stream=5 bytes=0
+  HEADERS stream=7 bytes=0
+  DATA stream=1 bytes=1919
+  DATA stream=3 bytes=3839
+  DATA stream=5 bytes=7679
+  DATA stream=7 bytes=40000
+  DATA stream=1 bytes=1143
+  DATA stream=3 bytes=2286
+  DATA stream=5 bytes=4573
+connection window=4096
+streams:
+  id=1 state=OPEN weight=8 window=51723 queued=26188 sent=13812
+  id=3 state=OPEN weight=16 window=37908 queued=12373 sent=27627
+  id=5 state=OPEN weight=32 window=25535 queued=0 sent=40000
+  id=7 state=OPEN weight=200 window=25535 queued=0 sent=40000
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  HEADERS stream=5 bytes=0
+  HEADERS stream=7 bytes=0
+  DATA stream=1 bytes=1919
+  DATA stream=3 bytes=3839
+  DATA stream=5 bytes=7679
+  DATA stream=7 bytes=40000
+  DATA stream=1 bytes=1143
+  DATA stream=3 bytes=2286
+  DATA stream=5 bytes=4573
+  DATA stream=1 bytes=8571
+  DATA stream=3 bytes=17142
+  DATA stream=5 bytes=27748
+  DATA stream=1 bytes=2179
+  DATA stream=3 bytes=4360
+connection window=4096
+streams:
+  id=1 state=OPEN weight=8 window=51723 queued=31188 sent=13812
+  id=3 state=OPEN weight=16 window=87908 queued=12373 sent=27627
+  id=5 state=HALF_CLOSED_LOCAL weight=32 window=33535 queued=0 sent=40000
+  id=7 state=OPEN weight=200 window=25535 queued=0 sent=40000
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  HEADERS stream=5 bytes=0
+  HEADERS stream=7 bytes=0
+  DATA stream=1 bytes=1919
+  DATA stream=3 bytes=3839
+  DATA stream=5 bytes=7679
+  DATA stream=7 bytes=40000
+  DATA stream=1 bytes=1143
+  DATA stream=3 bytes=2286
+  DATA stream=5 bytes=4573
+  DATA stream=1 bytes=8571
+  DATA stream=3 bytes=17142
+  DATA stream=5 bytes=27748
+  DATA stream=1 bytes=2179
+  DATA stream=3 bytes=4360
+connection window=60535
+streams:
+  id=1 state=HALF_CLOSED_LOCAL weight=8 window=20535 queued=0 sent=45000
+  id=3 state=OPEN weight=16 window=75535 queued=0 sent=40000
+  id=5 state=HALF_CLOSED_LOCAL weight=32 window=33535 queued=0 sent=40000
+  id=7 state=CLOSED weight=200 window=0 queued=0 sent=40000
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  HEADERS stream=5 bytes=0
+  HEADERS stream=7 bytes=0
+  DATA stream=1 bytes=1919
+  DATA stream=3 bytes=3839
+  DATA stream=5 bytes=7679
+  DATA stream=7 bytes=40000
+  DATA stream=1 bytes=1143
+  DATA stream=3 bytes=2286
+  DATA stream=5 bytes=4573
+  DATA stream=1 bytes=8571
+  DATA stream=3 bytes=17142
+  DATA stream=5 bytes=27748
+  DATA stream=1 bytes=2179
+  DATA stream=3 bytes=4360
+  DATA stream=1 bytes=26188
+  DATA stream=1 bytes=5000
+  DATA stream=3 bytes=12373
+connection window=60535
+streams:
+  id=1 state=HALF_CLOSED_LOCAL weight=8 window=20535 queued=0 sent=45000
+  id=3 state=OPEN weight=16 window=75435 queued=0 sent=40100
+  id=5 state=HALF_CLOSED_LOCAL weight=32 window=33535 queued=0 sent=40000
+  id=7 state=CLOSED weight=200 window=0 queued=0 sent=40000
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  HEADERS stream=5 bytes=0
+  HEADERS stream=7 bytes=0
+  DATA stream=1 bytes=1919
+  DATA stream=3 bytes=3839
+  DATA stream=5 bytes=7679
+  DATA stream=7 bytes=40000
+  DATA stream=1 bytes=1143
+  DATA stream=3 bytes=2286
+  DATA stream=5 bytes=4573
+  DATA stream=1 bytes=8571
+  DATA stream=3 bytes=17142
+  DATA stream=5 bytes=27748
+  DATA stream=1 bytes=2179
+  DATA stream=3 bytes=4360
+  DATA stream=1 bytes=26188
+  DATA stream=1 bytes=5000
+  DATA stream=3 bytes=12373
+  DATA stream=3 bytes=100

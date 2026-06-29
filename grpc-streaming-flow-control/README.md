@@ -11,8 +11,8 @@ Each run is k=5 trials. A trial scores 1.0 only if /app/output.txt matches expec
 | Model                              | Pass rate (k=5)                    |
 |------------------------------------|------------------------------------|
 | Oracle                             | 3/3 (1.00) deterministic           |
-| Avocado (meta/avocado_dvsc_tester) | measured by platform on submission |
-| Opus 4.6 (claude-opus-4-6)         | measured by platform on submission |
+| Avocado (meta/avocado_dvsc_tester) | 1/5 (0.20) [harder adversarial scenario] |
+| Opus 4.6 (claude-opus-4-6)         | 5/5 (1.00) |
 
 ## Model Analysis
 

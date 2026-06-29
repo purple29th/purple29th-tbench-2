@@ -62,6 +62,8 @@ After the proportional pass, any remainder bytes from integer division go to the
 
 The drain repeats within a single TICK until no contending stream can make further progress (no queue, no stream-window credit, or no connection-window credit).
 
+Within a single TICK, the resulting DATA frames are appended to the frames log in the order their streams were opened (the order OPEN_STREAM was issued).
+
 # Output format
 
 Each QUERY appends a snapshot:
