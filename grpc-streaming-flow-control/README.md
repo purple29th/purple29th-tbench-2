@@ -12,17 +12,11 @@ Each run is k=5 trials. A trial scores 1.0 only if /app/output.txt matches expec
 |------------------------------------|------------------------------------|
 | Oracle                             | 3/3 (1.00) deterministic           |
 | Avocado (meta/avocado_dvsc_tester) | 1/5 (0.20) [harder adversarial scenario] |
-| Opus 4.6 (claude-opus-4-6)         | 5/5 (1.00) |
+| Opus 4.6 (claude-opus-4-6)         | 2/5 (0.40) |
 
 ## Model Analysis
 
-Failure modes the task is designed to surface — production bug classes from real HTTP/2 multiplexers (gRPC, nghttp2, Netty's HTTP/2 codec):
-
-1. Weight-proportional vs. priority-absolute. A stream with weight 48 vs another with weight 16 must receive 3x the share of the constrained connection window, not 100% of it. Implementations that pattern-match HTTP/2 priority as "highest wins" cause the lower-weight stream to permanently starve under contention.
-2. Stream-id parity. Client-initiated streams use odd ids, server-initiated use even, control is id 0. A multiplexer that accepts even ids from the client side accepts protocol-violating frames that real HTTP/2 stacks would reject with PROTOCOL_ERROR.
-3. WINDOW_UPDATE on HALF_CLOSED_LOCAL. After a stream sends endStream=true, the sender's half closes but the stream itself is still alive — receivers may still issue WINDOW_UPDATE (e.g., via trailers / late ack) and the sender must apply the credit. Implementations that treat half-close as "no more activity for this stream" silently drop these and break receivers that depend on flow-control round-trips.
-4. CLOSED-stream window display. After RST_STREAM, the stream's window credit is conceptually released; a snapshot showing the pre-reset window value misleads operators debugging credit accounting.
-5. Connection-window precedence. Even when a per-stream window has credit, emission cannot proceed if the connection window is exhausted. Implementations that gate only on the per-stream window over-send and corrupt receiver-side accounting.
+The task is a multi-bug fix across the multiplexer's flow-control, stream-lifecycle, and priority logic. Specific defects are intentionally not enumerated here so the agent must diagnose them from the behavioral spec and the byte-exact expected outputs. Empirical pass rates are in the Completion Rates table above.
 
 ## Anti-Cheating Analysis
 
