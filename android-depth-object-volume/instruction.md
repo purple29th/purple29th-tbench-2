@@ -1,4 +1,4 @@
-Hey, our on-device depth sensor (ToF, like ARCore) saves a small 3D scan of whatever is in front of the camera. Write a Python script at /app/solve.py that reads one of these scans, located at /app/data/scene.avol, and reports the physical volume of the scanned object as a single value in cubic millimetres.
+Our on-device depth sensor (a ToF camera, like ARCore) saves a small 3D scan of whatever is in front of the camera. Write a Python script at /app/solve.py that reads one of these scans, located at /app/data/scene.avol, and reports the physical volume of the scanned object as a single value in cubic millimetres.
 
 Run it as:
 
@@ -8,21 +8,7 @@ The path is the first argument; we test your script on additional scans you have
 
 In a scan the object shows up as a bright region (high-intensity voxels) sitting in mostly empty, low-intensity space. The header records the size of a single voxel in millimetres along each of the three axes.
 
-The .avol format is little-endian:
-
-    offset  0 : 4 bytes  magic, the ASCII "AVOL"
-    offset  4 : uint32   version (currently 1)
-    offset  8 : uint32   dtype code: 2 = signed int16, 16 = float32
-    offset 12 : uint32   nx
-    offset 16 : uint32   ny
-    offset 20 : uint32   nz
-    offset 24 : float32  sx   voxel size in mm along x
-    offset 28 : float32  sy   voxel size in mm along y
-    offset 32 : float32  sz   voxel size in mm along z
-    offset 36 : uint32   data_offset (byte offset where the voxel data begins)
-    then, starting at data_offset: nx*ny*nz voxel intensities of the given dtype,
-    stored with x varying fastest, then y, then z
-    (the intensity at (x, y, z) is element  x + nx*(y + ny*z)).
+The .avol format is one we put together ourselves, so here's how it's laid out. It's little-endian with a fixed-size header: a 4-byte magic "AVOL", a uint32 version (1 for now), a uint32 dtype code (2 means signed int16, 16 means float32), then the dimensions nx, ny, nz as uint32s, then the voxel sizes sx, sy, sz as float32s in millimetres along x, y and z, and finally a uint32 data_offset marking the byte where the voxel data begins. From there it's nx*ny*nz intensities of that dtype, stored x-fastest then y then z, so the voxel at (x, y, z) sits at index x + nx*(y + ny*z).
 
 There is a sample scan at /app/data/scene.avol to develop against.
 
