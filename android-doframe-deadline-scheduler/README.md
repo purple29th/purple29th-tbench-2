@@ -11,8 +11,8 @@ Each run is k=5 trials. A trial scores 1.0 only if every scenario's output match
 | Model                              | Pass rate (k=5)                    |
 |------------------------------------|------------------------------------|
 | Oracle                             | 3/3 (1.00) deterministic           |
-| Avocado (meta/avocado_dvsc_tester) | measured by platform on submission |
-| Opus 4.6 (claude-opus-4-6)         | measured by platform on submission |
+| Avocado (meta/avocado_dvsc_tester) | 2/5 (platform validation, genuine split) |
+| Opus 4.6 (claude-opus-4-6)         | 0/5 (infra-suspect null-exception; re-calibrating at HEAD) |
 
 ## Model Analysis
 
