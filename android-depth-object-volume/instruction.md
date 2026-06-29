@@ -1,4 +1,4 @@
-On-device depth sensors (ToF / ARCore) save a small 3D scan of whatever is in front of the camera. Write a Python script at /app/solve.py that reads one of these scans, located at /app/data/scene.avol, and reports the physical volume of the scanned object as a single value in cubic millimetres.
+Hey, our on-device depth sensor (ToF, like ARCore) saves a small 3D scan of whatever is in front of the camera. Write a Python script at /app/solve.py that reads one of these scans, located at /app/data/scene.avol, and reports the physical volume of the scanned object as a single value in cubic millimetres.
 
 Run it as:
 
