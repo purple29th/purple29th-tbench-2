@@ -27,3 +27,5 @@ A Kotlin simulator of an ExoPlayer-style media segment buffer cache: a bounded i
 - Eight scenarios under /tests/expected/, mounted only at verifier time.
 - Verifier compiles the agent's source via kotlinc and runs each scenario; reward is all-or-nothing per scenario.
 - Reference solution implements every behavior honestly and is never agent-readable.
+
+<!-- revalidate ebd30f8 -->
