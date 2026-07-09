@@ -78,6 +78,14 @@ class BitmapPool {
         evictUntilFits()
     }
 
+    fun touch(keys: List<String>) {
+        currentTick += 1
+        for (key in keys) {
+            val entry = strong[key] ?: continue
+            entry.lastAccess = currentTick
+        }
+    }
+
     fun gc() {
         currentTick += 1
         val cleared = soft.size

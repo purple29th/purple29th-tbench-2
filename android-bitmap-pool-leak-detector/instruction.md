@@ -1,117 +1,74 @@
 # Setting
 
-Simulates an Android BitmapPool like Glide / Coil / Fresco: a scrolling feed allocates Bitmaps for thumbnails, recycles them when scrolled off-screen, and reuses them by (width, height, config). Bugs in this layer either OOM the app under scroll pressure or crash mid-render with IllegalStateException: Cannot draw recycled bitmap.
+An Android BitmapPool like Glide or Coil. A feed allocates bitmaps, recycles them, and reuses them by width, height, and config. The code in /app/src/com/example/bitmappool/BitmapPool.kt is wrong on several scenarios. Fix it so its QUERY snapshots and event log match.
 
-The current implementation in /app/src/com/example/bitmappool/BitmapPool.kt produces wrong output across several scenarios. Fix it.
+# Operations (one per line from /app/scenario.txt)
 
-# Operations (/app/scenario.txt)
+ALLOC key w h config: allocate a fresh bitmap. config is ARGB_8888, RGB_565, or ALPHA_8. It counts toward strong tier bytes right away and may trigger eviction.
+BEGIN_DRAW key: add one to the active draw depth for key.
+END_DRAW key: subtract one from the active draw depth for key. At zero the key leaves the active set.
+RECYCLE key: return the bitmap to the pool. If the active draw depth is above zero it is a leak (see below); otherwise it stays in the strong tier and its lastAccess is refreshed.
+ACQUIRE key w h config: reuse a pool entry whose width, height, and config match exactly, or allocate fresh if none match. The result is keyed under the new key.
+TOUCH key [key ...]: set the lastAccess of every listed strong tier entry to the current tick, so several entries can share one value. Keys not in the strong tier are ignored. TOUCH emits no event.
+GC: clear the whole soft tier. The strong tier and active set are untouched.
+QUERY: append a snapshot to /app/output.txt.
 
-- ALLOC <key> <width> <height> <config> — allocate a fresh bitmap. config is one of ARGB_8888, RGB_565, ALPHA_8. The bitmap counts toward strong-tier bytes immediately and may itself trigger eviction.
-- BEGIN_DRAW <key> — increment the active-draw depth counter for <key>.
-- END_DRAW <key> — decrement the active-draw depth counter for <key> (remove from active set when it reaches 0).
-- RECYCLE <key> — return the bitmap to the pool. If the active-draw depth is greater than zero, drop the bitmap entirely (see leak section); otherwise the entry stays in the strong tier and its lastAccess is updated.
-- ACQUIRE <key> <width> <height> <config> — reuse a pool entry whose (width, height, config) match exactly, or allocate fresh if none match. Search order: strong tier, then soft tier, then fresh allocate. The acquired bitmap is keyed under the new <key>.
-- GC — clear the soft tier entirely. The strong tier and the active-draw set are untouched.
-- QUERY — append a snapshot to /app/output.txt.
+# Bytes
 
-# Bytes per pixel
+bytesPerPixel is 4 for ARGB_8888, 2 for RGB_565, 1 for ALPHA_8. A bitmap is w * h * bytesPerPixel bytes. maxSizeBytes is 32768. Only the strong tier counts toward the cap.
 
-ARGB_8888 = 4, RGB_565 = 2, ALPHA_8 = 1. A bitmap's bytes are width * height * bytesPerPixel(config). The cap is maxSizeBytes = 32768. Only the strong tier counts toward the cap.
+# Tick and lastAccess
 
-# Tick / lastAccess
+currentTick rises by 1 on every operation except QUERY. Each strong entry tracks lastAccess. It is set on ALLOC, on the fresh allocate path of ACQUIRE, on a successful RECYCLE, and on TOUCH. REUSE_STRONG and REUSE_SOFT keep the entry existing lastAccess and never refresh it; for a soft reuse that is the value the entry held when it was demoted to soft.
 
-A monotonic currentTick counter increments by 1 on every input op except QUERY. Each strong-tier entry tracks lastAccess. lastAccess is set on ALLOC and on the fresh-allocate path of ACQUIRE, and refreshed on RECYCLE that returns the entry to the pool. REUSE_STRONG and REUSE_SOFT do not refresh lastAccess — they preserve the entry's existing value (REUSE_SOFT preserves the value the entry had at the moment it was demoted to soft).
+# Tiers
 
-# Tiers and reuse
+Strong tier: LRU ordered, byte accounted against the cap, searched first by ACQUIRE. Soft tier: a flat list, not byte accounted, cleared only by GC.
 
-The pool has two tiers:
+# ACQUIRE
 
-- Strong tier. LRU-ordered, byte-accounted toward maxSizeBytes. The lookup target for ACQUIRE.
-- Soft tier. A flat list. Not byte-accounted. Cleared only by GC.
-
-ACQUIRE:
-
-- Strong-tier exact match: emit REUSE_STRONG <new_key>. The matched entry's old key is removed; the entry is re-stored under <new_key>. The entry's lastAccess is preserved from the original entry — REUSE_STRONG does not refresh it.
-- Soft-tier exact match (only checked if strong missed): emit REUSE_SOFT <new_key>. The entry is removed from the soft tier and promoted to the strong tier under <new_key> with current-tick lastAccess. Its bytes are re-added to the strong-tier total, which may itself trigger eviction inside the same ACQUIRE call.
-- No match in either tier: allocate fresh. Emit ALLOC <new_key>. The new bytes are added to the strong-tier total, which may trigger eviction.
-
-Exact match means all three of width, height, and config are equal. A pooled ARGB_8888 entry cannot satisfy a request for RGB_565 even at the same dimensions.
+Exact match means equal width, height, and config. Search the strong tier first: on a hit emit REUSE_STRONG new_key, drop the old key, and restore the entry under new_key keeping its lastAccess. If the strong tier missed, search the soft tier: on a hit emit REUSE_SOFT new_key, remove it from soft, and promote it to the strong tier under new_key keeping its demoted lastAccess; its bytes rejoin the strong total and may trigger eviction. If neither tier matches, allocate fresh and emit ALLOC new_key; the new bytes may trigger eviction.
 
 # Eviction
 
-Eviction is strong-tier only and runs whenever the strong-tier byte total exceeds maxSizeBytes. The pool repeatedly removes one entry until the total fits at or below the cap.
+While the strong tier byte total is over the cap, remove one entry at a time until it is at or below the cap. The victim is the entry with the smallest lastAccess. If two entries share the smallest lastAccess, the one with fewer bytes goes first. Emit EVICT key reason=lru when the smallest lastAccess was unique, or EVICT key reason=tie when it was shared and the bytes rule chose the victim. An evicted entry is demoted to the soft tier under its key, keeping its lastAccess.
 
-The victim is chosen as follows:
+# Active draw and leaks
 
-- Smallest lastAccess wins.
-- If two entries share the smallest lastAccess, the one with smaller bytes is evicted first.
+BEGIN_DRAW and END_DRAW keep a per key depth; the active set is every key with depth above zero. If RECYCLE runs while the depth for that key is above zero it is a leak: emit LEAK key, subtract its bytes from the strong total, remove it from the strong tier, and remove the key from the active set. After a leak a later END_DRAW on that key does nothing.
 
-Each evicted entry emits one event:
+# Recycle dedup
 
-- EVICT <key> reason=lru — chosen on lastAccess alone.
-- EVICT <key> reason=tie — chosen via the bytes tie-break.
-
-Evicted entries are demoted to the soft tier under their existing key. They are not destroyed.
-
-# Active-draw and leak detection
-
-BEGIN_DRAW <key> and END_DRAW <key> maintain a per-key depth counter. The active-draw set lists keys whose depth is greater than zero.
-
-If RECYCLE <key> is called while the active-draw depth for <key> is greater than zero:
-
-- Emit LEAK <key>.
-- Subtract the bitmap's bytes from the strong-tier byte total.
-- Remove the bitmap record from the strong tier.
-- Remove the key from the active-draw set.
-
-After a leak, subsequent END_DRAW <key> calls are silent no-ops (the key is no longer tracked).
-
-# Recycle deduplication
-
-When RECYCLE <key> succeeds (the bitmap was not in active draw and stays in the strong tier), the pool then checks whether any other strong-tier entry has the same (width, height, config) as the recycled bitmap. If one exists, that other entry is removed from the strong tier, demoted to the soft tier, and a DEDUP <other_key> event is emitted. The recycled bitmap itself stays in the strong tier under its own key.
-
-Only one duplicate is removed per RECYCLE. If multiple duplicates exist, the one returned first by iteration order over the strong tier is chosen.
+When a RECYCLE succeeds (not drawing, stays in the strong tier), look for another strong entry with the same width, height, and config. If one exists, remove it, demote it to the soft tier, and emit DEDUP other_key; the recycled entry stays under its own key. At most one duplicate is removed per RECYCLE, the first one reached in strong tier iteration order.
 
 # GC
 
-GC removes every entry in the soft tier and emits GC cleared=<n> where <n> is the number of entries removed. The strong tier and active-draw set are not affected.
+GC empties the soft tier and emits GC cleared=n where n is how many entries were removed. The strong tier and active set are not affected.
 
-# Silent no-ops
+# Silent noops
 
-BEGIN_DRAW, END_DRAW, and RECYCLE on a key that is not currently in the strong tier produce no event. They still advance currentTick.
+BEGIN_DRAW, END_DRAW, and RECYCLE on a key that is not in the strong tier emit nothing. They still advance currentTick.
 
 # Output format
 
-Each QUERY appends a snapshot:
+Each QUERY appends:
 
-  pool maxBytes=32768 currentBytes=<n>
+  pool maxBytes=32768 currentBytes=n
   strong:
-    key=<k> w=<w> h=<h> config=<C> bytes=<n> lastAccess=<tick>
+    key=k w=w h=h config=C bytes=n lastAccess=t
     ...
   soft:
-    key=<k> w=<w> h=<h> config=<C> bytes=<n>
+    key=k w=w h=h config=C bytes=n
     ...
   active:
-    key=<k> depth=<n>
+    key=k depth=n
     ...
   events:
-    <event>
+    event
     ...
 
-- currentBytes is the sum of strong-tier bytes only.
-- strong: rows are sorted by key ascending. Each row carries lastAccess.
-- soft: rows are sorted by key ascending. No lastAccess.
-- active: rows are sorted by key ascending. Only keys with depth > 0 are listed.
-- events: is the cumulative log of every emitted event in emission order: ALLOC <key>, EVICT <key> reason=<lru|tie>, REUSE_STRONG <key>, REUSE_SOFT <key>, LEAK <key>, DEDUP <key>, GC cleared=<n>.
+currentBytes is strong tier bytes only. strong and soft rows are sorted by key ascending; strong rows carry lastAccess, soft rows do not. active lists only keys with depth above zero, sorted by key. events is the cumulative log in emission order: ALLOC key, EVICT key reason=lru or reason=tie, REUSE_STRONG key, REUSE_SOFT key, LEAK key, DEDUP key, GC cleared=n.
 
-# What you need to do
+# What to do
 
-Fix /app/src/com/example/bitmappool/BitmapPool.kt. Do not modify Main.kt or BitmapTypes.kt. The verifier compiles and runs your fixed code automatically.
-
-# Reference build (local debugging only)
-
-  cd /app
-  kotlinc src/com/example/bitmappool/*.kt -include-runtime -d /app/sim.jar
-  java -jar /app/sim.jar scenario.txt output.txt
-
-The driver reads the scenario path from the first argument (default /app/scenario.txt) and writes to the second (default /app/output.txt).
+Fix /app/src/com/example/bitmappool/BitmapPool.kt. Do not modify Main.kt or BitmapTypes.kt. The verifier compiles and runs your code.

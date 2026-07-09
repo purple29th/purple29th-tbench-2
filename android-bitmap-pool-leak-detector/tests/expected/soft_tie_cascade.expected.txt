@@ -1,0 +1,14 @@
+pool maxBytes=32768 currentBytes=26384
+strong:
+  key=filler w=64 h=64 config=ARGB_8888 bytes=16384 lastAccess=4
+  key=keep w=50 h=50 config=ARGB_8888 bytes=10000 lastAccess=3
+soft:
+  key=revive w=45 h=45 config=ARGB_8888 bytes=8100
+active:
+events:
+  ALLOC keep
+  ALLOC drop
+  ALLOC filler
+  EVICT drop reason=tie
+  REUSE_SOFT revive
+  EVICT revive reason=tie
