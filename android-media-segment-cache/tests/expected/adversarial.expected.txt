@@ -1,0 +1,134 @@
+cache budget=300000 currentBytes=225000
+memory:
+  key=c track=t3 dur=500 bitrate=400 bytes=25000 lastAccess=3
+  key=d track=t4 dur=2000 bitrate=800 bytes=200000 lastAccess=5
+disk:
+  key=a track=t1 dur=2000 bitrate=800 bytes=200000
+  key=b track=t2 dur=1000 bitrate=800 bytes=100000
+playing:
+  key=b depth=1
+events:
+  BUFFER a
+  BUFFER b
+  BUFFER c
+  EVICT a reason=lru
+  BUFFER d
+  EVICT b reason=lru
+cache budget=300000 currentBytes=225000
+memory:
+  key=c track=t3 dur=500 bitrate=400 bytes=25000 lastAccess=3
+  key=d track=t4 dur=2000 bitrate=800 bytes=200000 lastAccess=5
+disk:
+  key=b track=t2 dur=1000 bitrate=800 bytes=100000
+  key=e track=t1 dur=2000 bitrate=800 bytes=200000
+playing:
+  key=b depth=1
+events:
+  BUFFER a
+  BUFFER b
+  BUFFER c
+  EVICT a reason=lru
+  BUFFER d
+  EVICT b reason=lru
+  REUSE_DISK e
+  EVICT e reason=lru
+cache budget=300000 currentBytes=225000
+memory:
+  key=c track=t3 dur=500 bitrate=400 bytes=25000 lastAccess=3
+  key=d track=t4 dur=2000 bitrate=800 bytes=200000 lastAccess=5
+disk:
+playing:
+  key=b depth=1
+events:
+  BUFFER a
+  BUFFER b
+  BUFFER c
+  EVICT a reason=lru
+  BUFFER d
+  EVICT b reason=lru
+  REUSE_DISK e
+  EVICT e reason=lru
+  TRIM cleared=2
+cache budget=300000 currentBytes=300000
+memory:
+  key=f track=t5 dur=1000 bitrate=800 bytes=100000 lastAccess=9
+  key=g track=t6 dur=1000 bitrate=800 bytes=100000 lastAccess=10
+  key=h track=t2 dur=1000 bitrate=800 bytes=100000 lastAccess=11
+disk:
+  key=c track=t3 dur=500 bitrate=400 bytes=25000
+  key=d track=t4 dur=2000 bitrate=800 bytes=200000
+playing:
+  key=b depth=1
+events:
+  BUFFER a
+  BUFFER b
+  BUFFER c
+  EVICT a reason=lru
+  BUFFER d
+  EVICT b reason=lru
+  REUSE_DISK e
+  EVICT e reason=lru
+  TRIM cleared=2
+  BUFFER f
+  EVICT c reason=lru
+  BUFFER g
+  EVICT d reason=lru
+  BUFFER h
+cache budget=300000 currentBytes=300000
+memory:
+  key=f track=t5 dur=1000 bitrate=800 bytes=100000 lastAccess=12
+  key=g track=t6 dur=1000 bitrate=800 bytes=100000 lastAccess=13
+  key=h track=t2 dur=1000 bitrate=800 bytes=100000 lastAccess=11
+disk:
+  key=c track=t3 dur=500 bitrate=400 bytes=25000
+  key=d track=t4 dur=2000 bitrate=800 bytes=200000
+playing:
+  key=b depth=1
+events:
+  BUFFER a
+  BUFFER b
+  BUFFER c
+  EVICT a reason=lru
+  BUFFER d
+  EVICT b reason=lru
+  REUSE_DISK e
+  EVICT e reason=lru
+  TRIM cleared=2
+  BUFFER f
+  EVICT c reason=lru
+  BUFFER g
+  EVICT d reason=lru
+  BUFFER h
+cache budget=300000 currentBytes=200000
+memory:
+  key=j track=t8 dur=2000 bitrate=800 bytes=200000 lastAccess=15
+disk:
+  key=c track=t3 dur=500 bitrate=400 bytes=25000
+  key=d track=t4 dur=2000 bitrate=800 bytes=200000
+  key=f track=t5 dur=1000 bitrate=800 bytes=100000
+  key=g track=t6 dur=1000 bitrate=800 bytes=100000
+  key=h track=t2 dur=1000 bitrate=800 bytes=100000
+  key=i track=t7 dur=2000 bitrate=800 bytes=200000
+playing:
+  key=b depth=1
+events:
+  BUFFER a
+  BUFFER b
+  BUFFER c
+  EVICT a reason=lru
+  BUFFER d
+  EVICT b reason=lru
+  REUSE_DISK e
+  EVICT e reason=lru
+  TRIM cleared=2
+  BUFFER f
+  EVICT c reason=lru
+  BUFFER g
+  EVICT d reason=lru
+  BUFFER h
+  BUFFER i
+  EVICT h reason=lru
+  EVICT f reason=lru
+  BUFFER j
+  EVICT g reason=lru
+  EVICT i reason=lru
