@@ -1,3 +1,6 @@
 # Harbor output directories
 jobs/
 results/
+
+# Accepted task markers (local-only, synced from codimango)
+.accepted
