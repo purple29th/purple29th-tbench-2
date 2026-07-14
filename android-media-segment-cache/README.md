@@ -2,7 +2,7 @@
 
 ## Description
 
-A Kotlin simulator of an ExoPlayer-style media segment buffer cache: a bounded in-memory buffer + a disk cache, with playing-segment pinning and a TRIM (onTrimMemory) op. The current SegmentCache.kt has interlocking bugs across exact-match reuse, LRU tie-break, stall-on-play, disk-tier promotion, buffer-on-fresh eviction, release dedup, and lastAccess preservation. The agent fixes SegmentCache.kt so the snapshot + event log matches expectations across eight scenarios.
+A Kotlin simulator of an ExoPlayer-style media segment buffer cache: a bounded in-memory buffer + a disk cache, with playing-segment pinning and a TRIM (onTrimMemory) op. The current SegmentCache.kt has interlocking bugs across exact-match reuse, stall-on-play, disk-tier promotion, buffer-on-fresh eviction, release dedup, and lastAccess preservation. The agent fixes SegmentCache.kt so the snapshot + event log matches expectations across eight scenarios.
 
 ## Completion Rates
 

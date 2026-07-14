@@ -6,7 +6,7 @@ The memory budget is 300000 bytes and only the memory tier counts toward it. A m
 
 The cache has two tiers. The memory buffer is LRU ordered and byte-accounted, and is where REQUEST looks first. The disk cache is a plain list, not counted toward the budget, and only TRIM clears it.
 
-Eviction runs whenever memory exceeds the budget and repeats until it fits. The victim is the smallest lastAccess, and if two share that smallest lastAccess the smaller bytes goes first, ties then by lowest key. Each evicted entry emits EVICT with reason lru and moves to disk under its existing key.
+Eviction runs whenever memory exceeds the budget and repeats until it fits. The victim is the smallest lastAccess. Each evicted entry emits EVICT with reason lru and moves to disk under its existing key.
 
 PLAY and STOP maintain per-key depth. RELEASE on a playing segment emits STALL, subtracts its bytes, removes it from memory and from the playing set; later STOP on that key is silent. When RELEASE succeeds without stalling, the cache checks whether another memory entry has the same track, durMs and bitrate as the released one; if so that other entry is removed from memory, moved to disk, and emits DEDUP. Only one duplicate per RELEASE, and the released entry itself stays.
 
