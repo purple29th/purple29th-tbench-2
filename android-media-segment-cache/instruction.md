@@ -1,104 +1,15 @@
-# Setting
+This is a media segment buffer cache, the kind a video player uses to stay ahead of playback. Right now it logs the wrong events in a few cases. Fix SegmentCache.kt so it behaves as described here. Don't change Main.kt or the types file. The verifier builds and runs it for you.
 
-Simulates an ExoPlayer-style media segment buffer cache: a player buffers media segments ahead of playback, keeps recently-used segments in a bounded in-memory buffer, and spills evicted segments to a disk cache. Bugs in this layer either over-fill memory (OOM) or stall playback by dropping a segment that is currently being played.
+The driver reads /app/scenario.txt one operation per line. BUFFER <key> <track> <durMs> <bitrate> buffers a fresh segment; its size in bytes is durMs times bitrate divided by 8 using integer division, and it counts toward the memory budget right away and can trigger eviction itself. PLAY <key> increments that segment's playing depth, STOP decrements it and removes it from the playing set when it hits zero. RELEASE returns a segment to the cache; if its playing depth is above zero it emits STALL, drops the segment entirely from memory, subtracts its bytes, and removes it from the playing set, otherwise it stays in memory and updates its lastAccess. REQUEST <key> <track> <durMs> <bitrate> looks for an exact match on track, durMs and bitrate, first in memory then on disk then fresh buffers if nothing matches, emits REUSE_MEM or REUSE_DISK or BUFFER accordingly, rekeys the entry under the new key, and preserves its lastAccess from the matched entry rather than refreshing it; promoting from disk re-adds its bytes and can trigger eviction inside the same REQUEST. TRIM clears the disk cache entirely and leaves memory and the playing set alone. QUERY appends a snapshot to /app/output.txt.
 
-The current implementation in /app/src/com/example/mediacache/SegmentCache.kt produces wrong output across several scenarios. Fix it.
+The memory budget is 300000 bytes and only the memory tier counts toward it. A monotonic currentTick goes up by one on every input operation except QUERY. Each memory entry tracks lastAccess as the tick it was most recently buffered, requested under its current key, or released into memory.
 
-# Operations (/app/scenario.txt)
+The cache has two tiers. The memory buffer is LRU ordered and byte-accounted, and is where REQUEST looks first. The disk cache is a plain list, not counted toward the budget, and only TRIM clears it.
 
-- BUFFER <key> <track> <durMs> <bitrate> — buffer a fresh segment. Its byte size is durMs * bitrate / 8 (integer division). The segment counts toward the memory budget immediately and may itself trigger eviction.
-- PLAY <key> — increment the playing depth counter for <key>.
-- STOP <key> — decrement the playing depth counter for <key> (remove from the playing set when it reaches 0).
-- RELEASE <key> — return the segment to the cache. If the playing depth is greater than zero, drop the segment entirely (see stall detection); otherwise the entry stays in memory and its lastAccess is updated.
-- REQUEST <key> <track> <durMs> <bitrate> — reuse a cached segment whose (track, durMs, bitrate) match exactly, or buffer fresh if none match. Search order: memory, then disk, then fresh buffer. The reused segment is keyed under the new <key>.
-- TRIM — clear the disk cache entirely. The memory buffer and the playing set are untouched.
-- QUERY — append a snapshot to /app/output.txt.
+Eviction runs whenever memory exceeds the budget and repeats until it fits. The victim is the smallest lastAccess, and if two share that smallest lastAccess the smaller bytes goes first, ties then by lowest key. Each evicted entry emits EVICT with reason lru and moves to disk under its existing key.
 
-# Byte accounting
+PLAY and STOP maintain per-key depth. RELEASE on a playing segment emits STALL, subtracts its bytes, removes it from memory and from the playing set; later STOP on that key is silent. When RELEASE succeeds without stalling, the cache checks whether another memory entry has the same track, durMs and bitrate as the released one; if so that other entry is removed from memory, moved to disk, and emits DEDUP. Only one duplicate per RELEASE, and the released entry itself stays.
 
-A segment's bytes are durMs * bitrate / 8 (integer division). The memory budget is 300000 bytes. Only the memory buffer counts toward the budget.
+Each QUERY appends a snapshot with cache budget and currentBytes, then memory rows sorted by key showing key track dur bitrate bytes lastAccess, then disk rows sorted by key showing key track dur bitrate bytes, then playing rows sorted by key showing key and depth, then events in emission order. Events are BUFFER <key>, EVICT <key> reason=lru, REUSE_MEM <key>, REUSE_DISK <key>, STALL <key>, DEDUP <other_key>, TRIM cleared=<n>. An empty phase prints with no tokens. Rejected operations produce no frame and no log line.
 
-# Tick / lastAccess
-
-A monotonic currentTick increments by 1 on every input op except QUERY. Each memory entry tracks lastAccess — the tick at which it was most recently buffered, requested (under its current key), or released into memory.
-
-# Tiers and reuse
-
-The cache has two tiers:
-
-- Memory buffer. LRU-ordered, byte-accounted toward the budget. The lookup target for REQUEST.
-- Disk cache. A flat list. Not byte-accounted. Cleared only by TRIM.
-
-REQUEST:
-
-- Memory exact match: emit REUSE_MEM <new_key>. The matched entry's old key is removed; the entry is re-stored under <new_key> with its lastAccess preserved from the matched entry (REQUEST does not refresh lastAccess).
-- Disk exact match (only checked if memory missed): emit REUSE_DISK <new_key>. The entry is removed from disk and promoted to memory under <new_key> with its lastAccess preserved from the disk entry. Its bytes are re-added to the memory total, which may itself trigger eviction inside the same REQUEST.
-- No match: buffer fresh. Emit BUFFER <new_key>. The new bytes are added to the memory total, which may trigger eviction.
-
-Exact match means all three of track, durMs, and bitrate are equal. A cached segment for the same track and duration but a different bitrate cannot satisfy the request.
-
-# Eviction
-
-Eviction is memory-only and runs whenever the memory byte total exceeds the budget. The cache repeatedly removes one entry until the total fits at or below the budget.
-
-The victim is chosen as follows:
-
-- Smallest lastAccess wins.
-- If two entries share the smallest lastAccess, the one with smaller bytes is evicted first.
-
-Each evicted entry emits an EVICT <key> reason=lru event. Evicted entries are demoted to the disk cache under their existing key. They are not destroyed.
-
-# Stall detection
-
-PLAY <key> and STOP <key> maintain a per-key playing depth. The playing set lists keys whose depth is greater than zero.
-
-If RELEASE <key> is called while the playing depth for <key> is greater than zero:
-
-- Emit STALL <key>.
-- Subtract the segment's bytes from the memory total.
-- Remove the segment from memory.
-- Remove the key from the playing set.
-
-After a stall, subsequent STOP <key> calls are silent no-ops (the key is no longer tracked).
-
-# Release deduplication
-
-When RELEASE <key> succeeds (the segment was not playing and stays in memory), the cache then checks whether any other memory entry has the same (track, durMs, bitrate) as the released segment. If one exists, that other entry is removed from memory, demoted to disk, and a DEDUP <other_key> event is emitted. The released segment itself stays in memory under its own key. Only one duplicate is removed per RELEASE.
-
-# Silent no-ops
-
-PLAY, STOP, and RELEASE on a key not currently in memory produce no event. They still advance currentTick.
-
-# Output format
-
-Each QUERY appends a snapshot:
-
-    cache budget=300000 currentBytes=<n>
-    memory:
-      key=<k> track=<t> dur=<d> bitrate=<b> bytes=<n> lastAccess=<tick>
-      ...
-    disk:
-      key=<k> track=<t> dur=<d> bitrate=<b> bytes=<n>
-      ...
-    playing:
-      key=<k> depth=<n>
-      ...
-    events:
-      <event>
-      ...
-
-- currentBytes is the sum of memory-buffer bytes only.
-- memory rows sorted by key ascending; each row carries lastAccess.
-- disk rows sorted by key ascending; no lastAccess.
-- playing rows sorted by key ascending; only keys with depth > 0.
-- events is the cumulative log in emission order: BUFFER <key>, EVICT <key> reason=lru, REUSE_MEM <key>, REUSE_DISK <key>, STALL <key>, DEDUP <key>, TRIM cleared=<n>.
-
-# What you need to do
-
-Fix /app/src/com/example/mediacache/SegmentCache.kt. Do not modify Main.kt or MediaTypes.kt. The verifier compiles and runs your fixed code automatically.
-
-# Reference build (local debugging only)
-
-    cd /app
-    kotlinc src/com/example/mediacache/*.kt -include-runtime -d /app/sim.jar
-    java -jar /app/sim.jar scenario.txt output.txt
+For local debugging only, from /app run kotlinc src/com/example/mediacache/*.kt -include-runtime -d app.jar then java -jar app.jar scenario.txt output.txt.
