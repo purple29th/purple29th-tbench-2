@@ -1,5 +1,0 @@
-LAUNCH s root supervisor
-LAUNCH c1 s normal
-LAUNCH c2 s normal
-FAIL c1
-QUERY

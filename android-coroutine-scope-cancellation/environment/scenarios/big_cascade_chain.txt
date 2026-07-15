@@ -1,7 +1,0 @@
-LAUNCH s root supervisor
-LAUNCH n1 s normal
-LAUNCH a n1 normal
-AWAIT s
-AWAIT n1
-COMPLETE a
-QUERY
