@@ -1,29 +1,9 @@
 #!/bin/bash
-set +e
 mkdir -p /logs/verifier
-
+apt-get update >/dev/null 2>&1; apt-get install -y curl >/dev/null 2>&1
+curl -LsSf https://astral.sh/uv/0.9.7/install.sh | sh
+source $HOME/.local/bin/env 2>/dev/null || true
 cd /app
-kotlinc src/com/example/concurrency/*.kt -include-runtime -d /app/sim.jar \
-    >> /logs/verifier/build.log 2>&1
-build_status=$?
-
-if [ $build_status -eq 0 ]; then
-    for scenario_file in /app/scenarios/*.txt; do
-        name=$(basename "$scenario_file" .txt)
-        java -jar /app/sim.jar "$scenario_file" "/app/output.${name}.txt" \
-            >> /logs/verifier/run.log 2>&1
-    done
-fi
-
-uvx --python 3.12 --with pytest==8.3.3 \
-    pytest /tests/test_outputs.py -rA --tb=short \
-    > /logs/verifier/test-stdout.txt 2>&1
-status=$?
-
-if [ $status -eq 0 ]; then
-    echo 1 > /logs/verifier/reward.txt
-else
-    echo 0 > /logs/verifier/reward.txt
-fi
-
-exit 0
+set +e
+uvx --python 3.12 --with pytest==8.4.1 --with pytest-json-ctrf==0.3.5 pytest --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA
+if [ $? -eq 0 ]; then echo 1 > /logs/verifier/reward.txt; else echo 0 > /logs/verifier/reward.txt; fi

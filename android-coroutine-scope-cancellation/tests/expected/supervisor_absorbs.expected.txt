@@ -1,9 +1,0 @@
-jobs:
-  id=c1 parent=s type=normal state=FAILED seq=1
-  id=c2 parent=s type=normal state=ACTIVE seq=0
-  id=s parent=root type=supervisor state=ACTIVE seq=0
-events:
-  STARTED s
-  STARTED c1
-  STARTED c2
-  FAILED c1
