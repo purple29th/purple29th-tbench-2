@@ -6,16 +6,16 @@ format="terminal_bench_single_turn"
 workstream="swe_public_repo"
 description="Write a from-scratch Python script (standard library only) that parses a SQLite-inspired binary database format, walks the freelist chain to exclude deleted pages, counts live b-tree cells by hand, and reports total live rows. Graded on held-out files with independent ground truth."
 authors=[{name="Tosin Daniel Jimoh",email="purple29th@meta.com"}]
-keywords=["android","sqlite","binary-parsing","b-tree","freelist","from-scratch"]
+keywords=["sqlite","binary-parsing","b-tree","freelist","from-scratch"]
 
 [metadata]
 author_name="Tosin Daniel Jimoh"
 author_email="purple29th@meta.com"
 difficulty="hard"
 category="data-science"
-category_subdomain="data_processing_and_persistence"
-category_usecase="binary_parsing"
-tags=["android","sqlite","binary-parsing","b-tree","freelist","from-scratch"]
+category_subdomain="database_internals"
+category_usecase="parsing_lexing"
+tags=["sqlite","binary-parsing","b-tree","freelist","from-scratch"]
 expert_time_estimate_min=40.0
 junior_time_estimate_min=120.0
 
