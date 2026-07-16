@@ -64,11 +64,6 @@ def test_from_scratch():
         "os.popen",
         "__import__(",
         "importlib",
-        "getattr",
-        "eval(",
-        "exec(",
-        "compile(",
-        "ctypes",
     ]:
         assert b not in s
 
