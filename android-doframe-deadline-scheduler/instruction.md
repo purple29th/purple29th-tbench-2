@@ -1,9 +1,9 @@
 This is a simulator of the Android Choreographer.doFrame() loop and the main-thread Looper/MessageQueue that drive each UI frame. Each DO_FRAME is one vsync: it runs the four phases INPUT, ANIMATION, INSETS, TRAVERSAL in that order, drains the Looper queue between phases, and flags jank when work overruns the deadline. Fix /app/src/com/example/choreographer/DoFrameScheduler.kt to match the behavior below; leave Main.kt and FrameTypes.kt alone. The verifier compiles and runs it.
 
 Operations come from /app/scenario.txt, one per line:
-- SET_VSYNC_RATE <hz> sets the rate to 60, 90, or 120 (interval = 1000/hz ms, integer division). It applies at the end of the next DO_FRAME, so it first takes effect one frame later; that next frame keeps the current interval.
-- POST_FRAME <token> <phase> <costMs> <repeat> registers a callback for the next frame. phase in {INPUT,ANIMATION,INSETS,TRAVERSAL}, repeat in {once,repeat}.
-- REMOVE_FRAME <token> cancels a callback, both queued-for-next-frame and in-flight.
+- SET_VSYNC_RATE <hz> sets the rate to 60, 90, or 120 (interval = 1000/hz ms, integer division). The command itself emits VSYNC_RATE_CHANGED from=<oldHz> to=<newHz> immediately when it is processed, at no time cost. Its new interval is not used right away; it is recorded as pending and applied only at the end of the next DO_FRAME, so it first takes effect one frame later and that next frame keeps its previous interval and deadline.
+- POST_FRAME <token> <phase> <costMs> <repeat> registers a callback for the next frame. phase in {INPUT,ANIMATION,INSETS,TRAVERSAL}, repeat in {once,repeat}. Registering the same token twice queues two callbacks with that token; REMOVE_FRAME must purge all of them, not just the first.
+- REMOVE_FRAME <token> cancels a callback, both queued-for-next-frame and in-flight. If the same token was posted multiple times, all matching callbacks with that token are removed. During a frame it also scrubs any re-registration a repeat callback would have produced.
 - POST_INPUT <eventTime> <x> <y> queues an input event at logical time eventTime.
 - POST_MESSAGE <priority> <costMs> queues a Looper message; priority in {sync,async}.
 - SCHEDULE_TRAVERSALS posts a sync barrier that blocks sync messages until the next frame's TRAVERSAL.
@@ -21,7 +21,7 @@ Resampling detail: RESAMPLE_OFFSET is 4 ms; dispatch iff eventTime <= vsyncTime-
 
 The queue has two FIFO lanes, sync and async. Barrier active: sync waits, async dispatches. Barrier inactive: both dispatch. SCHEDULE_TRAVERSALS posts a sync barrier and emits MSG_BARRIER; if a barrier is already active it's a no-op with no second MSG_BARRIER. Every DO_FRAME still emits MSG_BARRIER_LIFTED at TRAVERSAL start. DRAIN_QUEUE <budgetMs> dispatches up to budgetMs total cost with no partial dispatch (a message that won't fit is skipped); each step dispatches eligible async first, then eligible sync if the barrier is inactive, stopping when nothing fits, both lanes are empty, or the barrier blocks the rest.
 
-SET_VSYNC_RATE records a pending interval applied at the end of the next DO_FRAME, so that frame keeps its current interval and deadline and the new interval applies on the following frame; a frame in progress keeps its interval and deadline. Emit VSYNC_RATE_CHANGED from=<oldHz> to=<newHz> when processed (no time cost).
+Vsync rate handling: when SET_VSYNC_RATE <hz> is processed, immediately emit VSYNC_RATE_CHANGED from=<oldHz> to=<newHz> in events, at no time cost. The new interval is stored as pending and is applied only at the end of the next DO_FRAME, so that next frame still uses the old interval and deadline, and the frame after first uses the new interval. For example, if SET_VSYNC_RATE 120 is issued between frame 1 and frame 2, VSYNC_RATE_CHANGED appears in frame 1's events, frame 2's deadlineMs still reflects the old 60 Hz interval, and frame 3 first reflects 120 Hz. A frame in progress keeps its interval and deadline.
 
 QUERY appends:
   vsync rate=<hz> frameIntervalMs=<n> currentTime=<t>
