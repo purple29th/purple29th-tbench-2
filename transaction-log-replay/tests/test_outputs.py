@@ -9,9 +9,15 @@ TXLOG = "/app/txlog"
 
 def run_txlog(ops):
     proc = subprocess.run(
-        [TXLOG], input=ops, capture_output=True, text=True, timeout=30,
+        [TXLOG],
+        input=ops,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
-    assert proc.returncode == 0, f"txlog exited {proc.returncode}; stderr:\n{proc.stderr}"
+    assert proc.returncode == 0, (
+        f"txlog exited {proc.returncode}; stderr:\n{proc.stderr}"
+    )
     return proc.stdout
 
 
@@ -128,6 +134,18 @@ CASES = {
     "adv_serializable_weave": (
         "BEGIN t1\nREAD t1 a\nWRITE t1 b 1\nBEGIN t2\nWRITE t2 a 2\nCOMMIT t2\nCOMMIT t1\nCHECKPOINT\nBEGIN t3\nREAD t3 b\nSAVEPOINT t3 s\nREAD t3 c\nBEGIN t4\nWRITE t4 c 7\nCOMMIT t4\nROLLBACK_TO t3 s\nWRITE t3 d 4\nCOMMIT t3\nCHECKPOINT\nBEGIN t5\nREAD t5 d\nBEGIN t6\nWRITE t6 d 9\nCOMMIT t5\nCOMMIT t6\n",
         "a=2\nc=7\nd=9\nCHECKPOINT:\na=2\nc=7\nd=4\nCONFLICTS:\nt1\n",
+    ),
+    "adv_gauntlet_full": (
+        "BEGIN t1\nWRITE t1 a 1\nSAVEPOINT t1 s1\nWRITE t1 b 2\nBEGIN t2\nWRITE t2 a 5\nSAVEPOINT t2 sp\nWRITE t2 c 3\nCOMMIT t1\nROLLBACK_TO t2 sp\nREAD t2 b\nCOMMIT t2\nCHECKPOINT\nBEGIN t3\nREAD t3 a\nSAVEPOINT t3 base\nWRITE t3 d 4\nBEGIN t4\nWRITE t4 a 9\nCOMMIT t4\nROLLBACK_TO t3 base\nWRITE t3 e 5\nCOMMIT t3\nBEGIN t5\nWRITE t5 f 6\nSAVEPOINT t5 s\nWRITE t5 g 7\nROLLBACK_TO t5 s\nCOMMIT t5\nCHECKPOINT\nBEGIN t6\nREAD t6 e\nBEGIN t7\nWRITE t7 e 9\nCOMMIT t6\nCOMMIT t7\n",
+        "a=9\nb=2\ne=9\nf=6\nCHECKPOINT:\na=9\nb=2\nf=6\nCONFLICTS:\nt2\nt3\n",
+    ),
+    "adv_savepoint_overwrite_weave": (
+        "BEGIN t1\nWRITE t1 x 1\nSAVEPOINT t1 s\nWRITE t1 y 2\nSAVEPOINT t1 s\nWRITE t1 z 3\nBEGIN t2\nWRITE t2 x 9\nCOMMIT t1\nCOMMIT t2\nCHECKPOINT\nBEGIN t3\nSAVEPOINT t3 a\nWRITE t3 p 1\nSAVEPOINT t3 b\nWRITE t3 q 2\nROLLBACK_TO t3 a\nSAVEPOINT t3 b\nWRITE t3 r 3\nCOMMIT t3\n",
+        "r=3\nx=1\ny=2\nz=3\nCHECKPOINT:\nx=1\ny=2\nz=3\nCONFLICTS:\nt2\n",
+    ),
+    "adv_read_snapshot_conflict": (
+        "BEGIN t1\nWRITE t1 a 1\nCOMMIT t1\nCHECKPOINT\nBEGIN t2\nREAD t2 a\nBEGIN t3\nWRITE t3 a 2\nCOMMIT t3\nWRITE t2 b 2\nCOMMIT t2\nBEGIN t4\nREAD t4 b\nBEGIN t5\nWRITE t5 b 3\nCOMMIT t4\nCOMMIT t5\nCHECKPOINT\n",
+        "a=2\nb=3\nCHECKPOINT:\na=2\nb=3\nCONFLICTS:\nt2\n",
     ),
 }
 
