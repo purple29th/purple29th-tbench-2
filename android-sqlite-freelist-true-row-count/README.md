@@ -13,3 +13,5 @@ From-scratch Python script that parses a SQLite-inspired binary format, walks th
 The natural approach sums cell_count across every page, ignoring both the freelist page chain and the per-page freeblock chain. That over-counts deleted rows substantially on every held-out file. Correct implementation parses the header by hand with struct, walks the freelist to skip whole deleted pages, walks each b-tree page's freeblock chain to subtract deleted cells inside the page, and sums only live cells. Both Opus and gpt-5.5 failed with identical over-count sequences, confirming the difficulty comes from the specific SQLite freelist semantics, not spec ambiguity.
 
 <!-- revalidate sqlite e14085c -->
+
+<!-- revalidate sqlite 80a3776 -->
