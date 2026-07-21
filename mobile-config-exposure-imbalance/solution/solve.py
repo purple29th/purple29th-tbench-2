@@ -6,6 +6,7 @@ def solve(p):
     assert d[:4] == b"MCFG"
     cnt = struct.unpack_from("<I", d, 8)[0]
     off = struct.unpack_from("<I", d, 12)[0]
+    threshold = struct.unpack_from("<I", d, 16)[0]
     adj = {}
     nodes = {}
     o = off
@@ -68,7 +69,7 @@ def solve(p):
     best = 0
     for scc in sccs:
         s = sum(nodes.get(n, 0) for n in scc if n != 0)
-        if s > best:
+        if s >= threshold and s > best:
             best = s
     return best
 
