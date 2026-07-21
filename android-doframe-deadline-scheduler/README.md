@@ -33,3 +33,5 @@ Failure modes the task surfaces, drawn from real Android framework behavior:
 - Verifier compiles the agent's source via kotlinc and runs each scenario; reward is all-or-nothing per scenario.
 - Reference solution implements every behavior honestly and is never agent-readable.
 
+
+<!-- revalidate doframe 81c0f12 -->
