@@ -4,17 +4,19 @@ schema_version = "1.1"
 name = "codimango/android-doframe-deadline-scheduler"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Fix bugs in a Kotlin simulator of Android Choreographer (INPUT/ANIMATION/INSETS/TRAVERSAL) plus Looper MessageQueue with sync barriers, async lanes, vsync rate transitions, and deadline-driven jank detection."
+description = "Fix bugs in a Kotlin simulator of Android Choreographer and Looper MessageQueue — four-phase pipeline with INPUT ANIMATION INSETS TRAVERSAL, sync barriers, async lanes, vsync rate transitions delayed by one frame, and deadline jank without deferral."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]
+keywords = ["kotlin", "choreographer", "looper", "vsync", "barrier", "jank"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "hard"
 category = "bug-fixing"
+category_subdomain = "concurrency"
+category_usecase = "event_scheduling"
 languages = ["kotlin"]
-tags = ["kotlin", "android-style", "recyclerview", "stale-callback", "binding-token", "production-bug"]
+tags = ["kotlin", "choreographer", "looper", "vsync", "concurrency", "bugfix"]
 expert_time_estimate_min = 35.0
 junior_time_estimate_min = 120.0
 

@@ -1,0 +1,351 @@
+vsync rate=60 frameIntervalMs=16 currentTime=17
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=17 jank=true
+    INPUT: a
+    ANIMATION: b
+    INSETS: c
+    TRAVERSAL: d
+queue:
+  sync=1 async=0 barrier=inactive
+next-frame callbacks:
+  b
+events:
+  MSG_BARRIER
+  INPUT_DEFERRED count=2
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  FRAME_CALLBACK b
+  FRAME_CALLBACK c
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK d
+  JANK frame=1 overrunMs=1
+vsync rate=120 frameIntervalMs=8 currentTime=32
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=17 jank=true
+    INPUT: a
+    ANIMATION: b
+    INSETS: c
+    TRAVERSAL: d
+  frame=2 vsyncTime=16 deadlineMs=32 spentMs=16 jank=false
+    INPUT: dup
+    ANIMATION: b, dup
+    INSETS: 
+    TRAVERSAL: 
+queue:
+  sync=0 async=0 barrier=inactive
+next-frame callbacks:
+  b
+events:
+  MSG_BARRIER
+  INPUT_DEFERRED count=2
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  FRAME_CALLBACK b
+  FRAME_CALLBACK c
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK d
+  JANK frame=1 overrunMs=1
+  VSYNC_RATE_CHANGED from=60 to=120
+  INPUT_BATCH count=2 oldestEventTime=10
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK dup
+  MSG_DISPATCH priority=async costMs=2
+  FRAME_CALLBACK b
+  FRAME_CALLBACK dup
+  MSG_BARRIER_LIFTED
+  MSG_DISPATCH priority=sync costMs=8
+vsync rate=120 frameIntervalMs=8 currentTime=37
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=17 jank=true
+    INPUT: a
+    ANIMATION: b
+    INSETS: c
+    TRAVERSAL: d
+  frame=2 vsyncTime=16 deadlineMs=32 spentMs=16 jank=false
+    INPUT: dup
+    ANIMATION: b, dup
+    INSETS: 
+    TRAVERSAL: 
+queue:
+  sync=0 async=1 barrier=inactive
+next-frame callbacks:
+  b
+events:
+  MSG_BARRIER
+  INPUT_DEFERRED count=2
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  FRAME_CALLBACK b
+  FRAME_CALLBACK c
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK d
+  JANK frame=1 overrunMs=1
+  VSYNC_RATE_CHANGED from=60 to=120
+  INPUT_BATCH count=2 oldestEventTime=10
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK dup
+  MSG_DISPATCH priority=async costMs=2
+  FRAME_CALLBACK b
+  FRAME_CALLBACK dup
+  MSG_BARRIER_LIFTED
+  MSG_DISPATCH priority=sync costMs=8
+  MSG_DISPATCH priority=sync costMs=5
+vsync rate=120 frameIntervalMs=8 currentTime=60
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=17 jank=true
+    INPUT: a
+    ANIMATION: b
+    INSETS: c
+    TRAVERSAL: d
+  frame=2 vsyncTime=16 deadlineMs=32 spentMs=16 jank=false
+    INPUT: dup
+    ANIMATION: b, dup
+    INSETS: 
+    TRAVERSAL: 
+  frame=3 vsyncTime=24 deadlineMs=32 spentMs=36 jank=true
+    INPUT: 
+    ANIMATION: b
+    INSETS: 
+    TRAVERSAL: e
+queue:
+  sync=0 async=1 barrier=inactive
+next-frame callbacks:
+  b
+events:
+  MSG_BARRIER
+  INPUT_DEFERRED count=2
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  FRAME_CALLBACK b
+  FRAME_CALLBACK c
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK d
+  JANK frame=1 overrunMs=1
+  VSYNC_RATE_CHANGED from=60 to=120
+  INPUT_BATCH count=2 oldestEventTime=10
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK dup
+  MSG_DISPATCH priority=async costMs=2
+  FRAME_CALLBACK b
+  FRAME_CALLBACK dup
+  MSG_BARRIER_LIFTED
+  MSG_DISPATCH priority=sync costMs=8
+  MSG_DISPATCH priority=sync costMs=5
+  INPUT_BATCH count=1 oldestEventTime=20
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK b
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK e
+  JANK frame=3 overrunMs=28
+vsync rate=90 frameIntervalMs=11 currentTime=67
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=17 jank=true
+    INPUT: a
+    ANIMATION: b
+    INSETS: c
+    TRAVERSAL: d
+  frame=2 vsyncTime=16 deadlineMs=32 spentMs=16 jank=false
+    INPUT: dup
+    ANIMATION: b, dup
+    INSETS: 
+    TRAVERSAL: 
+  frame=3 vsyncTime=24 deadlineMs=32 spentMs=36 jank=true
+    INPUT: 
+    ANIMATION: b
+    INSETS: 
+    TRAVERSAL: e
+  frame=4 vsyncTime=32 deadlineMs=40 spentMs=35 jank=true
+    INPUT: f
+    ANIMATION: b
+    INSETS: g
+    TRAVERSAL: 
+queue:
+  sync=0 async=2 barrier=inactive
+next-frame callbacks:
+  f, b
+events:
+  MSG_BARRIER
+  INPUT_DEFERRED count=2
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  FRAME_CALLBACK b
+  FRAME_CALLBACK c
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK d
+  JANK frame=1 overrunMs=1
+  VSYNC_RATE_CHANGED from=60 to=120
+  INPUT_BATCH count=2 oldestEventTime=10
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK dup
+  MSG_DISPATCH priority=async costMs=2
+  FRAME_CALLBACK b
+  FRAME_CALLBACK dup
+  MSG_BARRIER_LIFTED
+  MSG_DISPATCH priority=sync costMs=8
+  MSG_DISPATCH priority=sync costMs=5
+  INPUT_BATCH count=1 oldestEventTime=20
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK b
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK e
+  JANK frame=3 overrunMs=28
+  VSYNC_RATE_CHANGED from=120 to=90
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK f
+  FRAME_CALLBACK b
+  FRAME_CALLBACK g
+  MSG_BARRIER_LIFTED
+  JANK frame=4 overrunMs=27
+vsync rate=90 frameIntervalMs=11 currentTime=73
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=17 jank=true
+    INPUT: a
+    ANIMATION: b
+    INSETS: c
+    TRAVERSAL: d
+  frame=2 vsyncTime=16 deadlineMs=32 spentMs=16 jank=false
+    INPUT: dup
+    ANIMATION: b, dup
+    INSETS: 
+    TRAVERSAL: 
+  frame=3 vsyncTime=24 deadlineMs=32 spentMs=36 jank=true
+    INPUT: 
+    ANIMATION: b
+    INSETS: 
+    TRAVERSAL: e
+  frame=4 vsyncTime=32 deadlineMs=40 spentMs=35 jank=true
+    INPUT: f
+    ANIMATION: b
+    INSETS: g
+    TRAVERSAL: 
+  frame=5 vsyncTime=40 deadlineMs=51 spentMs=33 jank=true
+    INPUT: f
+    ANIMATION: b, h
+    INSETS: 
+    TRAVERSAL: 
+queue:
+  sync=1 async=2 barrier=inactive
+next-frame callbacks:
+  f, b
+events:
+  MSG_BARRIER
+  INPUT_DEFERRED count=2
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  FRAME_CALLBACK b
+  FRAME_CALLBACK c
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK d
+  JANK frame=1 overrunMs=1
+  VSYNC_RATE_CHANGED from=60 to=120
+  INPUT_BATCH count=2 oldestEventTime=10
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK dup
+  MSG_DISPATCH priority=async costMs=2
+  FRAME_CALLBACK b
+  FRAME_CALLBACK dup
+  MSG_BARRIER_LIFTED
+  MSG_DISPATCH priority=sync costMs=8
+  MSG_DISPATCH priority=sync costMs=5
+  INPUT_BATCH count=1 oldestEventTime=20
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK b
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK e
+  JANK frame=3 overrunMs=28
+  VSYNC_RATE_CHANGED from=120 to=90
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK f
+  FRAME_CALLBACK b
+  FRAME_CALLBACK g
+  MSG_BARRIER_LIFTED
+  JANK frame=4 overrunMs=27
+  MSG_BARRIER
+  INPUT_BATCH count=1 oldestEventTime=30
+  FRAME_CALLBACK f
+  FRAME_CALLBACK b
+  FRAME_CALLBACK h
+  MSG_BARRIER_LIFTED
+  JANK frame=5 overrunMs=22
+vsync rate=90 frameIntervalMs=11 currentTime=81
+frames:
+  frame=1 vsyncTime=0 deadlineMs=16 spentMs=17 jank=true
+    INPUT: a
+    ANIMATION: b
+    INSETS: c
+    TRAVERSAL: d
+  frame=2 vsyncTime=16 deadlineMs=32 spentMs=16 jank=false
+    INPUT: dup
+    ANIMATION: b, dup
+    INSETS: 
+    TRAVERSAL: 
+  frame=3 vsyncTime=24 deadlineMs=32 spentMs=36 jank=true
+    INPUT: 
+    ANIMATION: b
+    INSETS: 
+    TRAVERSAL: e
+  frame=4 vsyncTime=32 deadlineMs=40 spentMs=35 jank=true
+    INPUT: f
+    ANIMATION: b
+    INSETS: g
+    TRAVERSAL: 
+  frame=5 vsyncTime=40 deadlineMs=51 spentMs=33 jank=true
+    INPUT: f
+    ANIMATION: b, h
+    INSETS: 
+    TRAVERSAL: 
+  frame=6 vsyncTime=48 deadlineMs=59 spentMs=33 jank=true
+    INPUT: f
+    ANIMATION: b
+    INSETS: 
+    TRAVERSAL: i
+queue:
+  sync=1 async=2 barrier=inactive
+next-frame callbacks:
+  f, b
+events:
+  MSG_BARRIER
+  INPUT_DEFERRED count=2
+  FRAME_CALLBACK a
+  MSG_DISPATCH priority=async costMs=3
+  FRAME_CALLBACK b
+  FRAME_CALLBACK c
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK d
+  JANK frame=1 overrunMs=1
+  VSYNC_RATE_CHANGED from=60 to=120
+  INPUT_BATCH count=2 oldestEventTime=10
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK dup
+  MSG_DISPATCH priority=async costMs=2
+  FRAME_CALLBACK b
+  FRAME_CALLBACK dup
+  MSG_BARRIER_LIFTED
+  MSG_DISPATCH priority=sync costMs=8
+  MSG_DISPATCH priority=sync costMs=5
+  INPUT_BATCH count=1 oldestEventTime=20
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK b
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK e
+  JANK frame=3 overrunMs=28
+  VSYNC_RATE_CHANGED from=120 to=90
+  INPUT_DEFERRED count=1
+  FRAME_CALLBACK f
+  FRAME_CALLBACK b
+  FRAME_CALLBACK g
+  MSG_BARRIER_LIFTED
+  JANK frame=4 overrunMs=27
+  MSG_BARRIER
+  INPUT_BATCH count=1 oldestEventTime=30
+  FRAME_CALLBACK f
+  FRAME_CALLBACK b
+  FRAME_CALLBACK h
+  MSG_BARRIER_LIFTED
+  JANK frame=5 overrunMs=22
+  INPUT_BATCH count=1 oldestEventTime=44
+  FRAME_CALLBACK f
+  FRAME_CALLBACK b
+  MSG_BARRIER_LIFTED
+  FRAME_CALLBACK i
+  JANK frame=6 overrunMs=22
