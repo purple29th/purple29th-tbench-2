@@ -1,52 +1,9 @@
-# Setting
+This is a simulator for a versioned config store, the kind that pushes new values to readers and notifies observers. Right now it logs the wrong state in a few cases. Fix ConfigStore.kt so it matches the behavior here. Don't change Main.kt or the observer or snapshot files. The verifier builds and runs it.
 
-A simulator for a versioned configuration store. A pusher publishes new config versions; live readers fetch current values; snapshot readers hold a stable view across pushes; observers receive notifications when keys they care about change. The current ConfigStore in /app/src/com/example/cfgpush/ConfigStore.kt produces wrong output for several scenarios. Fix it.
+The driver reads /app/scenario.txt one operation per line. PUSH <version> <key=value,...> applies the listed updates and sets the current version. READ <reader_id> <key> is a live read that sees the current store and that reader remembers the current version it observed. BEGIN_SNAPSHOT <reader_id> captures a stable view as of the current version, READ_FROM_SNAPSHOT <reader_id> <key> reads from that captured view, and END_SNAPSHOT discards it. SUBSCRIBE <observer_id> <key,...> registers an observer for a set of keys, UNSUBSCRIBE removes it, and QUERY appends the current state to /app/output.txt.
 
-# Operations (/app/scenario.txt)
+A push that changes keys produces one notification per affected observer, where affected means at least one of its subscribed keys appears in the push. Each notification shows observer id, the matching keys from that push sorted and comma separated, and the new version. If a push changes nothing overlapping an observer's interest, no notification.
 
-- PUSH <version> <key=value,key=value,...> — apply the listed updates and set the store's current version to <version>. Each push is one unit of change.
-- READ <reader_id> <key> — a live reader fetches a value. Live reads see the current store state and the reader observes the current version.
-- BEGIN_SNAPSHOT <reader_id> — the reader captures a stable view of the store as of the current version.
-- READ_FROM_SNAPSHOT <reader_id> <key> — the reader fetches a value from its captured view. A snapshot read is a separate read mode from a live read.
-- END_SNAPSHOT <reader_id> — the reader discards its captured view.
-- SUBSCRIBE <observer_id> <key,key,...> — register the observer for a set of keys.
-- UNSUBSCRIBE <observer_id> — the observer is gone; subsequent pushes do not affect it.
-- QUERY — append the simulator's current state to /app/output.txt.
+Each QUERY appends store version and keys sorted, then readers that have done at least one live READ with the version they last observed, then notifications in emission order. Store keys sorted ascending, readers sorted ascending, notifications in emission order. Each notification renders as <observer_id>:keys=<csv>:v<version>. Unsubscribed observers get no further notifications, and operations on unknown keys or versions produce no event.
 
-# Notification semantics
-
-A push that changes one or more keys produces a single notification entry per affected observer, where "affected" means at least one of the observer's subscribed keys appears in the push. The entry records the observer id, the keys from the push that the observer cares about (sorted, comma-separated), and the new version.
-
-# State each QUERY shows
-
-- The current store contents and version.
-- For each reader that has done at least one live READ, the version it observed on its most recent live read.
-- The full notification log emitted so far.
-
-# QUERY output format
-
-For each QUERY, append:
-
-  store version=<n>
-    <key>=<value>
-    ...
-  readers:
-    <reader_id> version=<n>
-    ...
-  notifications:
-    <entry>
-    ...
-
-Within a QUERY: store keys sorted ascending by key, readers sorted ascending by id, notifications in emission order. Each notification entry is rendered as `<observer_id>:keys=<csv>:v<version>`.
-
-# What you need to do
-
-Fix /app/src/com/example/cfgpush/ConfigStore.kt. Do not modify Main.kt, Observer.kt, or Snapshot.kt. The verifier compiles and runs your fixed code automatically.
-
-# Reference build (for local debugging only)
-
-  cd /app
-  kotlinc src/com/example/cfgpush/*.kt -include-runtime -d /app/sim.jar
-  java -jar /app/sim.jar
-
-The driver reads /app/scenario.txt and writes /app/output.txt.
+For local debugging only, from /app run kotlinc src/com/example/cfgpush/*.kt -include-runtime -d app.jar then java -jar app.jar. It reads /app/scenario.txt and writes /app/output.txt.
