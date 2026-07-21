@@ -39,38 +39,49 @@ def ref(p):
             if ch not in seen:
                 stack.append(ch)
     reachable = seen
+    adj_reach = {}
+    for v in reachable:
+        adj_reach[v] = [nb for nb in adj.get(v, []) if nb in reachable]
     order = []
     vis = set()
-
-    def dfs(v):
-        vis.add(v)
-        for nb in adj.get(v, []):
-            if nb in reachable and nb not in vis:
-                dfs(nb)
-        order.append(v)
-
-    for v in reachable:
-        if v not in vis:
-            dfs(v)
-    radj = {}
-    for p in adj:
-        for c in adj[p]:
-            if p in reachable and c in reachable:
-                radj.setdefault(c, []).append(p)
+    for start in reachable:
+        if start in vis:
+            continue
+        dfs_stack = [(start, 0)]
+        while dfs_stack:
+            v, idx = dfs_stack[-1]
+            if idx == 0:
+                if v in vis:
+                    dfs_stack.pop()
+                    continue
+                vis.add(v)
+            neighbors = adj_reach.get(v, [])
+            if idx < len(neighbors):
+                w = neighbors[idx]
+                dfs_stack[-1] = (v, idx + 1)
+                if w not in vis:
+                    dfs_stack.append((w, 0))
+            else:
+                order.append(v)
+                dfs_stack.pop()
+    radj = {v: [] for v in reachable}
+    for p in reachable:
+        for c in adj_reach.get(p, []):
+            radj[c].append(p)
     vis2 = set()
     sccs = []
-
-    def rdfs(v, comp):
-        vis2.add(v)
-        comp.append(v)
-        for nb in radj.get(v, []):
-            if nb not in vis2:
-                rdfs(nb, comp)
-
     for v in reversed(order):
         if v not in vis2:
+            comp_stack = [v]
+            vis2.add(v)
             comp = []
-            rdfs(v, comp)
+            while comp_stack:
+                cur = comp_stack.pop()
+                comp.append(cur)
+                for nb in radj.get(cur, []):
+                    if nb not in vis2:
+                        vis2.add(nb)
+                        comp_stack.append(nb)
             sccs.append(comp)
     best = 0
     for scc in sccs:
