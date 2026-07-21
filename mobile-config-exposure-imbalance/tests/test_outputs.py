@@ -93,13 +93,18 @@ def test_exists():
 
 
 def test_from_scratch():
-    s = open(SCRIPT).read().replace(" ", "")
+    s = open(SCRIPT).read().replace(" ", "").lower()
     for b in [
-        "networkx",
-        "igraph",
         "importnumpy",
-        "importpandas",
+        "fromnumpy",
         "importscipy",
+        "fromscipy",
+        "importnetworkx",
+        "fromnetworkx",
+        "importigraph",
+        "fromigraph",
+        "importpandas",
+        "frompandas",
         "subprocess.",
         "os.system",
         "os.popen",
