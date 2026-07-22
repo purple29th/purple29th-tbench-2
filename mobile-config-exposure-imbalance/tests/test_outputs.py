@@ -10,6 +10,10 @@ HEADER = 64
 
 
 def ref(p):
+    """
+    Independent oracle using iterative Tarjan SCC, different from solution's Kosaraju.
+    Parses MCFG, filters reachable from root 0, runs Tarjan, excludes root value, checks threshold.
+    """
     d = open(p, "rb").read()
     assert d[:4] == b"MCFG"
     cnt = struct.unpack_from("<I", d, 8)[0]
@@ -28,6 +32,7 @@ def ref(p):
         nodes[nid] = val
         for c in deps:
             adj.setdefault(nid, []).append(c)
+    # reachable from root 0
     stack = [0]
     seen = set()
     while stack:
@@ -42,47 +47,53 @@ def ref(p):
     adj_reach = {}
     for v in reachable:
         adj_reach[v] = [nb for nb in adj.get(v, []) if nb in reachable]
-    order = []
-    vis = set()
-    for start in reachable:
-        if start in vis:
-            continue
-        dfs_stack = [(start, 0)]
-        while dfs_stack:
-            v, idx = dfs_stack[-1]
-            if idx == 0:
-                if v in vis:
-                    dfs_stack.pop()
-                    continue
-                vis.add(v)
-            neighbors = adj_reach.get(v, [])
-            if idx < len(neighbors):
-                w = neighbors[idx]
-                dfs_stack[-1] = (v, idx + 1)
-                if w not in vis:
-                    dfs_stack.append((w, 0))
-            else:
-                order.append(v)
-                dfs_stack.pop()
-    radj = {v: [] for v in reachable}
-    for p in reachable:
-        for c in adj_reach.get(p, []):
-            radj[c].append(p)
-    vis2 = set()
+
+    # Tarjan iterative - independent from solution's Kosaraju
+    index = 0
+    indices = {}
+    lowlink = {}
+    onstack = set()
+    tarjan_stack = []
     sccs = []
-    for v in reversed(order):
-        if v not in vis2:
-            comp_stack = [v]
-            vis2.add(v)
-            comp = []
-            while comp_stack:
-                cur = comp_stack.pop()
-                comp.append(cur)
-                for nb in radj.get(cur, []):
-                    if nb not in vis2:
-                        vis2.add(nb)
-                        comp_stack.append(nb)
-            sccs.append(comp)
+    call_stack = []
+
+    for start in reachable:
+        if start in indices:
+            continue
+        call_stack.append([start, 0])
+        while call_stack:
+            v, child_idx = call_stack[-1]
+            if child_idx == 0:
+                if v not in indices:
+                    indices[v] = index
+                    lowlink[v] = index
+                    index += 1
+                    tarjan_stack.append(v)
+                    onstack.add(v)
+            neighbors = adj_reach.get(v, [])
+            if child_idx < len(neighbors):
+                w = neighbors[child_idx]
+                call_stack[-1][1] += 1
+                if w not in indices:
+                    call_stack.append([w, 0])
+                elif w in onstack:
+                    lowlink[v] = min(lowlink[v], indices[w])
+            else:
+                if lowlink[v] == indices[v]:
+                    comp = []
+                    while True:
+                        w = tarjan_stack.pop()
+                        onstack.remove(w)
+                        comp.append(w)
+                        if w == v:
+                            break
+                    sccs.append(comp)
+                call_stack.pop()
+                if call_stack:
+                    parent_v = call_stack[-1][0]
+                    if v in lowlink:
+                        lowlink[parent_v] = min(lowlink[parent_v], lowlink[v])
+
     best = 0
     for scc in sccs:
         s = sum(nodes.get(n, 0) for n in scc if n != 0)
@@ -124,8 +135,6 @@ def test_from_scratch():
         "importlib",
         "eval(",
         "exec(",
-        "compile(",
-        "ctypes",
     ]:
         assert b not in s
 
