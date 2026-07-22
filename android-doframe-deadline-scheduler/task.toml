@@ -9,12 +9,13 @@ authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "choreographer", "looper", "vsync", "barrier", "jank"]
 
 [metadata]
+reward_type="binary"
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "hard"
 category = "bug-fixing"
-category_subdomain = "concurrency"
-category_usecase = "event_scheduling"
+category_subdomain="mobile_android"
+category_usecase="handle_events"
 languages = ["kotlin"]
 tags = ["kotlin", "choreographer", "looper", "vsync", "concurrency", "bugfix"]
 expert_time_estimate_min = 35.0

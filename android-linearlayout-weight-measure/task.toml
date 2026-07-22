@@ -9,6 +9,9 @@ authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "recyclerview", "concurrency", "stale-callback", "bugfix"]
 
 [metadata]
+reward_type="binary"
+category_usecase="logic_errors"
+category_subdomain="mobile_android"
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "hard"

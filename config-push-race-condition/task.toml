@@ -9,12 +9,13 @@ authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "config-store", "versioning", "observer", "snapshot", "bugfix"]
 
 [metadata]
+reward_type="binary"
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "hard"
 category = "bug-fixing"
-category_subdomain = "state_management"
-category_usecase = "configuration_management"
+category_subdomain="distributed_systems"
+category_usecase="configuration_bugs"
 languages = ["kotlin"]
 tags = ["kotlin", "config-store", "versioning", "observer", "snapshot", "bugfix"]
 expert_time_estimate_min = 35.0

@@ -9,6 +9,9 @@ authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["reverse-engineering", "bytecode", "keygen", "jvm", "android"]
 
 [metadata]
+reward_type="binary"
+category_usecase="artifact_analysis"
+category_subdomain="security_and_privacy"
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "hard"

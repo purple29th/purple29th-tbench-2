@@ -9,6 +9,9 @@ authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["transactions", "savepoints", "rollback", "checkpoint", "cpp"]
 
 [metadata]
+reward_type="binary"
+category_usecase="concurrency_bugs"
+category_subdomain="database_internals"
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "hard"

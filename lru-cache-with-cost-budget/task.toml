@@ -9,6 +9,9 @@ authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["cache", "lru", "eviction", "state-machine", "cpp"]
 
 [metadata]
+reward_type="binary"
+category_usecase="caching"
+category_subdomain="algorithms_and_data_structures"
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "hard"

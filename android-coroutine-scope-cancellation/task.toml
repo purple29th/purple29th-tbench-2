@@ -14,6 +14,7 @@ difficulty="hard"
 category="data-science"
 category_subdomain="database_internals"
 category_usecase="parsing_lexing"
+reward_type="binary"
 tags=["binary-parsing","graph-traversal","supervisor","from-scratch"]
 expert_time_estimate_min=40.0
 junior_time_estimate_min=120.0

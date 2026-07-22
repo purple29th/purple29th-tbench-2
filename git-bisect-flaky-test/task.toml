@@ -8,6 +8,9 @@ authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["go", "git", "bisect", "flaky-tests", "regression", "build-infrastructure"]
 
 [metadata]
+reward_type="binary"
+category_usecase="flaky_test_fix"
+category_subdomain="build_and_ci"
 author_name = "Tosin Daniel Jimoh"
 author_email = "purple29th@meta.com"
 difficulty = "medium"
