@@ -1,0 +1,34 @@
+pool maxBytes=32768 currentBytes=32400
+strong:
+  key=big w=90 h=90 config=ARGB_8888 bytes=32400 lastAccess=10
+soft:
+  key=a w=32 h=32 config=ARGB_8888 bytes=4096
+  key=c w=40 h=40 config=ARGB_8888 bytes=6400
+  key=d w=32 h=32 config=ARGB_8888 bytes=4096
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  LEAK b
+  ALLOC d
+  DEDUP d
+  ALLOC big
+  EVICT a reason=tie
+  EVICT c reason=lru
+pool maxBytes=32768 currentBytes=32400
+strong:
+  key=big w=90 h=90 config=ARGB_8888 bytes=32400 lastAccess=10
+soft:
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  LEAK b
+  ALLOC d
+  DEDUP d
+  ALLOC big
+  EVICT a reason=tie
+  EVICT c reason=lru
+  GC cleared=3

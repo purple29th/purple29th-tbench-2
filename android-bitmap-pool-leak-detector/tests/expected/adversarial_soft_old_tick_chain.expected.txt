@@ -1,0 +1,38 @@
+pool maxBytes=32768 currentBytes=32768
+strong:
+  key=d w=64 h=64 config=ARGB_8888 bytes=16384 lastAccess=4
+  key=e w=64 h=64 config=ARGB_8888 bytes=16384 lastAccess=5
+soft:
+  key=a w=32 h=32 config=ARGB_8888 bytes=4096
+  key=b w=32 h=32 config=ARGB_8888 bytes=4096
+  key=c w=32 h=32 config=ARGB_8888 bytes=4096
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC d
+  ALLOC e
+  EVICT a reason=lru
+  EVICT b reason=lru
+  EVICT c reason=lru
+pool maxBytes=32768 currentBytes=32768
+strong:
+  key=d w=64 h=64 config=ARGB_8888 bytes=16384 lastAccess=4
+  key=e w=64 h=64 config=ARGB_8888 bytes=16384 lastAccess=5
+soft:
+  key=b w=32 h=32 config=ARGB_8888 bytes=4096
+  key=c w=32 h=32 config=ARGB_8888 bytes=4096
+  key=want_a w=32 h=32 config=ARGB_8888 bytes=4096
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC d
+  ALLOC e
+  EVICT a reason=lru
+  EVICT b reason=lru
+  EVICT c reason=lru
+  REUSE_SOFT want_a
+  EVICT want_a reason=lru

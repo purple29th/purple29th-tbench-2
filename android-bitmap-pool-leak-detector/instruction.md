@@ -10,7 +10,7 @@ Tiers: Strong LRU ordered byte accounted against cap searched first by ACQUIRE. 
 
 ACQUIRE exact match means equal width height and config. Search strong first, on hit emit REUSE_STRONG new key, drop old key, restore under new key keeping its last access. If strong missed search soft, on hit emit REUSE_SOFT new key remove from soft promote to strong under new key keeping demoted last access, its bytes rejoin total and may trigger eviction. If neither matches allocate fresh emit ALLOC new key.
 
-Eviction while strong total over cap remove one at a time until it fits. Victim smallest last access, if two share smallest fewest bytes first. Emit EVICT key reason lru when smallest unique or reason tie when shared and bytes rule chose victim. Evicted entry demoted to soft under its key keeping last access.
+Eviction while strong total over cap remove one at a time until it fits. Victim smallest last access, if two share smallest fewest bytes first, if still tie smallest key first. Emit EVICT key reason lru when smallest unique or reason tie when shared and bytes or key rule chose victim. Evicted entry demoted to soft under its key keeping last access.
 
 Active draw BEGIN_DRAW END_DRAW keep per key depth active set every key with depth above zero. RECYCLE leak case after leak later END_DRAW on that key does nothing.
 
