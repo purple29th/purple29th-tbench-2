@@ -1,0 +1,6 @@
+STORE a /a none 50000
+STORE b /b none 60000
+STORE c /c none 70000
+TOUCH a b c
+STORE big /big none 200000
+QUERY

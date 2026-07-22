@@ -69,6 +69,13 @@ class ResponseCache {
         evictUntilFits()
     }
 
+    fun touch(keys: List<String>) {
+        currentTick += 1
+        val first = keys.firstOrNull() ?: return
+        val entry = memory[first] ?: return
+        entry.lastAccess = currentTick
+    }
+
     fun trim() {
         currentTick += 1
         val cleared = disk.size

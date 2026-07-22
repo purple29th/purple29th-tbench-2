@@ -1,0 +1,5 @@
+STORE a /v1 none 50000
+STORE b /v1 none 50000
+TOUCH a b
+STORE c /v2 none 250000
+QUERY

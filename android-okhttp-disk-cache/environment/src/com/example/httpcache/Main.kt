@@ -27,6 +27,7 @@ private fun dispatch(line: String, cache: ResponseCache, output: StringBuilder) 
         "CLOSE"  -> cache.close(t[1])
         "COMMIT" -> cache.commit(t[1])
         "LOOKUP" -> cache.lookup(t[1], t[2], t[3], t[4].toInt())
+        "TOUCH"  -> cache.touch(t.drop(1))
         "TRIM"   -> cache.trim()
         "QUERY"  -> output.append(cache.snapshot())
     }

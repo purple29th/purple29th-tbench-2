@@ -1,0 +1,15 @@
+cache budget=300000 currentBytes=270000
+memory:
+  key=big url=/big vary=none bytes=200000 lastAccess=5
+  key=c url=/c vary=none bytes=70000 lastAccess=4
+disk:
+  key=a url=/a vary=none bytes=50000
+  key=b url=/b vary=none bytes=60000
+inflight:
+events:
+  STORE a
+  STORE b
+  STORE c
+  STORE big
+  EVICT a reason=lru
+  EVICT b reason=lru

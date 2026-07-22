@@ -1,0 +1,28 @@
+STORE a /a none 80000
+STORE b /b none 80000
+STORE c /c none 80000
+QUERY
+TOUCH a b
+STORE big1 /big1 none 200000
+QUERY
+LOOKUP reA /a none 80000
+OPEN c
+STORE big2 /big2 none 200000
+QUERY
+COMMIT c
+CLOSE c
+STORE d /d none 60000
+STORE e /e none 60000
+COMMIT d
+QUERY
+TOUCH reA d e
+STORE big3 /big3 none 180000
+QUERY
+LOOKUP reB /b none 80000
+TRIM
+QUERY
+STORE f /f none 50000
+STORE g /g none 50000
+TOUCH f g
+STORE big4 /big4 none 220000
+QUERY

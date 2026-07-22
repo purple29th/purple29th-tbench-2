@@ -1,0 +1,36 @@
+cache budget=300000 currentBytes=300000
+memory:
+  key=c url=/v3 vary=none bytes=50000 lastAccess=3
+  key=d url=/v4 vary=none bytes=100000 lastAccess=4
+  key=e url=/v5 vary=none bytes=150000 lastAccess=5
+disk:
+  key=a url=/v1 vary=none bytes=50000
+  key=b url=/v2 vary=none bytes=50000
+inflight:
+events:
+  STORE a
+  STORE b
+  STORE c
+  STORE d
+  STORE e
+  EVICT a reason=lru
+  EVICT b reason=lru
+cache budget=300000 currentBytes=300000
+memory:
+  key=c url=/v3 vary=none bytes=50000 lastAccess=3
+  key=d url=/v4 vary=none bytes=100000 lastAccess=4
+  key=e url=/v5 vary=none bytes=150000 lastAccess=5
+disk:
+  key=b url=/v2 vary=none bytes=50000
+  key=want_a url=/v1 vary=none bytes=50000
+inflight:
+events:
+  STORE a
+  STORE b
+  STORE c
+  STORE d
+  STORE e
+  EVICT a reason=lru
+  EVICT b reason=lru
+  REUSE_DISK want_a
+  EVICT want_a reason=lru

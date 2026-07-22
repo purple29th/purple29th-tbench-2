@@ -1,0 +1,8 @@
+STORE a /v1 none 50000
+STORE b /v2 none 50000
+STORE c /v3 none 50000
+STORE d /v4 none 100000
+STORE e /v5 none 150000
+QUERY
+LOOKUP want_a /v1 none 50000
+QUERY
