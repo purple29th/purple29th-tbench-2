@@ -22,11 +22,9 @@ for scenario_file in /app/scenarios/*.txt; do
     java -jar /app/sim.jar "$scenario_file" "/app/output.${name}.txt" \
         >> /logs/verifier/run.log 2>&1
 done
-cp /app/output.*.txt /logs/verifier/ 2>/dev/null || true
 if [ -d /tmp/tests.hidden ]; then mv /tmp/tests.hidden /tests; fi
 if [ -d /tmp/scenarios.hidden ]; then rm -rf /app/scenarios; mv /tmp/scenarios.hidden /app/scenarios; fi
-uvx --python 3.12 --with pytest==8.4.1 \
-    pytest /tests/test_outputs.py -rA --tb=short \
+python3 -m pytest /tests/test_outputs.py -rA --tb=short \
     > /logs/verifier/test-stdout.txt 2>&1
 status=$?
 if [ $status -eq 0 ]; then
