@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
-"""Oracle: recover the physical volume of a ToF-scanned object from a .tvol
-volume, standard library only.
+"""Oracle: recover the physical volume of a gold nanocluster-labeled tumor
+from a confocal fluorescence .gvol volume, standard library only.
 
-The object's intensity is spread by the sensor point-spread function, so a
-threshold-and-count approach cannot recover the volume (the solid core saturates
-while thin parts have partial-volume intensity below any usable threshold). The
-blur is a normalized kernel, so it CONSERVES total intensity. Therefore:
+Gold labeling makes the tumor bright with a concentrated core but the microscope
+Airy disk point spread smears light everywhere, so threshold and count fails
+(the solid core is saturated while thin infiltrating strands have partial-volume
+intensity below any usable threshold). The blur is normalized and conserves total
+fluorescence, therefore:
 
-    object_voxels = sum(intensity - background over the object) / plateau_amplitude
+    object_voxels = sum(intensity - background over object+halo) / plateau_amplitude
     volume_mm3    = object_voxels * sx * sy * sz
 
 Steps:
-  1. Parse the binary header + voxel array (x-fastest).
-  2. Estimate the background floor as the median (background dominates the
-     volume) and the noise scale via the MAD, then form the residual.
-  3. Label 26-connected components above a low (noise-level) threshold and keep
-     the one with the greatest integrated mass -> the object (this drops the far
-     specks, which carry little mass).
-  4. Estimate the plateau amplitude from a 3x3x3 mean-filter peak over the object
-     component (noise-robust; recovers the saturated interior value).
-  5. Adaptively grow the object region outward while each new shell still carries
-     signal above the noise floor (recovers the faint blur halo without bridging
-     to the specks), then integrate the signed residual over that region.
-  6. Divide by the amplitude and multiply by the per-axis voxel size.
+  1. Parse binary header and voxel array x-fastest.
+  2. Estimate background floor and noise scale robustly and form residual.
+  3. Label bright connected components and keep largest-mass component to drop
+     far gold dust specks.
+  4. Estimate interior plateau amplitude from filtered peak over object.
+  5. Grow region to capture faint halo while shell still carries signal, then
+     integrate residual over grown region.
+  6. Divide by amplitude and multiply by per-axis voxel size.
 """
+
 import struct
 import sys
 
@@ -49,12 +47,20 @@ def parse(path):
 
 def _median(sorted_vals):
     m = len(sorted_vals)
-    return sorted_vals[m // 2] if m % 2 else 0.5 * (sorted_vals[m // 2 - 1] + sorted_vals[m // 2])
+    return (
+        sorted_vals[m // 2]
+        if m % 2
+        else 0.5 * (sorted_vals[m // 2 - 1] + sorted_vals[m // 2])
+    )
 
 
-NEIGH = [(dx, dy, dz)
-         for dz in (-1, 0, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
-         if not (dx == 0 and dy == 0 and dz == 0)]
+NEIGH = [
+    (dx, dy, dz)
+    for dz in (-1, 0, 1)
+    for dy in (-1, 0, 1)
+    for dx in (-1, 0, 1)
+    if not (dx == 0 and dy == 0 and dz == 0)
+]
 
 
 def object_volume_mm3(path):
