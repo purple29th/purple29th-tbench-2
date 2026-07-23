@@ -1,31 +1,29 @@
-i am working with depth camera captures and i need to know physical size of object inside.
+i built a small depth camera rig that saves scans. i need to know how big the thing in front is in cubic mm.
 
-there is a place where your code should live. create a file named solve dot py and put it in the app directory. when we grade we start python and give it one argument that points to a scan. whatever your program prints last word we interpret as cubic millimetre volume.
+there is a spot where your code should go. make a file named solve dot py inside app folder. we will run it like python app solve py with one argument which is path to a tvol scan. whatever you print last word we take as volume.
 
-for local debugging you have one file to try. its name is scene dot tvol and you can find it by going into app then into data inside there. hidden tests use other files you have never seen. do not embed any constants from that example like voxel counts or brightness values.
+you have one file to test on locally. name is scene dot tvol inside data folder which is inside app. hidden tests use other files you never saw with different sizes brightness and voxel sizes. do not hardcode any numbers from example.
 
-tvol is our own container. all numbers inside are stored least significant byte first.
+tvol is my own tiny binary. all numbers little endian.
 
-file begins with four ascii letters T V O L.
+file starts with four ascii letters T V O L.
 
-next four bytes are version as unsigned little endian thirty two bit integer.
+next four bytes version unsigned thirty two bit little endian.
 
-next four bytes are type tag also unsigned thirty two little endian. value two indicates signed sixteen bit integers for voxels. value sixteen indicates thirty two bit float for voxels.
+next four bytes dtype code unsigned thirty two little endian. two means voxels are int16. sixteen means float32.
 
-next twelve bytes are three unsigned thirty two little endian counts for number of voxels along each axis. think width height depth. you may have seen them as nx ny nz but just treat as three counts.
+next twelve bytes three unsigned counts of voxels along each axis like width height depth historically nx ny nz.
 
-next twelve bytes are three little endian thirty two bit floats that give metric pitch of a voxel in mm along each axis. think millimetre per voxel in first second third direction. original docs call them sx sy sz.
+next twelve bytes three float32 values saying mm per voxel per axis historically sx sy sz. they change every file anisotropic so read them from header.
 
-next four bytes are unsigned thirty two little endian telling offset of voxel block from start of file.
+next four bytes unsigned offset where voxel data starts.
 
-after offset you have countx times county times countz values in the announced dtype.
+after offset there are nx times ny times nz values in announced dtype. x runs fastest so index for x y z is x plus nx times open bracket y plus ny times z close bracket.
 
-layout order is x moves quickest. so position x y z maps to linear position x plus countx times bracket y plus county times z bracket.
+inside there is one solid bright mass. lens has point spread that makes edges fuzzy. interior flat bright. border dimmer because partly occupied and smeared to neighbours. background flat plus noise. some scans have one or two tiny bright specks far away trash keep biggest connected bright mass using twenty six neighbours.
 
-inside there is only one solid bright mass. lens makes it fuzzy. central part flat bright. border voxels dimmer because partially occupied and smeared. background pedestal plus noise everywhere. occasional isolated bright dots far away are trash. keep biggest connected bright mass using twenty six neighbours to drop those.
+threshold counting fails. blur conserves energy. so you need to think about background removal and how bright fully filled interior really is and how much total light belongs to main object plus halo. precise recovery needs most concentrated area not just bright voxel count. light is everywhere so find where concentration highest.
 
-simple threshold count fails. because blur conserves energy we need background estimation removal, peak estimation, integration over mass plus halo divided by peak then times pitch x times pitch y times pitch z.
+parse bytes yourself with only stdlib like struct. dont use numpy scipy skimage opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph library. dont use subprocess os system popen exec tricks or double underscore import importlib runpy ctypes eval exec compile shell.
 
-write byte parsing yourself with only stdlib modules like struct. do not pull numpy scipy skimage opencv pillow networkx igraph imageio pandas torch tensorflow nor any array picture graph helper. avoid process spawning like subprocess os system popen exec and avoid dynamic import tricks like double underscore import importlib runpy ctypes eval exec compile and shell tricks. do not open tests directory or scan filesystem.
-
-at end print size as last word.
+at end print size mm3 as last word.
