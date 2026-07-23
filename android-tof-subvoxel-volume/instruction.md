@@ -1,15 +1,24 @@
-Write a python program at the solver path. The path is app solve py inside the app directory. The program will be invoked as python3 app solve py with one argument which is the path to a tvol file. It must print the volume of the contained object in cubic millimetres. The grader reads stdout and takes the last whitespace separated token as the numeric answer.
+Make a script at /app/solve.py. When we run:
 
-You can test locally on a provided example scan. The example is the file named scene dot tvol inside the data directory that is inside the app directory. Hidden evaluation uses other scans with different dimensions spacings intensities and volumes. Do not hardcode any number taken from the example and do not hardcode sizes.
+python3 /app/solve.py /some/file.tvol
 
-The tvol file is a tiny custom binary. All multibyte values are little endian. At offset zero there are four bytes ascii T V O L. At offset four there is a uint32 version field. At offset eight there is a uint32 dtype code. Code two means voxels are int16. Code sixteen means voxels are float32. At offset twelve there are three uint32 values nx ny nz which are the counts of voxels along each axis. At offset twenty four there are three float32 values sx sy sz which give physical size of one voxel in mm along each axis. At offset thirty six there is a uint32 data offset which tells where the voxel array starts.
+it should print a single float — the physical size of the thing inside the scan in cubic mm — and that number has to be the last thing on stdout.
 
-After data offset there are nx times ny times nz values of the stated dtype. X is fastest. The linear index for coordinate x y z equals x plus nx times parenthesis y plus ny times z parenthesis.
+You can try it locally on /app/data/scene.tvol, but final grading uses other scans you haven't seen, so it has to be generic.
 
-What you see inside is one main bright object. Because of lens point spread the edges are fuzzy. Voxels completely inside are near a flat high peak. Voxels that are crossed by the surface are lower because they are only partly filled. Their energy also bleeds into neighbours due to blur. On top of that there is a flat background level plus per voxel noise. Some scans have one or two tiny isolated bright specks far away from the main blob. Those are artefacts. You should discard them by keeping only the largest connected bright region using twenty six connectivity.
+What is .tvol? It's our own tiny ToF volume. Everything is little endian.
 
-Thresholding and counting voxels does not give the true volume here. The blur kernel is normalized so total intensity is conserved. The correct way is to estimate background and subtract it then estimate the interior plateau amplitude and integrate background subtracted intensity over the object and its faint halo then divide by amplitude then multiply by sx sy sz. That recovers sub voxel partial fill correctly.
+Bytes 0-3: ascii "TVOL"
+Byte 4: uint32 version
+Byte 8: uint32 dtype — 2 means int16, 16 means float32
+Byte 12: uint32 nx, uint32 ny, uint32 nz (dimensions)
+Byte 24: float32 sx, float32 sy, float32 sz — mm per voxel
+Byte 36: uint32 data_offset — where voxels start
 
-You must parse the file from raw bytes yourself using only the python standard library. You may use struct for example. Do not import numpy scipy scikit image opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph helper library. Do not use subprocess or system calls like os system os popen os exec or dynamic import tricks like dunder import importlib runpy ctypes or eval exec compile or shell access. Do not attempt to read tests area or list directories to find hidden data.
+After data_offset there are nx*ny*nz voxels in that dtype, x is fastest. So linear index for (x,y,z) is x + nx*(y + ny*z).
 
-At the end print the volume in mm3 as the final token on stdout.
+Inside: the object looks like a bright blob with fuzzy edges. The sensor reports occupancy scaled — voxels deep inside are at a high flat peak, voxels cut by the surface are weaker, and the lens smears signal into neighbors due to point spread. On top there's a constant background plus a bit of noise in every voxel. Some scans have one or two very small bright specks far from the main blob; those are artefacts, don't count them. sx sy sz are different per axis and per scan, always read them.
+
+You must parse raw bytes yourself, stdlib only. No array / image / graph helpers at all. That includes numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow, etc. Also no shelling out, no subprocess, no os.system, no os.popen, no os.exec, and no trick imports — no __import__, no importlib, no runpy, no ctypes, no eval, no exec, no compile.
+
+Output: print the object volume in mm^3; we take the last numeric token on stdout as your answer.
