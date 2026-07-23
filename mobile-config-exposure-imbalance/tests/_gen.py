@@ -138,52 +138,86 @@ def build_heldout_2():
 
 
 def build_heldout_3():
-    """threshold 10000, ~2000 nodes. Answer is a dense reachable SCC totalling
-    12000. A long reachable chain (recursion dies). A dense region (pairwise
-    mutual-reachability times out). Unreachable SCC 30000. Many reachable
-    islands under threshold (excluded)."""
+    """threshold 10000, ~1900 nodes. Answer is a dense reachable SCC totalling
+    12000; a 200-node count trap totals 11800; an unreachable SCC totals 30000;
+    a 1600-long reachable chain makes recursive DFS die at the default limit;
+    plus a batch of sub-threshold reachable islands."""
     b = Builder(threshold=10000, offset=96)
     rng = _lcg(4242)
 
     # root in a 3-cycle (its value excluded) that also fans out to everything
     b.cycle([0, 1, 2], [88888, 7, 8])   # excl-root island total 15 (tiny)
-    b.nodes[0][2].extend([100000, 200000, DANGLING])  # reach answer + count trap
+    b.nodes[0][2].extend([100000, 200000, 300000, DANGLING])
 
     # ---- true answer: a dense reachable SCC of 60 nodes totalling 12000 ----
     ans = list(range(100000, 100060))
-    vals = [200] * 60          # 60 * 200 = 12000
     for i, nid in enumerate(ans):
-        deps = [ans[(i + 1) % len(ans)]]           # ring -> one SCC
-        # cross edges make it dense (pairwise reachability expensive)
+        deps = [ans[(i + 1) % len(ans)]]
         for _ in range(6):
-            deps.append(ans[next(rng) % len(ans)])
-        b.add(nid, vals[i], deps)
+            deps.append(ans[next(rng) % len(ans)])   # cross edges -> dense SCC
+        b.add(nid, 200, deps)                         # 60 * 200 = 12000
 
     # ---- count trap: reachable SCC of 200 nodes but only 11800 total ----
     ct = list(range(200000, 200200))
     for i, nid in enumerate(ct):
-        deps = [ct[(i + 1) % len(ct)]]
-        b.add(nid, 59, deps)                        # 200 * 59 = 11800 (< 12000)
+        b.add(nid, 59, [ct[(i + 1) % len(ct)]])       # 200 * 59 = 11800 (< 12000)
 
-    # ---- long reachable chain: 1500 singletons (recursion limit) ----
-    chain_start = 300000
-    b.nodes[0][2].append(chain_start)
-    for k in range(1500):
-        nid = chain_start + k
-        nxt = chain_start + k + 1 if k < 1499 else DANGLING
-        b.add(nid, 3, [nxt])                        # tiny values, singletons
+    # ---- long reachable chain: 1600 singletons -> recursive DFS overflows ----
+    chain = 300000
+    for k in range(1600):
+        nxt = chain + k + 1 if k < 1599 else DANGLING
+        b.add(chain + k, 3, [nxt])                    # tiny values, singletons
 
-    # ---- a batch of reachable islands under threshold (excluded) ----
-    for j in range(40):
+    # ---- sub-threshold reachable islands (excluded by threshold) ----
+    for j in range(20):
         base = 400000 + j * 3
         b.cycle([base, base + 1, base + 2], [1000, 1000, 1000])  # 3000 < 10000
-        b.nodes[0][2].append(base)                  # make reachable
+        b.nodes[0][2].append(base)
 
     # ---- unreachable SCC total 30000 (bigger, over threshold, unreachable) ----
-    # nothing reachable ever points into the 500000+ range.
     un = list(range(500000, 500006))
     for i, nid in enumerate(un):
-        b.add(nid, 5000, [un[(i + 1) % len(un)]])   # 6 * 5000 = 30000, NOT reachable
+        b.add(nid, 5000, [un[(i + 1) % len(un)]])     # 6 * 5000 = 30000, NOT reachable
+    return b
+
+
+def build_heldout_4():
+    """threshold 10000, offset 64. Winner sits EXACTLY at threshold (10000) so a
+    strict > drops it; a 9999 island is just under; a larger island (14000) is
+    unreachable; a count trap; root in a cycle."""
+    b = Builder(threshold=10000, offset=64)
+    b.cycle([0, 5, 6], [70000, 11, 12])              # root cycle, excl total 23
+    b.nodes[0][2].extend([10, 20, 30, DANGLING])
+    # TRUE ANSWER: reachable 2-cycle totalling EXACTLY 10000
+    b.cycle([10, 11], [6000, 4000])
+    # just under threshold: 9999 -> excluded
+    b.cycle([20, 21], [5000, 4999])
+    # count trap: 50-node reachable SCC totalling 9500 (> nodes, < 10000 -> excluded too)
+    ct = list(range(3000, 3050))
+    for i, nid in enumerate(ct):
+        b.add(nid, 190, [ct[(i + 1) % len(ct)]])     # 50 * 190 = 9500
+    b.nodes[0][2].append(3000)
+    # unreachable island 14000 (bigger, over threshold, unreachable)
+    b.cycle([950, 951], [7000, 7000])
+    return b
+
+
+def build_heldout_5():
+    """threshold 0, offset 96. Winner is a reachable SINGLETON with a large
+    value that beats every cycle; a negative-heavy cycle; an unreachable
+    positive island; root in a cycle; dangling + self loops."""
+    b = Builder(threshold=0, offset=96)
+    b.cycle([0, 7, 8], [40000, 30, 40])              # root cycle, excl total 70
+    b.nodes[0][2].extend([100, 200, 300, 400, DANGLING, 0])  # self loop on root
+    # decoy cycles
+    b.cycle([100, 101, 102], [900, 900, 900])        # total 2700
+    b.cycle([200, 201], [1600, 1600])                # total 3200
+    # negative-heavy reachable cycle: 5000 + (-4000) = 1000
+    b.cycle([300, 301], [5000, -4000])
+    # TRUE ANSWER: reachable singleton value 3500 (beats every cycle above)
+    b.add(400, 3500, [DANGLING, 400])                # self loop, still one node
+    # unreachable positive island 9000
+    b.cycle([950, 951, 952], [3000, 3000, 3000])
     return b
 
 
@@ -192,6 +226,8 @@ BUILDERS = {
     "heldout_1": build_heldout_1,
     "heldout_2": build_heldout_2,
     "heldout_3": build_heldout_3,
+    "heldout_4": build_heldout_4,
+    "heldout_5": build_heldout_5,
 }
 
 

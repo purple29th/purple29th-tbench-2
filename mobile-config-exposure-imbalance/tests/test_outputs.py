@@ -5,6 +5,8 @@ HELDOUTS = [
     "/tests/data/heldout_1.mcfg",
     "/tests/data/heldout_2.mcfg",
     "/tests/data/heldout_3.mcfg",
+    "/tests/data/heldout_4.mcfg",
+    "/tests/data/heldout_5.mcfg",
 ]
 HEADER = 64
 

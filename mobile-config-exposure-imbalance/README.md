@@ -35,39 +35,45 @@ oracle == reference values.
 |------|-----|--------|-------|--------|---------------|
 | heldout_1 | 0 | 64 | ~20 | **2600** | winner is a **singleton** (beats a 2500 cycle); count trap 5 node cycle 2400; unreachable 4 cycle 9000; root in cycle (incl root 50090); dangling deps; self loop |
 | heldout_2 | 610 | 96 | ~16 | **610** | winner sits **exactly at threshold** (a `>` comparison drops it to 0); a 600 island just under; negative valued member; root in cycle (incl root 100009); unreachable island 20000 |
-| heldout_3 | 10000 | 96 | ~1889 | **12000** | dense reachable SCC is the answer; count trap 200 node SCC 11800; unreachable SCC 30000; **1500 long chain** (recursion dies); 40 sub threshold islands; root in cycle |
+| heldout_3 | 10000 | 96 | ~1929 | **12000** | dense reachable SCC is the answer; count trap 200 node SCC 11800; unreachable SCC 30000; **1600 long chain** (recursive DFS dies at the default limit); 20 sub threshold islands; root in cycle |
+| heldout_4 | 10000 | 64 | ~60 | **10000** | winner sits **exactly at threshold**; a 9999 island just under; a 9500 count trap (also sub threshold); unreachable island 14000; root in cycle |
+| heldout_5 | 0 | 96 | ~15 | **3500** | winner is a **singleton** (3500, beats a 3200 and 2700 cycle); negative heavy cycle (5000 + -4000); unreachable island 9000; root in cycle; self loop |
 
 Each plausible but wrong strategy fails on at least one held out (verified by the
 bundled harness against the reference):
 
 | Wrong strategy | Fails on |
 |----------------|----------|
-| pick by node count | heldout_1 (2400 vs 2600), heldout_3 (11800 vs 12000) |
-| include root value | all three |
-| ignore reachability | all three |
-| threshold with `>` instead of `>=` | heldout_2 (0 vs 610) |
-| ignore singleton islands | heldout_1 (2500 vs 2600) |
-| recursive DFS (default limit) | heldout_3 (RecursionError on the 1500 chain) |
+| pick by node count | heldout_1, heldout_3, heldout_5 |
+| include root value | all five |
+| ignore reachability | all five |
+| threshold with `>` instead of `>=` | heldout_2, heldout_4 |
+| ignore singleton islands | heldout_1, heldout_5 |
+| recursive DFS (default limit) | heldout_3 (RecursionError on the 1600 chain) |
 
 ## Completion Rates
 
 | Model | Agent | Pass rate |
 |-------|-------|-----------|
-| Oracle | `oracle` | 1.0 (deterministic; all 5 verifier tests pass) |
+| Oracle | `oracle` | 1.0 (deterministic; all 7 verifier tests pass) |
 | Frontier models | `metacode` / `claude-code` | to be measured by the validation pipeline |
 
 > **Calibration target:** the previous version was too easy because the held outs
-> were large but sparse (one trap each, reducing to "max reachable node"). The
-> hardened held outs stack six independent trap types, so a trial that gets any one
-> wrong fails. The dominant expected failure modes are including the root value,
-> counting nodes instead of summing weight, missing that the winner can be a
-> singleton or sit exactly at the threshold, and recursion on the long chain.
+> were large but sparse (one trap each, reducing to "max reachable node"). There
+> are now five held outs stacking six independent trap types, and the verifier
+> requires every one to pass, so a trial that slips on any single trap fails. The
+> dominant expected failure modes are including the root value, counting nodes
+> instead of summing weight, missing that the winner can be a singleton or sit
+> exactly at the threshold, and recursion on the long chain. Note: because the
+> problem is fully specified (a strongly connected component computation), a
+> flawless implementation passes 5/5 by design; the difficulty comes from the
+> number of independent edge cases a trial must get right at once.
 
 ## Anti Cheating
 
-- **Hardcoded outputs:** the three held outs have different answers (2600, 610,
-  12000), thresholds (0, 610, 10000), offsets (64, 96, 96) and sizes, and all
-  differ from the visible sample (220). A constant cannot satisfy them.
+- **Hardcoded outputs:** the five held outs have different answers (2600, 610,
+  12000, 10000, 3500), thresholds (0, 610, 10000), offsets (64, 96) and sizes,
+  and all differ from the visible sample (220). A constant cannot satisfy them.
 - **Overfitting to visible tests:** the only data in the container is the sample
   scan; held outs live under `tests/` and are absent during the agent run.
 - **Modifying test files:** tests and data are copied in only at verify time; the
