@@ -46,3 +46,4 @@ Threshold strategies measured on sample+3 heldouts: threshold@200 + largest CC =
 * **Bypassing intended path:** `test_from_scratch()` rejects numpy, scipy, scikit-image, OpenCV, PIL/Pillow, networkx, igraph, etc and shelling out — forcing genuine byte parsing and hand-written solution. From-scratch is necessary but not sufficient: prior family's threshold-and-count passes `test_from_scratch()` but fails every held-out by 88-128%. Per-scan varied spacing forces reading header; point-spread blur plus partial-volume defeats every fixed threshold >=12% off; 3% tolerance rejects naive shortcuts while admitting any sound conservation implementation.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
+
