@@ -1,24 +1,31 @@
-ok so we have this little ToF sensor rig in the lab — it's on a phone, we put a small object in front and it dumps a 3d volume. i need you to write the solver that lives at /app/solve.py. when we run python3 /app/solve.py <path to a .tvol file> it should print the object's volume in cubic mm. we take the last number on stdout.
+i am working with depth camera captures and i need to know physical size of object inside.
 
-you can develop using the sample scan that's at /app/data/scene.tvol. that's the only file in the container. final grading uses other .tvol files you haven't seen, with different sizes, spacings, brightness, and specks, so don't hardcode anything from the sample.
+there is a place where your code should live. create a file named solve dot py and put it in the app directory. when we grade we start python and give it one argument that points to a scan. whatever your program prints last word we interpret as cubic millimetre volume.
 
-i made up a tiny binary format called .tvol, it's all little endian. layout is:
+for local debugging you have one file to try. its name is scene dot tvol and you can find it by going into app then into data inside there. hidden tests use other files you have never seen. do not embed any constants from that example like voxel counts or brightness values.
 
-- first 4 bytes: ascii letters T V O L
-- at byte offset 4: uint32 version
-- at byte offset 8: uint32 dtype code. value 2 means voxels are int16, value 16 means float32
-- at byte offset 12: three uint32s: nx, ny, nz. that's how many voxels on each axis
-- at byte offset 24: three float32s: sx, sy, sz. that's physical size of one voxel in mm along x y z
-- at byte offset 36: uint32 data_offset. that's byte where voxel data starts. don't hardcode 64, use data_offset, header may have padding.
+tvol is our own container. all numbers inside are stored least significant byte first.
 
-then after data_offset: nx * ny * nz numbers of that dtype. x is fastest, then y, then z. so linear index for coordinate (x,y,z) is x + nx * (y + ny * z). i know it's a bit annoying but that's how we dump it.
+file begins with four ascii letters T V O L.
 
-what's in the data: we put a solid object, bright region. because of optics point spread, edges are not sharp, they're soft and fuzzy. the PSF is wider sideways than along z. so interior voxels are at a flat high plateau, voxels that are only partly covered by object surface are lower, partial volume effect, and that energy smears into neighbors due to blur. on top of that every voxel has a flat background level plus small noise. some scans also have one to three tiny isolated bright dots far away from main blob — those are sensor specks / artefacts, you must ignore them. easiest is to take largest connected bright region with 26 connectivity, that drops specks.
+next four bytes are version as unsigned little endian thirty two bit integer.
 
-also note: you can't just threshold and count voxels. that fails because thin parts never reach threshold and halo from blur makes core too big. blur kernel is normalized so total intensity is conserved. correct approach (hinted in task description) is intensity conservation: estimate background, subtract, estimate interior plateau amplitude, integrate background-subtracted intensity over object plus its faint halo, divide by amplitude, multiply by sx*sy*sz.
+next four bytes are type tag also unsigned thirty two little endian. value two indicates signed sixteen bit integers for voxels. value sixteen indicates thirty two bit float for voxels.
 
-you have to parse file from raw bytes yourself. only python stdlib. don't import numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow, or any other array / imaging / graph library. also don't shell out: no subprocess, no os.system, no os.popen, no os.exec, no __import__, no importlib, no runpy, no ctypes, no socket, no multiprocessing, no glob, no eval/exec/compile.
+next twelve bytes are three unsigned thirty two little endian counts for number of voxels along each axis. think width height depth. you may have seen them as nx ny nz but just treat as three counts.
 
-at the end, print the volume in mm^3 as final token on stdout. we parse last number.
+next twelve bytes are three little endian thirty two bit floats that give metric pitch of a voxel in mm along each axis. think millimetre per voxel in first second third direction. original docs call them sx sy sz.
 
-thanks!
+next four bytes are unsigned thirty two little endian telling offset of voxel block from start of file.
+
+after offset you have countx times county times countz values in the announced dtype.
+
+layout order is x moves quickest. so position x y z maps to linear position x plus countx times bracket y plus county times z bracket.
+
+inside there is only one solid bright mass. lens makes it fuzzy. central part flat bright. border voxels dimmer because partially occupied and smeared. background pedestal plus noise everywhere. occasional isolated bright dots far away are trash. keep biggest connected bright mass using twenty six neighbours to drop those.
+
+simple threshold count fails. because blur conserves energy we need background estimation removal, peak estimation, integration over mass plus halo divided by peak then times pitch x times pitch y times pitch z.
+
+write byte parsing yourself with only stdlib modules like struct. do not pull numpy scipy skimage opencv pillow networkx igraph imageio pandas torch tensorflow nor any array picture graph helper. avoid process spawning like subprocess os system popen exec and avoid dynamic import tricks like double underscore import importlib runpy ctypes eval exec compile and shell tricks. do not open tests directory or scan filesystem.
+
+at end print size as last word.
