@@ -1,17 +1,24 @@
-hey i have these scans from a time of flight sensor we built and i want you to measure the thing inside.
+ok so we have this little ToF sensor rig in the lab — it's on a phone, we put a small object in front and it dumps a 3d volume. i need you to write the solver that lives at /app/solve.py. when we run python3 /app/solve.py <path to a .tvol file> it should print the object's volume in cubic mm. we take the last number on stdout.
 
-make a file called solve dot py and drop it in the app folder. we will run it like python with the file path to a scan as argument and we expect it to output a number that is the size in cubic mm. we only care about the last word it prints.
+you can develop using the sample scan that's at /app/data/scene.tvol. that's the only file in the container. final grading uses other .tvol files you haven't seen, with different sizes, spacings, brightness, and specks, so don't hardcode anything from the sample.
 
-we give you one example scan to play with. its called scene dot tvol and lives in the data folder which itself is inside app. the real grading uses different files you have never seen so dont bake in any numbers from the example.
+i made up a tiny binary format called .tvol, it's all little endian. layout is:
 
-what is a tvol file. its our own tiny format. everything is little endian in there. start at zero. first four bytes should be the letters T V O L. then four bytes version little endian unsigned int. then four bytes dtype code little endian unsigned int. two means the voxels are sixteen bit signed ints. sixteen means thirty two bit floats. then twelve bytes that are three unsigned ints for nx ny nz how many voxels per axis. then twelve bytes that are three floats sx sy sz physical edge length of one voxel in millimeters per axis. then four bytes unsigned int data offset where the actual voxel data begins.
+- first 4 bytes: ascii letters T V O L
+- at byte offset 4: uint32 version
+- at byte offset 8: uint32 dtype code. value 2 means voxels are int16, value 16 means float32
+- at byte offset 12: three uint32s: nx, ny, nz. that's how many voxels on each axis
+- at byte offset 24: three float32s: sx, sy, sz. that's physical size of one voxel in mm along x y z
+- at byte offset 36: uint32 data_offset. that's byte where voxel data starts. don't hardcode 64, use data_offset, header may have padding.
 
-after that offset you have nx times ny times nz numbers in the dtype. order is x runs fastest. so to get x y z you compute x plus nx times open bracket y plus ny times z close bracket.
+then after data_offset: nx * ny * nz numbers of that dtype. x is fastest, then y, then z. so linear index for coordinate (x,y,z) is x + nx * (y + ny * z). i know it's a bit annoying but that's how we dump it.
 
-inside the volume there is a single solid piece that is bright. optics make it blurry so interior is flat high but near the border it gets dimmer because only part of voxel is filled and that brightness smears to nearby voxels. plus there is flat background plus little noise everywhere. sometimes there are one or two tiny bright dots far away they are junk you must ignore by keeping the biggest connected bright blob twenty six neighbours.
+what's in the data: we put a solid object, bright region. because of optics point spread, edges are not sharp, they're soft and fuzzy. the PSF is wider sideways than along z. so interior voxels are at a flat high plateau, voxels that are only partly covered by object surface are lower, partial volume effect, and that energy smears into neighbors due to blur. on top of that every voxel has a flat background level plus small noise. some scans also have one to three tiny isolated bright dots far away from main blob — those are sensor specks / artefacts, you must ignore them. easiest is to take largest connected bright region with 26 connectivity, that drops specks.
 
-you cannot get correct size by just thresholding and counting. blur keeps total energy so you need to estimate background subtract it estimate peak interior value integrate background removed values over the object plus its halo and divide by peak and then times sx times sy times sz.
+also note: you can't just threshold and count voxels. that fails because thin parts never reach threshold and halo from blur makes core too big. blur kernel is normalized so total intensity is conserved. correct approach (hinted in task description) is intensity conservation: estimate background, subtract, estimate interior plateau amplitude, integrate background-subtracted intensity over object plus its faint halo, divide by amplitude, multiply by sx*sy*sz.
 
-you have to read bytes yourself with only stdlib like struct. dont bring numpy scipy scikit image cv opencv pillow networkx igraph imageio pandas torch tensorflow or any array picture graph library. dont use subprocess os system popen exec tricks or dunder import importlib runpy ctypes eval exec compile shell stuff. dont try to open tests folder or list files to cheat.
+you have to parse file from raw bytes yourself. only python stdlib. don't import numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow, or any other array / imaging / graph library. also don't shell out: no subprocess, no os.system, no os.popen, no os.exec, no __import__, no importlib, no runpy, no ctypes, no socket, no multiprocessing, no glob, no eval/exec/compile.
 
-final step output size in cubic mm as last word.
+at the end, print the volume in mm^3 as final token on stdout. we parse last number.
+
+thanks!
