@@ -1,17 +1,22 @@
-Write a Python script at /app/solve.py that takes the path to a scan file as its first argument and prints the volume as the final number on stdout
+You need to make /app/solve.py. It gets one argument - path to a .tvol scan - and has to print the scanned object's volume in cubic mm. The volume must be the last number on stdout.
 
-You can test it using the sample scan at /app/data/scene.tvol and we will score your script on scans you have not seen so it needs to work in general
+For local dev use /app/data/scene.tvol. Final scoring uses scans you have not seen, so generic handling is required. Invocation is:
 
-Run it as python3 /app/solve.py <path to scan>
+python3 /app/solve.py <path-to-scan>
 
-We have a time of flight depth camera that saves a small 3D scan in our own format called tvol and your job is to read one of these scans and print how big the scanned object is in cubic millimetres
+Our ToF depth camera writes a custom binary format. All numbers are little endian. Layout:
 
-A tvol file uses little endian bytes and starts with the text TVOL in the first four bytes then at byte four there is a version stored as a uint32 and at byte eight there is a data type code stored as a uint32 where 2 means the voxel values are int16 and 16 means the voxel values are float32 and at byte twelve there are three uint32 values nx ny and nz for the dimensions and at byte twenty four there are three float32 values sx sy and sz for the voxel size in millimetres along x y and z and at byte thirty six there is a uint32 called data offset that tells you where the voxel values begin
+- 0..3 : ascii "TVOL"
+- 4 : uint32 version
+- 8 : uint32 dtype code. 2 = int16 voxels, 16 = float32 voxels
+- 12 : three uint32 nx ny nz - volume dimensions
+- 24 : three float32 sx sy sz - voxel size in mm for x,y,z
+- 36 : uint32 data_offset - byte offset where voxel data starts
 
-After the data offset there are nx times ny times nz values of the given type stored with x changing fastest then y then z so the voxel at x y z is at index x plus nx times open parenthesis y plus ny times z close parenthesis
+After data_offset there are nx*ny*nz values of type given by dtype, x varies fastest. So voxel (x,y,z) linear index is x + nx*(y + ny*z).
 
-In the scan the object appears as a bright region with soft edges and each voxel value indicates how much of that voxel is filled by the object so voxels fully inside the object have a high peak value while partially covered voxels read lower and the optics blur readings into nearby voxels and there is also a flat background level plus noise and sometimes a few isolated bright dots away from the main object and voxel sizes differ across axes and across scans so always read sx sy and sz from the header
+What you see in the volume: object is bright with soft blurred border. Per-voxel value encodes how much that voxel is filled - interior voxels sit near a high plateau peak, voxels cut by object surface are lower, optics smear that signal into neighbours because of point spread. There is a flat background/DC floor plus per-voxel noise. Some scans have a few small isolated bright specks far from main object - those are artefacts and must not be counted. sx sy sz are anisotropic and differ scan to scan, so always read them.
 
-Parse the bytes yourself using only the Python standard library and do not use numpy scipy scikit image opencv pillow networkx igraph or any other array imaging or graph library and do not shell out or import things dynamically so no subprocess os system os popen dunder import or importlib
+Rules: parse bytes yourself, stdlib only. Don't rely on numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow or any array / imaging / graph helper. Don't shell out and don't do dynamic imports. That means no subprocess, no os.system / os.popen / os.exec, no __import__, no importlib, no runpy, no ctypes, no eval/exec.
 
-Print the object volume in cubic millimetres as the last number on stdout and we test your script on scans you have not seen
+On stdout print the object's volume in mm^3. Ensure the very last token is the numeric volume - we will parse it. The evaluator will run your script on held-out scans.
