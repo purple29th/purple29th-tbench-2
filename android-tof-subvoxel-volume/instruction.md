@@ -1,17 +1,18 @@
-write a script at /app/solve.py — that's where we run it.
+hey — this is from our ToF rig in the lab. we need a tiny solver script that lives at /app/solve.py.
 
-usage: python3 /app/solve.py <path to .tvol file>
+how to run: python3 /app/solve.py <path to .tvol file>
+what to output: the object's volume in cubic mm. we look at the last number you print, so make sure volume is last.
 
-it should output the object's volume in mm^3. last number on stdout is graded.
+for dev you can use /app/data/scene.tvol — that's the only scan in the container. grading uses other .tvol files you haven't seen, so don't hardcode anything about size, spacing, or amplitude.
 
-local sample is at /app/data/scene.tvol for dev, hidden tests use other scans so don't hardcode.
+format: we made up .tvol, it's all LE. first 4 bytes are literally TVOL. then at offset 4 a uint32 version. at offset 8 a uint32 dtype — 2 means voxels stored as int16, 16 means float32. at offset 12 three uint32 nx ny nz — dims. at offset 24 three float32 sx sy sz — each voxel's physical size in mm. at offset 36 a uint32 data_offset — bytes where voxel array starts (don't hardcode 64).
 
-format is ours, .tvol, little endian. starts with TVOL ascii at 0. at 4 bytes offset you get uint32 version. at 8 bytes dtype code uint32 — 2 means voxels are int16, 16 means float32. at 12 three uint32 nx ny nz. at 24 three float32 sx sy sz — that's mm per voxel per axis. at 36 uint32 data_offset — voxels start there.
+then after data_offset, nx*ny*nz voxel values in that dtype, x changes fastest, so (x,y,z) -> x + nx*(y + ny*z).
 
-then nx*ny*nz values of that dtype, x moves fastest, so (x,y,z) linear is x + nx*(y + ny*z).
+what's inside: we put an object that shows up bright but with soft edges because optics have a PSF, wide sideways narrow in z. because of that a voxel fully inside is near a flat high plateau, a voxel cut by surface is lower (partial volume), and that signal bleeds into neighbours. on top of all voxels there's flat background plus small noise. some scans also have 1-3 tiny isolated bright dots far away from main object — those are specks / artefacts, you must ignore them by taking the biggest connected bright mass, not everything bright.
 
-what you see: main thing is bright blob but fuzzy because optics have point spread, interior near flat high, surface voxels weaker due to partial fill, and that leaks to neighbors. there's flat bg plus per-voxel noise. sometimes 1-2 tiny bright specks far from main — ignore them, keep only biggest bright region. sx sy sz differ per axis and per file, must read them.
+also sx sy sz are anisotropic and change per scan, so you have to read them, can't assume 1mm.
 
-impl: parse bytes yourself, stdlib only. no numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow, or any array / imaging / graph helper. no shelling, no subprocess, no os.system/popen/exec, no __import__/importlib/runpy/ctypes/eval/exec/compile.
+rules: you have to parse bytes yourself. only python stdlib allowed. no numpy, no scipy, no skimage, no cv2, no PIL, no networkx, no igraph, no imageio, no pandas, no torch/tensorflow — basically no array / imaging / graph helper. also no shell tricks — no subprocess, no os.system, no os.popen, no os.exec, no __import__, no importlib, no runpy, no ctypes, no eval/exec/compile.
 
-print volume mm^3 as last token.
+final step: print the volume in mm^3, last token on stdout.
