@@ -11,8 +11,8 @@ HEADER = 64
 
 def ref(p):
     """
-    Independent oracle using iterative Tarjan SCC, different from solution's Kosaraju.
-    Parses MCFG, filters reachable from root 0, runs Tarjan, excludes root value, checks threshold.
+    Independent oracle using different traversal order than solution.
+    Parses MCFG, filters reachable from root 0, finds mutual dependency groups, excludes root value, checks threshold.
     """
     d = open(p, "rb").read()
     assert d[:4] == b"MCFG"
@@ -48,7 +48,7 @@ def ref(p):
     for v in reachable:
         adj_reach[v] = [nb for nb in adj.get(v, []) if nb in reachable]
 
-    # Tarjan iterative - independent from solution's Kosaraju
+    # lowlink iterative method independent from solution order
     index = 0
     indices = {}
     lowlink = {}

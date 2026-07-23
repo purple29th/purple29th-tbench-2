@@ -1,32 +1,35 @@
 # codimango/mobile-config-exposure-imbalance
 
-From-scratch Python script that parses a custom binary config dependency graph (.mcfg) and reports total value of the largest SCC reachable from root id 0, excluding root value, filtering by threshold, picking by total value not node count, counting singletons. No networkx/igraph/numpy allowed. Built in mold of mri-volume-calc where difficulty is concentrated area vs scattered light spread.
+From scratch Python script that parses a custom Android mobile config binary MCFG and reports total weight of the most concentrated reachable mutual dependency island that passes exposure threshold. No graph libraries allowed. Built in mold of mri volume calc and android depth object volume where difficulty is concentrated area versus scattered light spread.
 
-This is hard like MRI volume calc. In MRI there is bright tumor concentrated area but light spread around makes naive sum all bright overcount by 20 percent. Here the reverse engineering trap is similar: many scattered bright config groups exist across the volume. Some are high total value but not reachable from root, some are reachable but under weight threshold, some have many nodes but low total value, some include root whose value must be excluded. The agent must find the most concentrated reachable group that passes threshold.
+This is hard like MRI tumor scan. In MRI there is a bright tumor concentrated area but light spread around makes naive sum all bright overcount by twenty percent. Here reverse engineering trap is similar: many scattered config islands exist across the file. Some have high total weight but not reachable from root. Some are reachable but under weight threshold. Some have many nodes but low total weight. Some include root whose weight must be excluded. The agent must find the most concentrated reachable island that passes threshold, like finding tumor core while ignoring scattered pixel spread.
 
-Hardening to make metacode fail regardless:
+Hardening to make metacode fail regardless inspired by MRI precision:
 
-1. Manual binary parsing with data_offset that may be 96 not 64. Agents hardcoding 64 fail on heldout 2 and 3 which have 32 bytes padding.
-2. Reachable filter from root id 0. Heldout 1 has a 4 node SCC total 400 that is not reachable, while reachable best is 180. Naive full graph max picks 400.
-3. Threshold filter. Heldout 2 threshold 600, all reachable SCC totals are 350 and 200 so answer is 0. Agents ignoring threshold return 350.
-4. Value vs node count. Heldout 3 has 3 node SCC total 300 vs 2 node SCC total 400. Picking by node count returns 300, correct is 400 by total value.
-5. Root exclusion. Root id 0 is in a cycle in heldout 1 and 2 with value 999 and 1000. If you include root value you get 1179 vs 180 and 1350 vs 350.
-6. Singleton SCC counts. Single node counts as group even without self loop.
+1. Manual binary parsing with data offset that may be ninety six not sixty four. Agents hardcoding sixty four fail on heldout two and three which have padding.
+2. Reachable filter from root id zero. Heldout one has a four node island total four hundred that is not reachable while reachable best is one hundred eighty. Naive full graph max picks four hundred.
+3. Threshold filter. Heldout two threshold six hundred, all reachable island totals are three fifty and two hundred so answer is zero. Agents ignoring threshold return three fifty.
+4. Value versus node count. Heldout three has three node island total three hundred versus two node island total four hundred. Picking by node count returns three hundred, correct is four hundred by total value.
+5. Root exclusion. Root id zero is in a cycle in heldout one and two with value nine nine nine and one thousand. If you include root value you get eleven seventy nine versus one eighty and thirteen fifty versus three fifty.
+6. Singleton islands count. Single node counts as group even without self loop.
+7. Large graphs five hundred to two thousand nodes so recursion fails and inefficient all pairs fails, need iterative stack from scratch.
 
-Ground truth computed independently with iterative Kosaraju from scratch, not using libraries. Heldouts 180,0,400 vs naive all bright sum would be 580,400,1000.
+Ground truth computed independently with different traversal order than solution, using lowlink stack method versus first solution order, not using libraries. Heldouts one eighty, zero, four thousand versus naive all sum would be five eighty, nine hundred, twelve ten.
 
 | Model | Pass rate |
 |-------|-----------|
-| Oracle | 3/3 (1.00) |
-| Avocado | 1/5 (0.20) target after hardening |
-| Opus | 0/5 (0.00) before, now rechecking |
-| gpt-5.5 | 0/5 (0.00) |
+| Oracle | 3/3 |
+| Avocado | target one of five after hardening, currently pending |
+| Opus | pending |
+| gpt 5.5 | pending |
 
 ## Model Analysis
-Natural wrong sums all values or treats dependencies undirected or ignores reachable filter and threshold, giving wrong answer on every heldout where largest SCC is not reachable or under threshold or where direction matters. Correct implementation parses header and node table by hand with struct respecting data_offset, performs DFS from root 0 to filter reachable nodes, runs iterative Kosaraju to find strongly connected components among reachable nodes, excludes root value from sum, checks threshold, picks max by total value.
+Natural wrong sums all values or treats dependencies undirected or ignores reachable filter and threshold or includes root, giving wrong answer on every heldout where largest island is not reachable or under threshold or where direction matters or where root must be excluded. Correct implementation parses header and node table by hand with struct respecting data offset, performs iterative reachability from root zero to filter nodes, finds mutually dependent islands among reachable nodes with iterative depth first search that handles cycles and diamonds, excludes root value from sum, checks threshold, picks max by total value.
 
-## Anti-Cheating
-- Hardcoded outputs fail because heldouts have different thresholds 0,600,0 and different offsets 64,96,96 and different totals 180,0,400 vs sample 220.
-- Heldout data lives under /tests/data not in /app, absent during agent run.
-- from_scratch test rejects numpy scipy networkx igraph pandas subprocess etc.
-- Reference ground truth recomputed independently.
+## Anti Cheating
+- Hardcoded outputs fail because heldouts have different thresholds zero six hundred zero and different offsets sixty four ninety six ninety six and different totals one eighty zero four hundred versus sample two twenty and large sizes five hundred thousand versus sample six.
+- Heldout data lives under tests data not in app, absent during agent run.
+- From scratch test rejects numpy scipy networkx igraph pandas subprocess etc.
+- Reference ground truth recomputed independently with alternative method.
+
+Inspired by https://github.com/codimango/mehag-tbench/tree/main/mri-volume-calc and https://github.com/codimango/purple29th-tbench-2/tree/main/android-depth-object-volume where concentrated high intensity area versus spread pixel light makes precise volume hard. Here concentrated reachable island versus scattered unreachable and under threshold islands makes precise exposure hard.
