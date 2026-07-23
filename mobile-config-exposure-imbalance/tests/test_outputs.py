@@ -1,4 +1,20 @@
-import os, struct, subprocess, pytest
+"""Verify /app/solve.py reports the maximum-weight dependency closure of an .mcfg
+config file, on HELD-OUT files the agent never saw.
+
+Ground truth is recomputed here independently with a different max-flow
+implementation (BFS Edmonds-Karp) than the solution, so a hardcoded constant or a
+value memorised from the sample cannot match several different held-outs. The
+agent must parse the binary and solve the closure/min-cut FROM SCRATCH:
+numpy/scipy/networkx/igraph/pandas (which ship graph or max-flow routines) and
+shelling out are rejected by test_from_scratch().
+"""
+import os
+import re
+import struct
+import subprocess
+from collections import deque
+
+import pytest
 
 SCRIPT = "/app/solve.py"
 HELDOUTS = [
@@ -8,139 +24,104 @@ HELDOUTS = [
     "/tests/data/heldout_4.mcfg",
     "/tests/data/heldout_5.mcfg",
 ]
-HEADER = 64
 
 
-def ref(p):
-    """
-    Independent oracle using different traversal order than solution.
-    Parses MCFG, filters reachable from root 0, finds mutual dependency groups, excludes root value, checks threshold.
-    """
-    d = open(p, "rb").read()
-    assert d[:4] == b"MCFG"
+def _parse(path):
+    d = open(path, "rb").read()
+    assert d[:4] == b"MCFG", f"{path}: bad magic"
     cnt = struct.unpack_from("<I", d, 8)[0]
     off = struct.unpack_from("<I", d, 12)[0]
-    threshold = struct.unpack_from("<I", d, 16)[0]
-    adj = {}
-    nodes = {}
+    thr = struct.unpack_from("<i", d, 16)[0]
     o = off
+    weight, deps = {}, {}
     for _ in range(cnt):
         nid, val, dc = struct.unpack_from("<iiI", d, o)
         o += 12
-        deps = []
-        for _ in range(dc):
-            deps.append(struct.unpack_from("<I", d, o)[0])
-            o += 4
-        nodes[nid] = val
-        for c in deps:
-            adj.setdefault(nid, []).append(c)
-    # reachable from root 0
-    stack = [0]
-    seen = set()
-    while stack:
-        n = stack.pop()
-        if n in seen:
-            continue
-        seen.add(n)
-        for ch in adj.get(n, []):
-            if ch not in seen:
-                stack.append(ch)
-    reachable = seen
-    adj_reach = {}
-    for v in reachable:
-        adj_reach[v] = [nb for nb in adj.get(v, []) if nb in reachable]
-
-    # lowlink iterative method independent from solution order
-    index = 0
-    indices = {}
-    lowlink = {}
-    onstack = set()
-    tarjan_stack = []
-    sccs = []
-    call_stack = []
-
-    for start in reachable:
-        if start in indices:
-            continue
-        call_stack.append([start, 0])
-        while call_stack:
-            v, child_idx = call_stack[-1]
-            if child_idx == 0:
-                if v not in indices:
-                    indices[v] = index
-                    lowlink[v] = index
-                    index += 1
-                    tarjan_stack.append(v)
-                    onstack.add(v)
-            neighbors = adj_reach.get(v, [])
-            if child_idx < len(neighbors):
-                w = neighbors[child_idx]
-                call_stack[-1][1] += 1
-                if w not in indices:
-                    call_stack.append([w, 0])
-                elif w in onstack:
-                    lowlink[v] = min(lowlink[v], indices[w])
-            else:
-                if lowlink[v] == indices[v]:
-                    comp = []
-                    while True:
-                        w = tarjan_stack.pop()
-                        onstack.remove(w)
-                        comp.append(w)
-                        if w == v:
-                            break
-                    sccs.append(comp)
-                call_stack.pop()
-                if call_stack:
-                    parent_v = call_stack[-1][0]
-                    if v in lowlink:
-                        lowlink[parent_v] = min(lowlink[parent_v], lowlink[v])
-
-    best = 0
-    for scc in sccs:
-        s = sum(nodes.get(n, 0) for n in scc if n != 0)
-        if s >= threshold and s > best:
-            best = s
-    return best
+        ds = [struct.unpack_from("<I", d, o + 4 * i)[0] for i in range(dc)]
+        o += 4 * dc
+        weight[nid] = val
+        deps[nid] = ds
+    return weight, deps, thr
 
 
-def run(p):
-    assert os.path.exists(SCRIPT)
-    o = subprocess.run(
-        ["python3", SCRIPT, p], capture_output=True, text=True, timeout=60
-    )
-    assert o.returncode == 0
-    return int(o.stdout.strip().split()[-1])
+def ref(path):
+    """Independent ground truth: maximum-weight closure via BFS Edmonds-Karp
+    max-flow (answer = sum(positive) - min_st_cut), floored at the threshold."""
+    weight, deps, thr = _parse(path)
+    idx = {nid: i for i, nid in enumerate(weight)}
+    N = len(weight)
+    s, t = N, N + 1
+    cap = [dict() for _ in range(N + 2)]
+
+    def add(u, v, c):
+        cap[u][v] = cap[u].get(v, 0) + c
+        cap[v].setdefault(u, 0)
+
+    INF = sum(abs(w) for w in weight.values()) + 1
+    pos = 0
+    for nid, w in weight.items():
+        if w > 0:
+            add(s, idx[nid], w); pos += w
+        elif w < 0:
+            add(idx[nid], t, -w)
+    for nid, ds in deps.items():
+        for d in ds:
+            if d in idx:
+                add(idx[nid], idx[d], INF)
+
+    flow = 0
+    while True:
+        par = {s: s}
+        q = deque([s])
+        while q:
+            u = q.popleft()
+            if u == t:
+                break
+            for v, c in cap[u].items():
+                if c > 0 and v not in par:
+                    par[v] = u
+                    q.append(v)
+        if t not in par:
+            break
+        f = INF * 10
+        v = t
+        while v != s:
+            u = par[v]; f = min(f, cap[u][v]); v = u
+        v = t
+        while v != s:
+            u = par[v]; cap[u][v] -= f; cap[v][u] += f; v = u
+        flow += f
+    best = pos - flow
+    return best if best >= thr else 0
+
+
+def run(path):
+    assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
+    o = subprocess.run(["python3", SCRIPT, path],
+                       capture_output=True, text=True, timeout=120)
+    assert o.returncode == 0, (
+        f"script exited {o.returncode} on {path}\nstdout:\n{o.stdout}\nstderr:\n{o.stderr}")
+    toks = re.findall(r"-?\d+", o.stdout)
+    assert toks, f"no numeric output on {path}: {o.stdout!r}"
+    return int(toks[-1])
 
 
 def test_exists():
-    assert os.path.exists(SCRIPT)
+    assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
 
 
 def test_from_scratch():
     s = open(SCRIPT).read().replace(" ", "").lower()
     for b in [
-        "importnumpy",
-        "fromnumpy",
-        "importscipy",
-        "fromscipy",
-        "importnetworkx",
-        "fromnetworkx",
-        "importigraph",
-        "fromigraph",
-        "importpandas",
-        "frompandas",
-        "subprocess.",
-        "os.system",
-        "os.popen",
-        "__import__(",
-        "importlib",
-        "eval(",
-        "exec(",
+        "importnumpy", "fromnumpy", "importscipy", "fromscipy",
+        "importnetworkx", "fromnetworkx", "importigraph", "fromigraph",
+        "importpandas", "frompandas",
+        "subprocess.", "os.system", "os.popen", "__import__(", "importlib",
+        "eval(", "exec(",
     ]:
-        assert b not in s
+        assert b not in s, f"banned usage detected: {b}"
 
 
-@pytest.mark.parametrize("p", HELDOUTS)
-def test_heldout(p):
-    assert run(p) == ref(p)
+@pytest.mark.parametrize("path", HELDOUTS)
+def test_heldout(path):
+    assert run(path) == ref(path)

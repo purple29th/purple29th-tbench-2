@@ -4,9 +4,9 @@ schema_version="1.1"
 name="codimango/mobile-config-exposure-imbalance"
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
-description="Write a from-scratch Python script that parses a custom Android mobile config binary that contains mutually dependent config islands and reports the total weight of the most concentrated reachable island that passes the exposure threshold. This is a reverse engineering task inspired by MRI tumor volume precision where scattered light spread causes overcount. Graded on held-out files with large graphs and offset traps."
+description="Write a from-scratch Python script that parses a custom Android mobile config binary and reports the maximum total exposure of a valid config activation set, where activating a config forces activating everything it depends on and configs carry signed exposure weights. This is the maximum-weight dependency closure (project-selection) problem: the obvious readings (sum all positives, take everything, SCC/reachability) are all wrong, and the exact answer needs a min-cut / max-flow reduction implemented by hand. Graded on held-out files with independent max-flow ground truth."
 authors=[{name="Tosin Daniel Jimoh",email="purple29th@meta.com"}]
-keywords=["binary-parsing","graph-traversal","circular-dependency","from-scratch","exposure-imbalance"]
+keywords=["binary-parsing","max-flow","min-cut","maximum-weight-closure","project-selection","from-scratch"]
 [metadata]
 author_name="Tosin Daniel Jimoh"
 author_email="purple29th@meta.com"
@@ -15,7 +15,7 @@ category="data-science"
 category_subdomain="database_internals"
 category_usecase="parsing_lexing"
 reward_type="binary"
-tags=["binary-parsing","circular-dependency","exposure-imbalance","from-scratch","reverse-engineering"]
+tags=["binary-parsing","max-flow","min-cut","maximum-weight-closure","project-selection","from-scratch","algorithms"]
 expert_time_estimate_min=40.0
 junior_time_estimate_min=120.0
 [verifier]

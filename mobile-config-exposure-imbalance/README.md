@@ -3,53 +3,56 @@
 ## Description
 
 From scratch Python script (`/app/solve.py`, standard library only) that parses a
-custom Android mobile config binary (`.mcfg`) and prints the total weight of the
-most concentrated reachable mutual dependency island that passes the exposure
-threshold. Built in the mold of `mri-volume-calc` and `android-depth-object-volume`:
-the concentrated core (a strongly connected group of configs) has to be picked out
-from scattered distractor islands, the way a tumor core is picked out from spread
-pixel noise.
+custom Android mobile config binary (`.mcfg`) and prints the maximum total
+exposure of a valid config activation set.
 
-A mutual dependency island is a strongly connected component: a set of config ids
-where every id reaches every other following directed dependency edges (a single
-node counts as an island). The answer is the reachable island with the largest
-total value, with the root value excluded and the exposure threshold applied.
+Each config has a **signed** exposure weight (positive = benefit, negative =
+cost). You may activate any set of configs, but if you activate a config you must
+also activate every config it depends on (transitively). Among all valid
+activation sets, report the largest total weight. The empty set (0) is always
+allowed, and if the best total is below the header threshold the answer is 0.
 
-## Why it is hard
+## The insight (why it is hard)
 
-A correct solution needs iterative reachability from root 0, hand written
-strongly connected component labeling, root value exclusion, a `>=` threshold
-filter, and a max by total weight (not node count). It is fully specified, so the
-difficulty comes from stacking many independent traps into each held out file: a
-trial has to get every one right, and each additional trap it slips on flips the
-result. The held outs deliberately concentrate on the edge cases the instruction
-does not belabor.
+This is the **maximum-weight closure** problem, also known as **project
+selection**. The obvious readings all give the wrong number:
 
-## Held out traps (measured)
+- **sum every positive weight** overcounts, because a positive config can force
+  in costly negative dependencies you cannot avoid;
+- **take every config** drags in avoidable negatives;
+- **strongly-connected-component / reachability** reasoning (the shape of the
+  previous version of this task) answers a different question entirely.
 
-Ground truth is recomputed independently in the verifier with a Tarjan lowlink
-walk (different traversal order than the solution). Answers below are the verified
-oracle == reference values.
+The exact optimum needs a non-obvious reduction to a **min s-t cut / max-flow**:
+add a super source `s -> v` (capacity `w`) for each positive config, `v -> t`
+(capacity `-w`) for each negative config, and `u -> v` (capacity infinity) for
+each dependency edge; then the answer is `sum(positive weights) - maxflow(s, t)`.
+The agent must recognise this reduction and implement max-flow from scratch (no
+`networkx`/`scipy`/`igraph`), which is where trials diverge.
 
-| File | thr | offset | nodes | answer | traps stacked |
-|------|-----|--------|-------|--------|---------------|
-| heldout_1 | 0 | 64 | ~20 | **2600** | winner is a **singleton** (beats a 2500 cycle); count trap 5 node cycle 2400; unreachable 4 cycle 9000; root in cycle (incl root 50090); dangling deps; self loop |
-| heldout_2 | 610 | 96 | ~16 | **610** | winner sits **exactly at threshold** (a `>` comparison drops it to 0); a 600 island just under; negative valued member; root in cycle (incl root 100009); unreachable island 20000 |
-| heldout_3 | 10000 | 96 | ~1929 | **12000** | dense reachable SCC is the answer; count trap 200 node SCC 11800; unreachable SCC 30000; **1600 long chain** (recursive DFS dies at the default limit); 20 sub threshold islands; root in cycle |
-| heldout_4 | 10000 | 64 | ~60 | **10000** | winner sits **exactly at threshold**; a 9999 island just under; a 9500 count trap (also sub threshold); unreachable island 14000; root in cycle |
-| heldout_5 | 0 | 96 | ~15 | **3500** | winner is a **singleton** (3500, beats a 3200 and 2700 cycle); negative heavy cycle (5000 + -4000); unreachable island 9000; root in cycle; self loop |
+## Held out cases (measured)
 
-Each plausible but wrong strategy fails on at least one held out (verified by the
-bundled harness against the reference):
+Ground truth is recomputed independently in the verifier with a **different**
+max-flow implementation (BFS Edmonds-Karp) than the oracle (Dinic). Answers below
+are the verified oracle == reference values; the two small ones are also confirmed
+by exhaustive brute force over all dependency-closed subsets.
 
-| Wrong strategy | Fails on |
-|----------------|----------|
-| pick by node count | heldout_1, heldout_3, heldout_5 |
-| include root value | all five |
-| ignore reachability | all five |
-| threshold with `>` instead of `>=` | heldout_2, heldout_4 |
-| ignore singleton islands | heldout_1, heldout_5 |
-| recursive DFS (default limit) | heldout_3 (RecursionError on the 1600 chain) |
+| File | thr | offset | nodes | answer | what it exercises |
+|------|-----|--------|-------|--------|-------------------|
+| heldout_1 | 0 | 64 | ~9 | **220** | worth-it vs not-worth-it gadgets + a 3-node forced chain |
+| heldout_2 | 0 | 96 | ~7 | **220** | a net-negative dependency **cycle** that only pays off when a high-value config pulls it in |
+| heldout_3 | 0 | 96 | ~1400 | **35376** | scale: hundreds of mixed gadgets + free positives |
+| heldout_4 | 150 | 64 | ~3 | **150** | optimum sits **exactly at the threshold** floor |
+| heldout_5 | 0 | 96 | ~6 | **0** | every positive depends on a strictly costlier config, so the optimum is to activate nothing |
+
+Each obvious-but-wrong strategy is off by a wide margin (verified by the bundled
+harness against the reference):
+
+| Wrong strategy | heldout_1 | heldout_3 | heldout_5 |
+|----------------|-----------|-----------|-----------|
+| correct answer | 220 | 35376 | 0 |
+| sum all positive weights | 390 | 66165 | 180 |
+| take every config | 180 | 16375 | 0 |
 
 ## Completion Rates
 
@@ -58,32 +61,30 @@ bundled harness against the reference):
 | Oracle | `oracle` | 1.0 (deterministic; all 7 verifier tests pass) |
 | Frontier models | `metacode` / `claude-code` | to be measured by the validation pipeline |
 
-> **Calibration target:** the previous version was too easy because the held outs
-> were large but sparse (one trap each, reducing to "max reachable node"). There
-> are now five held outs stacking six independent trap types, and the verifier
-> requires every one to pass, so a trial that slips on any single trap fails. The
-> dominant expected failure modes are including the root value, counting nodes
-> instead of summing weight, missing that the winner can be a singleton or sit
-> exactly at the threshold, and recursion on the long chain. Note: because the
-> problem is fully specified (a strongly connected component computation), a
-> flawless implementation passes 5/5 by design; the difficulty comes from the
-> number of independent edge cases a trial must get right at once.
+> **Calibration target:** unlike the previous version (a fully specified
+> strongly-connected-component computation, which strong models implement
+> correctly every time), this version hides a real insight barrier: the max-weight
+> closure / min-cut reduction. Trials that reach for "sum the positives", "take
+> everything", or SCC/reachability fail on every non-trivial held out, and trials
+> that recognise the reduction still have to implement max-flow from scratch
+> without a graph library. That is where the pass/fail split comes from.
 
 ## Anti Cheating
 
-- **Hardcoded outputs:** the five held outs have different answers (2600, 610,
-  12000, 10000, 3500), thresholds (0, 610, 10000), offsets (64, 96) and sizes,
-  and all differ from the visible sample (220). A constant cannot satisfy them.
+- **Hardcoded outputs:** the five held outs have different answers (220, 220,
+  35376, 150, 0), thresholds (0, 150), offsets (64, 96) and sizes; all differ
+  from the visible sample (110). A constant cannot satisfy them.
 - **Overfitting to visible tests:** the only data in the container is the sample
-  scan; held outs live under `tests/` and are absent during the agent run.
+  file; held outs live under `tests/` and are absent during the agent run.
 - **Modifying test files:** tests and data are copied in only at verify time; the
-  reward is computed by the verifier from an independent Tarjan reference, not from
-  anything the agent can edit. `tests/_gen.py` (the deterministic data generator)
-  is co-located with the tests and never ships in the agent container.
+  reward is computed by the verifier with an independent max-flow implementation
+  (BFS Edmonds-Karp) different from the oracle's (Dinic), so it never trusts a
+  value baked into the agent's script. `tests/_gen.py` (the deterministic
+  generator) is co-located with the tests and never ships in the agent container.
 - **Bypassing the intended path:** `test_from_scratch()` rejects numpy, scipy,
-  networkx, igraph, pandas and shelling out (`subprocess`, `os.system`,
-  `os.popen`, `__import__`, `importlib`, `eval`, `exec`), forcing genuine byte
-  parsing and a hand written SCC labeller.
+  networkx, igraph, pandas (which ship graph / max-flow routines) and shelling
+  out (`subprocess`, `os.system`, `os.popen`, `__import__`, `importlib`, `eval`,
+  `exec`), forcing a hand-written parser and max-flow.
 
 Inspired by https://github.com/codimango/mehag-tbench/tree/main/mri-volume-calc
 and https://github.com/codimango/purple29th-tbench-2/tree/main/android-depth-object-volume.

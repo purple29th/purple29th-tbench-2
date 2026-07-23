@@ -1,91 +1,116 @@
-import sys, struct
+#!/usr/bin/env python3
+"""Oracle: maximum-weight dependency closure (project selection), from scratch.
+
+Choose a set S of configs to activate. If config u is in S, every config it
+depends on (that exists in the file) must also be in S. Each config has a signed
+exposure weight. Maximise the total weight of S; the empty set (0) is always
+allowed; if the best total is below the header threshold, print 0.
+
+Key insight: this is the maximum-weight closure problem, solved by a min-cut.
+Build a flow network with a super source s and super sink t:
+  * s -> v with capacity  w   for every config with weight w > 0  (and add w to P)
+  * v -> t with capacity -w   for every config with weight w < 0
+  * u -> v with capacity INF  for every dependency edge (u depends on v)
+The maximum closure weight is  P - maxflow(s, t).
+
+Parsed from raw bytes with struct; standard library only.
+"""
+import struct
+import sys
+from collections import deque
+
+sys.setrecursionlimit(1_000_000)
 
 
-def solve(p):
-    d = open(p, "rb").read()
-    assert d[:4] == b"MCFG"
-    cnt = struct.unpack_from("<I", d, 8)[0]
-    off = struct.unpack_from("<I", d, 12)[0]
-    threshold = struct.unpack_from("<I", d, 16)[0]
-    adj = {}
-    nodes = {}
+def parse(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"MCFG", "bad magic"
+    cnt = struct.unpack_from("<I", data, 8)[0]
+    off = struct.unpack_from("<I", data, 12)[0]
+    thr = struct.unpack_from("<i", data, 16)[0]
     o = off
+    weight = {}
+    deps = {}
     for _ in range(cnt):
-        nid, val, dc = struct.unpack_from("<iiI", d, o)
+        nid, val, dc = struct.unpack_from("<iiI", data, o)
         o += 12
-        deps = []
-        for _ in range(dc):
-            deps.append(struct.unpack_from("<I", d, o)[0])
-            o += 4
-        nodes[nid] = val
-        for c in deps:
-            adj.setdefault(nid, []).append(c)
-    # reachable from root id 0 iterative
-    stack = [0]
-    seen = set()
-    while stack:
-        n = stack.pop()
-        if n in seen:
-            continue
-        seen.add(n)
-        for ch in adj.get(n, []):
-            if ch not in seen:
-                stack.append(ch)
-    reachable = seen
-    # Kosaraju first pass iterative
-    order = []
-    vis = set()
-    adj_reach = {}
-    for v in reachable:
-        adj_reach[v] = [nb for nb in adj.get(v, []) if nb in reachable]
-    for start in reachable:
-        if start in vis:
-            continue
-        dfs_stack = [(start, 0)]
-        while dfs_stack:
-            v, idx = dfs_stack[-1]
-            if idx == 0:
-                if v in vis:
-                    dfs_stack.pop()
-                    continue
-                vis.add(v)
-            neighbors = adj_reach.get(v, [])
-            if idx < len(neighbors):
-                w = neighbors[idx]
-                dfs_stack[-1] = (v, idx + 1)
-                if w not in vis:
-                    dfs_stack.append((w, 0))
-            else:
-                order.append(v)
-                dfs_stack.pop()
-    radj = {}
-    for v in reachable:
-        radj[v] = []
-    for p in reachable:
-        for c in adj_reach.get(p, []):
-            radj[c].append(p)
-    vis2 = set()
-    sccs = []
-    for v in reversed(order):
-        if v in vis2:
-            continue
-        comp_stack = [v]
-        vis2.add(v)
-        comp = []
-        while comp_stack:
-            cur = comp_stack.pop()
-            comp.append(cur)
-            for nb in radj.get(cur, []):
-                if nb not in vis2:
-                    vis2.add(nb)
-                    comp_stack.append(nb)
-        sccs.append(comp)
-    best = 0
-    for scc in sccs:
-        s = sum(nodes.get(n, 0) for n in scc if n != 0)
-        if s >= threshold and s > best:
-            best = s
-    return best
+        ds = [struct.unpack_from("<I", data, o + 4 * i)[0] for i in range(dc)]
+        o += 4 * dc
+        weight[nid] = val
+        deps[nid] = ds
+    return weight, deps, thr
+
+
+class Dinic:
+    def __init__(self, n):
+        self.n = n
+        self.g = [[] for _ in range(n)]
+
+    def add(self, u, v, c):
+        self.g[u].append([v, c, len(self.g[v])])
+        self.g[v].append([u, 0, len(self.g[u]) - 1])
+
+    def _bfs(self, s, t):
+        self.lvl = [-1] * self.n
+        self.lvl[s] = 0
+        q = deque([s])
+        while q:
+            u = q.popleft()
+            for v, c, _ in self.g[u]:
+                if c > 0 and self.lvl[v] < 0:
+                    self.lvl[v] = self.lvl[u] + 1
+                    q.append(v)
+        return self.lvl[t] >= 0
+
+    def _dfs(self, u, t, f):
+        if u == t:
+            return f
+        while self.it[u] < len(self.g[u]):
+            e = self.g[u][self.it[u]]
+            v, c, r = e
+            if c > 0 and self.lvl[v] == self.lvl[u] + 1:
+                d = self._dfs(v, t, min(f, c))
+                if d > 0:
+                    e[1] -= d
+                    self.g[v][r][1] += d
+                    return d
+            self.it[u] += 1
+        return 0
+
+    def maxflow(self, s, t):
+        flow = 0
+        INF = float("inf")
+        while self._bfs(s, t):
+            self.it = [0] * self.n
+            while True:
+                f = self._dfs(s, t, INF)
+                if f == 0:
+                    break
+                flow += f
+        return flow
+
+
+def solve(path):
+    weight, deps, thr = parse(path)
+    idx = {nid: i for i, nid in enumerate(weight)}
+    N = len(weight)
+    s, t = N, N + 1
+    din = Dinic(N + 2)
+    INF = sum(abs(w) for w in weight.values()) + 1
+    pos = 0
+    for nid, w in weight.items():
+        if w > 0:
+            din.add(s, idx[nid], w)
+            pos += w
+        elif w < 0:
+            din.add(idx[nid], t, -w)
+    for nid, ds in deps.items():
+        for d in ds:
+            if d in idx:                       # dangling deps impose no constraint
+                din.add(idx[nid], idx[d], INF)
+    best = pos - din.maxflow(s, t)
+    return best if best >= thr else 0
 
 
 if __name__ == "__main__":
