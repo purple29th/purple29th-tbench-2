@@ -1,15 +1,17 @@
-Read a ToF depth scan and print the volume of the scanned object in cubic millimetres.
+Write a Python script at /app/solve.py that takes the path to a scan file as its first argument and prints the volume as the final number on stdout
 
-Write a Python script at /app/solve.py. Run it as:
+You can test it using the sample scan at /app/data/scene.tvol and we will score your script on scans you have not seen so it needs to work in general
 
-    python3 /app/solve.py <path-to-volume>
+Run it as python3 /app/solve.py <path to scan>
 
-The scan path is the first argument. Print the volume as the last number on stdout. We test on scans you have not seen. A sample scan sits at /app/data/scene.tvol.
+We have a time of flight depth camera that saves a small 3D scan in our own format called tvol and your job is to read one of these scans and print how big the scanned object is in cubic millimetres
 
-How the sensor works: every voxel stores an intensity for how much of that voxel the object fills. A voxel fully inside reads a peak value; a voxel only partly filled reads less. The optics also blur each reading into nearby voxels, so the object shows up bright with soft edges. There is a flat background level plus faint noise on every voxel, and a few small stray bright specks may sit away from the object. Voxel size in mm differs per axis and per scan, and it is stored in the header.
+A tvol file uses little endian bytes and starts with the text TVOL in the first four bytes then at byte four there is a version stored as a uint32 and at byte eight there is a data type code stored as a uint32 where 2 means the voxel values are int16 and 16 means the voxel values are float32 and at byte twelve there are three uint32 values nx ny and nz for the dimensions and at byte twenty four there are three float32 values sx sy and sz for the voxel size in millimetres along x y and z and at byte thirty six there is a uint32 called data offset that tells you where the voxel values begin
 
-The .tvol format is ours. Little endian, fixed header: a 4 byte magic TVOL, a uint32 version (1 for now), a uint32 dtype code (2 means int16, 16 means float32), then nx, ny, nz as uint32, then sx, sy, sz as float32 giving mm per voxel on x, y, z, then a uint32 data_offset marking where the voxel data starts. After that come nx*ny*nz intensities of that dtype in x fastest order, so voxel (x, y, z) sits at index x + nx*(y + ny*z).
+After the data offset there are nx times ny times nz values of the given type stored with x changing fastest then y then z so the voxel at x y z is at index x plus nx times open parenthesis y plus ny times z close parenthesis
 
-Parse the bytes yourself. No numpy, scipy, scikit image, opencv, pillow, networkx, igraph, or any other array, imaging, or graph library, and no shelling out (subprocess, os.system, os.popen, __import__, importlib). Standard library only.
+In the scan the object appears as a bright region with soft edges and each voxel value indicates how much of that voxel is filled by the object so voxels fully inside the object have a high peak value while partially covered voxels read lower and the optics blur readings into nearby voxels and there is also a flat background level plus noise and sometimes a few isolated bright dots away from the main object and voxel sizes differ across axes and across scans so always read sx sy and sz from the header
 
-We grade by running your script on scans you have not seen.
+Parse the bytes yourself using only the Python standard library and do not use numpy scipy scikit image opencv pillow networkx igraph or any other array imaging or graph library and do not shell out or import things dynamically so no subprocess os system os popen dunder import or importlib
+
+Print the object volume in cubic millimetres as the last number on stdout and we test your script on scans you have not seen
