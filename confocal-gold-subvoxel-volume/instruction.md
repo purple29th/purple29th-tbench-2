@@ -1,35 +1,35 @@
-hey so we have been labeling tumors with gold nanoclusters and imaging them under confocal fluorescence. the gold makes the tumor really light up but there is a problem. everywhere you look there is light spread. the microscope has this airy disk point spread thing that smears the concentrated gold signal all around so the tumor looks bigger and fuzzier than it really is.
+hey i am working in the wet lab. we tag tumors with gold nanoclusters so they glow under confocal. problem is gold glows so strong that light is everywhere. airy disk spreads concentrated glow all over so tumor looks bigger than it is and edges are all fuzzy.
 
-i need a script that figures out the true physical volume of the gold labeled tumor. not the smeared bright blob but the real size. and precision matters. if you are off by even a few percent you misestimate dose.
+need a program that tells true physical size of gold labeled tumor in cubic mm. not smeared blob.
 
-make a file called solve dot py and put it in the app folder. we will call it as python app solve py with path to a scan as first argument. whatever you print last word we take as volume in cubic mm.
+make file named solve dot py and drop in app folder. we run it as python app solve py with scan path as arg. last word printed is taken as volume.
 
-we give you one scan to develop on. it is named scene dot gvol inside data folder that is inside app. grading uses other scans you never saw with different sizes spacings brightness and even different gold concentrations and different voxel sizes. do not hardcode numbers from example.
+you have one example to try. name is scene dot gvol inside data folder which is inside app. hidden grading uses other files you never saw with different sizes spacings brightness gold amount and voxel sizes. do not hardcode numbers from example like counts or intensities.
 
-what is gvol. its our own small binary for gold volumes. all numbers little endian.
+what is gvol. our own tiny binary for gold volumes. everything little endian least significant byte first.
 
-file starts with four letters G V O L as ascii.
+starts with four letters G V O L ascii.
 
-next four bytes version unsigned thirty two bit little endian.
+next four bytes version as unsigned thirty two bit little endian.
 
-next four bytes dtype code unsigned thirty two bit little endian. two means voxels are sixteen bit signed int. sixteen means thirty two bit float.
+next four bytes dtype code unsigned thirty two little endian. two means int16 voxels. sixteen means float32 voxels.
 
-next twelve bytes three unsigned thirty two bit counts for how many voxels along each axis. think width height depth but we call them nx ny nz historically.
+next twelve bytes three unsigned counts of voxels per axis width height depth historically nx ny nz.
 
-next twelve bytes three thirty two bit floats that tell how big one voxel is in mm along each axis. think mm per voxel. historically called sx sy sz. they are anisotropic and change every file so you must read them from header.
+next twelve bytes three float32 values saying mm per voxel per axis historically sx sy sz. they change every file anisotropic so read them.
 
-next four bytes unsigned thirty two bit data offset where voxel data starts.
+next four bytes unsigned data offset where voxel block starts.
 
-after that you have nx times ny times nz voxel values in announced dtype. x is fastest. so voxel x y z lives at index x plus nx times bracket y plus ny times z bracket.
+after offset there are nx times ny times nz values in that dtype. x fastest so index for x y z is x plus nx times bracket y plus ny times z bracket.
 
-what is inside. one main solid tumor labeled with gold. gold makes it super bright inside, almost flat high intensity where concentration is saturated. but at the border voxels are only partly filled so dimmer. and because airy psf spreads, that bright interior bleeds out into neighbors making a halo that is still bright but should not be counted as full voxels. also there is flat autofluorescence background plus camera noise everywhere. some scans have one or two tiny isolated bright specks far away from main tumor, they are gold dust artefacts, you must ignore them and only keep the main tumor that is one big connected mass.
+inside is one main solid tumor that glows because gold. center is flat bright where concentration saturated. border voxels dimmer because only partly filled and smeared by airy. plus flat background autofluorescence plus noise everywhere. some scans have one or two tiny bright specks far away from tumor they are gold dust artefacts ignore them keep only main connected tumor mass.
 
-now why this is tricky and why every agent will find it hard to be precise. anywhere you threshold you get light everywhere so if you just pick a brightness cutoff and count voxels you will never get right volume. low cutoff makes tumor look huge because halo included. high cutoff makes you miss thin infiltrating strands that never get bright enough because they are only partly filled. the scans are intentionally such that no fixed cutoff works across files. the images are all blurry and the most useful information is not the number of bright voxels but where light is most concentrated. the real tumor core is where gold is most concentrated and that concentration is roughly flat. but you never see that flat value directly because blur plus noise hide it. you have to infer it.
+why this is hard for every agent. you look at image and see light everywhere. if you pick brightness cutoff and count voxels you will never be precise. low cutoff counts huge halo and overcounts eighty to one hundred thirty percent. high cutoff misses thin strands that never get bright enough due to partial filling and undercounts thirty to fifty percent. scans were made so no fixed cutoff works across files. all images blurry and best clue is not how many bright voxels but where gold is most concentrated. true core has almost flat concentration but you never see it directly because blur and noise hide it.
 
-so you need to think about what blur does. it spreads energy around but it does not create or destroy light. that physical fact is what makes precise volume possible at all. but figuring out how to use it, how to separate main tumor from specks, how to estimate background without bias from tumor itself, how to estimate the true concentrated brightness without being fooled by noise, and how to decide how far the faint halo extends without merging into far specks, that is the hard engineering you must do.
+blur spreads energy around but does not create or destroy light. that physics is why precise volume is possible at all. but using it properly, separating main tumor from far specks, estimating background without being biased by tumor itself, figuring out true concentrated brightness without being tricked by noise, deciding how far faint halo goes without merging into specks, that is hard engineering you must solve.
 
-if you rely on simple tricks you will be off by twenty to one hundred thirty percent. we grade at three percent tolerance so only a genuine precise method will pass.
+if you use simple tricks you will be off by large margin. we grade at three percent tolerance so only genuinely precise method passes.
 
-you must parse bytes yourself with only stdlib like struct. do not use numpy scipy scikit image opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph library. do not use subprocess os system popen exec import tricks like double underscore import importlib runpy ctypes eval exec compile shell stuff. do not try to read tests folder or list filesystem to find hidden scans.
+parse bytes yourself using only stdlib like struct. do not import numpy scipy scikit image opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph library. do not use subprocess os system popen exec dynamic import tricks like double underscore import importlib runpy ctypes eval exec compile shell tricks. do not try to read tests folder or list filesystem.
 
-at the end print volume in mm3 as last word on stdout.
+final step print volume mm3 as last word on stdout.
