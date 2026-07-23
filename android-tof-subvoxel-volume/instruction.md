@@ -1,22 +1,24 @@
-You need to make /app/solve.py. It gets one argument - path to a .tvol scan - and has to print the scanned object's volume in cubic mm. The volume must be the last number on stdout.
+Make a script at /app/solve.py. When we run:
 
-For local dev use /app/data/scene.tvol. Final scoring uses scans you have not seen, so generic handling is required. Invocation is:
+python3 /app/solve.py /some/file.tvol
 
-python3 /app/solve.py <path-to-scan>
+it should print a single float — the physical size of the thing inside the scan in cubic mm — and that number has to be the last thing on stdout.
 
-Our ToF depth camera writes a custom binary format. All numbers are little endian. Layout:
+You can try it locally on /app/data/scene.tvol, but final grading uses other scans you haven't seen, so it has to be generic.
 
-- 0..3 : ascii "TVOL"
-- 4 : uint32 version
-- 8 : uint32 dtype code. 2 = int16 voxels, 16 = float32 voxels
-- 12 : three uint32 nx ny nz - volume dimensions
-- 24 : three float32 sx sy sz - voxel size in mm for x,y,z
-- 36 : uint32 data_offset - byte offset where voxel data starts
+What is .tvol? It's our own tiny ToF volume. Everything is little endian.
 
-After data_offset there are nx*ny*nz values of type given by dtype, x varies fastest. So voxel (x,y,z) linear index is x + nx*(y + ny*z).
+Bytes 0-3: ascii "TVOL"
+Byte 4: uint32 version
+Byte 8: uint32 dtype — 2 means int16, 16 means float32
+Byte 12: uint32 nx, uint32 ny, uint32 nz (dimensions)
+Byte 24: float32 sx, float32 sy, float32 sz — mm per voxel
+Byte 36: uint32 data_offset — where voxels start
 
-What you see in the volume: object is bright with soft blurred border. Per-voxel value encodes how much that voxel is filled - interior voxels sit near a high plateau peak, voxels cut by object surface are lower, optics smear that signal into neighbours because of point spread. There is a flat background/DC floor plus per-voxel noise. Some scans have a few small isolated bright specks far from main object - those are artefacts and must not be counted. sx sy sz are anisotropic and differ scan to scan, so always read them.
+After data_offset there are nx*ny*nz voxels in that dtype, x is fastest. So linear index for (x,y,z) is x + nx*(y + ny*z).
 
-Rules: parse bytes yourself, stdlib only. Don't rely on numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow or any array / imaging / graph helper. Don't shell out and don't do dynamic imports. That means no subprocess, no os.system / os.popen / os.exec, no __import__, no importlib, no runpy, no ctypes, no eval/exec.
+Inside: the object looks like a bright blob with fuzzy edges. The sensor reports occupancy scaled — voxels deep inside are at a high flat peak, voxels cut by the surface are weaker, and the lens smears signal into neighbors due to point spread. On top there's a constant background plus a bit of noise in every voxel. Some scans have one or two very small bright specks far from the main blob; those are artefacts, don't count them. sx sy sz are different per axis and per scan, always read them.
 
-On stdout print the object's volume in mm^3. Ensure the very last token is the numeric volume - we will parse it. The evaluator will run your script on held-out scans.
+You must parse raw bytes yourself, stdlib only. No array / image / graph helpers at all. That includes numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow, etc. Also no shelling out, no subprocess, no os.system, no os.popen, no os.exec, and no trick imports — no __import__, no importlib, no runpy, no ctypes, no eval, no exec, no compile.
+
+Output: print the object volume in mm^3; we take the last numeric token on stdout as your answer.
