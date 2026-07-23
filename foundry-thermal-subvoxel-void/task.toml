@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/foundry-thermal-subvoxel-void"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom thermal infrared void volume of a 3D-printed turbine blade (custom binary .tiv) and reports its physical void volume in mm^3. Heat trapped in pores glows in mid-wave IR but thermal diffusion and lens PSF spreads heat in all directions, so thresholding overcounts halo or undercounts thin cracks. Correct method is intensity conservation: integrate background-subtracted intensity over isolated hot mass and normalize by concentrated plateau temperature. Graded on held-out scans at 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["foundry", "thermal", "infrared", "porosity", "turbine", "laser-powder-bed", "additive-manufacturing", "heat-diffusion", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["foundry", "thermal-ir", "porosity", "turbine-blade", "laser-powder-bed", "void-volume", "heat-diffusion", "thermal-psf", "partial-volume", "intensity-conservation", "from-scratch", "binary-parsing", "additive-manufacturing"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
