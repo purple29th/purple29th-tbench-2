@@ -18,10 +18,13 @@ The agent must parse the binary format and implement the reasoning FROM SCRATCH:
 numpy/scipy/imaging/graph libraries and shelling out are rejected by
 test_from_scratch().
 """
+import ast
 import os
 import re
+import shutil
 import struct
 import subprocess
+import tempfile
 
 import numpy as np
 import pytest
@@ -35,9 +38,24 @@ HELDOUTS = [
     "/tests/data/heldout_3.tvol",
 ]
 
-BANNED_IMPORTS = [
+# Modules the from-scratch solution must not import: array/imaging/graph helpers
+# that would do the work, dynamic-import / process / FFI / socket modules that
+# could shell out or reach the verifier, and filesystem-scan helpers that could
+# hunt for the held-out data.
+BANNED_MODULES = {
     "numpy", "scipy", "skimage", "cv2", "PIL", "Pillow",
     "networkx", "igraph", "imageio", "pandas", "torch", "tensorflow",
+    "subprocess", "importlib", "runpy", "ctypes", "socket",
+    "multiprocessing", "glob",
+}
+# Dynamic-execution builtins that could bypass the import audit.
+BANNED_CALLS = {"eval", "exec", "compile", "__import__"}
+# Substrings that betray an attempt to read the verifier or the held-out data,
+# scan the filesystem, or shell out (checked on whitespace-stripped source).
+BANNED_TOKENS = [
+    "/tests", "test_outputs", "heldout", "reference_volume",
+    "os.system", "os.popen", "os.exec", "os.walk", "os.listdir", "os.scandir",
+    "pty.", "importlib", "runpy",
 ]
 
 
@@ -97,8 +115,16 @@ def reference_volume_mm3(path):
 
 def run_agent(path):
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
-    proc = subprocess.run(["python3", SCRIPT, path],
-                          capture_output=True, text=True, timeout=120)
+    # Run the agent script on an ISOLATED copy of the scan under a neutral name,
+    # from a temp working directory. It receives only the input path -- it cannot
+    # tell which held-out this is, and has no reason or easy route to reach the
+    # mounted verifier / held-out data under /tests (also blocked statically by
+    # test_from_scratch).
+    with tempfile.TemporaryDirectory() as td:
+        neutral = os.path.join(td, "scan.tvol")
+        shutil.copyfile(path, neutral)
+        proc = subprocess.run(["python3", SCRIPT, neutral],
+                              capture_output=True, text=True, timeout=120, cwd=td)
     assert proc.returncode == 0, (
         f"script exited {proc.returncode} on {path}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}")
     lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
@@ -117,14 +143,29 @@ def test_script_exists():
 
 
 def test_from_scratch():
+    """Enforce the from-scratch rule with an AST import/exec audit (robust to
+    spacing and aliasing) plus a token scan that blocks reading the verifier or
+    held-out data, scanning the filesystem, and shelling out."""
     src = open(SCRIPT).read()
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                top = a.name.split(".")[0]
+                assert top not in BANNED_MODULES, f"banned module import: {a.name}"
+                assert "test_output" not in a.name, "importing the verifier is not allowed"
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            top = mod.split(".")[0]
+            assert top not in BANNED_MODULES, f"banned module import: {mod}"
+            assert "test_output" not in mod, "importing the verifier is not allowed"
+        elif isinstance(node, ast.Call):
+            fn = node.func
+            name = fn.id if isinstance(fn, ast.Name) else (fn.attr if isinstance(fn, ast.Attribute) else "")
+            assert name not in BANNED_CALLS, f"dynamic execution is not allowed ({name})"
     compact = re.sub(r"\s+", "", src)
-    for pkg in BANNED_IMPORTS:
-        for call in (f"import{pkg}", f"from{pkg}import"):
-            assert call not in compact, f"banned library usage detected ({pkg}); parse from scratch"
-    for forbidden in ("os.system", "os.popen", "subprocess.", "Popen(", "__import__(", "importlib"):
-        assert re.sub(r"\s+", "", forbidden) not in compact, (
-            f"shelling out / dynamic import is not allowed ({forbidden})")
+    for tok in BANNED_TOKENS:
+        assert tok.replace(" ", "") not in compact, f"forbidden usage detected ({tok})"
 
 
 @pytest.mark.parametrize("path", HELDOUTS)
