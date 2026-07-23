@@ -1,24 +1,17 @@
-Make a script at /app/solve.py. When we run:
+hey i have these scans from a time of flight sensor we built and i want you to measure the thing inside.
 
-python3 /app/solve.py /some/file.tvol
+make a file called solve dot py and drop it in the app folder. we will run it like python with the file path to a scan as argument and we expect it to output a number that is the size in cubic mm. we only care about the last word it prints.
 
-it should print a single float — the physical size of the thing inside the scan in cubic mm — and that number has to be the last thing on stdout.
+we give you one example scan to play with. its called scene dot tvol and lives in the data folder which itself is inside app. the real grading uses different files you have never seen so dont bake in any numbers from the example.
 
-You can try it locally on /app/data/scene.tvol, but final grading uses other scans you haven't seen, so it has to be generic.
+what is a tvol file. its our own tiny format. everything is little endian in there. start at zero. first four bytes should be the letters T V O L. then four bytes version little endian unsigned int. then four bytes dtype code little endian unsigned int. two means the voxels are sixteen bit signed ints. sixteen means thirty two bit floats. then twelve bytes that are three unsigned ints for nx ny nz how many voxels per axis. then twelve bytes that are three floats sx sy sz physical edge length of one voxel in millimeters per axis. then four bytes unsigned int data offset where the actual voxel data begins.
 
-What is .tvol? It's our own tiny ToF volume. Everything is little endian.
+after that offset you have nx times ny times nz numbers in the dtype. order is x runs fastest. so to get x y z you compute x plus nx times open bracket y plus ny times z close bracket.
 
-Bytes 0-3: ascii "TVOL"
-Byte 4: uint32 version
-Byte 8: uint32 dtype — 2 means int16, 16 means float32
-Byte 12: uint32 nx, uint32 ny, uint32 nz (dimensions)
-Byte 24: float32 sx, float32 sy, float32 sz — mm per voxel
-Byte 36: uint32 data_offset — where voxels start
+inside the volume there is a single solid piece that is bright. optics make it blurry so interior is flat high but near the border it gets dimmer because only part of voxel is filled and that brightness smears to nearby voxels. plus there is flat background plus little noise everywhere. sometimes there are one or two tiny bright dots far away they are junk you must ignore by keeping the biggest connected bright blob twenty six neighbours.
 
-After data_offset there are nx*ny*nz voxels in that dtype, x is fastest. So linear index for (x,y,z) is x + nx*(y + ny*z).
+you cannot get correct size by just thresholding and counting. blur keeps total energy so you need to estimate background subtract it estimate peak interior value integrate background removed values over the object plus its halo and divide by peak and then times sx times sy times sz.
 
-Inside: the object looks like a bright blob with fuzzy edges. The sensor reports occupancy scaled — voxels deep inside are at a high flat peak, voxels cut by the surface are weaker, and the lens smears signal into neighbors due to point spread. On top there's a constant background plus a bit of noise in every voxel. Some scans have one or two very small bright specks far from the main blob; those are artefacts, don't count them. sx sy sz are different per axis and per scan, always read them.
+you have to read bytes yourself with only stdlib like struct. dont bring numpy scipy scikit image cv opencv pillow networkx igraph imageio pandas torch tensorflow or any array picture graph library. dont use subprocess os system popen exec tricks or dunder import importlib runpy ctypes eval exec compile shell stuff. dont try to open tests folder or list files to cheat.
 
-You must parse raw bytes yourself, stdlib only. No array / image / graph helpers at all. That includes numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow, etc. Also no shelling out, no subprocess, no os.system, no os.popen, no os.exec, and no trick imports — no __import__, no importlib, no runpy, no ctypes, no eval, no exec, no compile.
-
-Output: print the object volume in mm^3; we take the last numeric token on stdout as your answer.
+final step output size in cubic mm as last word.
