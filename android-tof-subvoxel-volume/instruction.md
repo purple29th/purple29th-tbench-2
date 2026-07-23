@@ -20,12 +20,12 @@ next four bytes u32 data_offset where voxel payload starts.
 
 after offset nx*ny*nz values of declared dtype. x is fastest: linear index for x y z = x + nx * (y + ny * z).
 
-cube content: one solid parcel plus occasional far flying-pixel specks from multipath. VCSEL IR emitter plus lens gives anisotropic point spread wide laterally narrow axially. so true shape: thick core where occupancy saturates to plateau amplitude from fully filled voxels, plus thin flaps straps tape fingers where voxel only partially filled so intensity never reaches plateau. border voxels dimmer both from partial occupancy and smear to neighbours. flat ambient IR background plus faint per-voxel read noise. some scans have one or two extra tiny bright blobs far away - depth flying pixels / multipath artefacts - must be dropped. keep only biggest connected bright mass using 26 neighbour connectivity (faces edges corners).
+cube content: one solid parcel plus occasional far flying pixel specks from multipath. VCSEL IR emitter plus lens gives anisotropic point spread wide laterally narrow axially. so true shape: thick core where occupancy bright and flat, plus thin flaps straps tape fingers where voxel only partially filled so intensity lower. border voxels dimmer from partial fill and smear. flat ambient IR background plus faint per voxel noise. some scans have one or two extra tiny bright blobs far away depth artefacts trash keep main connected mass using 26 neighbours.
 
-threshold and count cannot work: low cut includes huge blurred halo overestimates 80-130 percent. high cut misses thin partially filled flaps underestimates 30-50 percent. no fixed cut works across files because emitter power background and pitch change every file.
+threshold counting cannot work: low cut includes huge blurred halo overestimates 80-130 percent. high cut misses thin partially filled flaps underestimates 30-50 percent. no fixed cut works across files because emitter power background pitch change.
 
-blur from normalized kernel conserves total IR energy, does not create or destroy. that makes precise sub-voxel volume possible if you separate main parcel from far specks, estimate ambient background without bias from parcel itself, figure true interior plateau where concentration highest, and integrate how much total background-subtracted light belongs to main object plus its faint halo deciding halo extent without bridging specks.
+blur spreads energy but does not create or destroy light. that physics makes precise subvoxel volume possible. best clue is where occupancy most concentrated not just how many bright voxels. interior flat but hidden by blur noise.
 
 parse binary yourself using only stdlib like struct. banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing. also do not open / read tests directory.
 
-at end print volume mm3 as last token.
+at end print volume mm3 as last token. grading at 3 percent tolerance, exact thresholds not prescribed, you must find robust ones that work across scans with different power background pitch. 3 percent band allows some heuristic variation.
