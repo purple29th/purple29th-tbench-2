@@ -1,22 +1,15 @@
-Your code goes in /app/solve.py.
+Read a ToF depth scan and print the volume of the scanned object in cubic millimetres.
 
-We will run it like python3 /app/solve.py /path/to/scan.tvol and you need to print the object's volume in cubic millimetres. We parse the last number on stdout as your answer.
+Write a Python script at /app/solve.py. Run it as:
 
-Sample you can test on is /app/data/scene.tvol but hidden tests use other scans so don't hardcode sizes or values.
+    python3 /app/solve.py <path-to-volume>
 
-Our ToF rig writes a tiny custom binary .tvol. It's all little endian.
+The scan path is the first argument. Print the volume as the last number on stdout. We test on scans you have not seen. A sample scan sits at /app/data/scene.tvol.
 
-First four bytes are ascii TVOL.
-At offset 4: uint32 version.
-At offset 8: uint32 dtype code - 2 is int16 voxels, 16 is float32 voxels.
-At offset 12: three uint32 nx ny nz - dimensions.
-At offset 24: three float32 sx sy sz - physical voxel size in mm along each axis.
-At offset 36: uint32 data_offset - where the voxel array begins.
+How the sensor works: every voxel stores an intensity for how much of that voxel the object fills. A voxel fully inside reads a peak value; a voxel only partly filled reads less. The optics also blur each reading into nearby voxels, so the object shows up bright with soft edges. There is a flat background level plus faint noise on every voxel, and a few small stray bright specks may sit away from the object. Voxel size in mm differs per axis and per scan, and it is stored in the header.
 
-After that, nx*ny*nz voxels of the given dtype, x fastest. So (x,y,z) maps to linear idx = x + nx * (y + ny * z).
+The .tvol format is ours. Little endian, fixed header: a 4 byte magic TVOL, a uint32 version (1 for now), a uint32 dtype code (2 means int16, 16 means float32), then nx, ny, nz as uint32, then sx, sy, sz as float32 giving mm per voxel on x, y, z, then a uint32 data_offset marking where the voxel data starts. After that come nx*ny*nz intensities of that dtype in x fastest order, so voxel (x, y, z) sits at index x + nx*(y + ny*z).
 
-In the scan the object is a bright blob but edges are fuzzy because lens point spread smears energy around. A voxel fully inside sits near a flat high peak, a voxel cut by the surface is lower because it's only partly filled, and that value bleeds into neighbours due to blur. On top there's a flat background level plus a little per-voxel noise. A few scans have one or two tiny isolated bright specks far from main blob - those are artefacts, drop them by keeping the biggest connected bright region. sx sy sz are anisotropic and vary file to file, so read them from header.
+Parse the bytes yourself. No numpy, scipy, scikit image, opencv, pillow, networkx, igraph, or any other array, imaging, or graph library, and no shelling out (subprocess, os.system, os.popen, __import__, importlib). Standard library only.
 
-Parse it from raw bytes yourself. Only stdlib. No numpy, no scipy, no scikit-image, no opencv, no pillow, no networkx, no igraph, no imageio, no pandas, no torch, no tensorflow, no array / image / graph library at all. Also no subprocess, no os.system, no os.popen, no os.exec, no __import__, no importlib, no runpy, no ctypes, no eval, no exec, no compile, no shelling out.
-
-At the end print volume in mm^3 as last token.
+We grade by running your script on scans you have not seen.
