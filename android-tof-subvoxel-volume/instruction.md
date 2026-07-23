@@ -1,18 +1,15 @@
-hey — this is from our ToF rig in the lab. we need a tiny solver script that lives at /app/solve.py.
+Write a python program at the solver path. The path is app solve py inside the app directory. The program will be invoked as python3 app solve py with one argument which is the path to a tvol file. It must print the volume of the contained object in cubic millimetres. The grader reads stdout and takes the last whitespace separated token as the numeric answer.
 
-how to run: python3 /app/solve.py <path to .tvol file>
-what to output: the object's volume in cubic mm. we look at the last number you print, so make sure volume is last.
+You can test locally on a provided example scan. The example is the file named scene dot tvol inside the data directory that is inside the app directory. Hidden evaluation uses other scans with different dimensions spacings intensities and volumes. Do not hardcode any number taken from the example and do not hardcode sizes.
 
-for dev you can use /app/data/scene.tvol — that's the only scan in the container. grading uses other .tvol files you haven't seen, so don't hardcode anything about size, spacing, or amplitude.
+The tvol file is a tiny custom binary. All multibyte values are little endian. At offset zero there are four bytes ascii T V O L. At offset four there is a uint32 version field. At offset eight there is a uint32 dtype code. Code two means voxels are int16. Code sixteen means voxels are float32. At offset twelve there are three uint32 values nx ny nz which are the counts of voxels along each axis. At offset twenty four there are three float32 values sx sy sz which give physical size of one voxel in mm along each axis. At offset thirty six there is a uint32 data offset which tells where the voxel array starts.
 
-format: we made up .tvol, it's all LE. first 4 bytes are literally TVOL. then at offset 4 a uint32 version. at offset 8 a uint32 dtype — 2 means voxels stored as int16, 16 means float32. at offset 12 three uint32 nx ny nz — dims. at offset 24 three float32 sx sy sz — each voxel's physical size in mm. at offset 36 a uint32 data_offset — bytes where voxel array starts (don't hardcode 64).
+After data offset there are nx times ny times nz values of the stated dtype. X is fastest. The linear index for coordinate x y z equals x plus nx times parenthesis y plus ny times z parenthesis.
 
-then after data_offset, nx*ny*nz voxel values in that dtype, x changes fastest, so (x,y,z) -> x + nx*(y + ny*z).
+What you see inside is one main bright object. Because of lens point spread the edges are fuzzy. Voxels completely inside are near a flat high peak. Voxels that are crossed by the surface are lower because they are only partly filled. Their energy also bleeds into neighbours due to blur. On top of that there is a flat background level plus per voxel noise. Some scans have one or two tiny isolated bright specks far away from the main blob. Those are artefacts. You should discard them by keeping only the largest connected bright region using twenty six connectivity.
 
-what's inside: we put an object that shows up bright but with soft edges because optics have a PSF, wide sideways narrow in z. because of that a voxel fully inside is near a flat high plateau, a voxel cut by surface is lower (partial volume), and that signal bleeds into neighbours. on top of all voxels there's flat background plus small noise. some scans also have 1-3 tiny isolated bright dots far away from main object — those are specks / artefacts, you must ignore them by taking the biggest connected bright mass, not everything bright.
+Thresholding and counting voxels does not give the true volume here. The blur kernel is normalized so total intensity is conserved. The correct way is to estimate background and subtract it then estimate the interior plateau amplitude and integrate background subtracted intensity over the object and its faint halo then divide by amplitude then multiply by sx sy sz. That recovers sub voxel partial fill correctly.
 
-also sx sy sz are anisotropic and change per scan, so you have to read them, can't assume 1mm.
+You must parse the file from raw bytes yourself using only the python standard library. You may use struct for example. Do not import numpy scipy scikit image opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph helper library. Do not use subprocess or system calls like os system os popen os exec or dynamic import tricks like dunder import importlib runpy ctypes or eval exec compile or shell access. Do not attempt to read tests area or list directories to find hidden data.
 
-rules: you have to parse bytes yourself. only python stdlib allowed. no numpy, no scipy, no skimage, no cv2, no PIL, no networkx, no igraph, no imageio, no pandas, no torch/tensorflow — basically no array / imaging / graph helper. also no shell tricks — no subprocess, no os.system, no os.popen, no os.exec, no __import__, no importlib, no runpy, no ctypes, no eval/exec/compile.
-
-final step: print the volume in mm^3, last token on stdout.
+At the end print the volume in mm3 as the final token on stdout.
