@@ -26,6 +26,6 @@ threshold counting cannot work: low cut includes huge blurred halo overestimates
 
 blur spreads energy but does not create or destroy light. that physics makes precise subvoxel volume possible. best clue is where occupancy most concentrated not just how many bright voxels. interior flat but hidden by blur noise.
 
-parse binary yourself using only stdlib like struct. banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing. also do not open / read tests directory.
+parse binary yourself using only stdlib like struct. banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing glob multiprocessing socket. also do not open / read tests directory.
 
 at end print volume mm3 as last token. grading at 3 percent tolerance, exact thresholds not prescribed, you must find robust ones that work across scans with different power background pitch. 3 percent band allows some heuristic variation.
