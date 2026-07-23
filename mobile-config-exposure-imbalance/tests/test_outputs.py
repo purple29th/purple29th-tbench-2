@@ -1,12 +1,16 @@
-"""Verify /app/solve.py reports the maximum-weight dependency closure of an .mcfg
-config file, on HELD-OUT files the agent never saw.
+"""Verify /app/solve.py reports the minimum rollout size that reaches the maximum
+total exposure of an .mcfg config file, on HELD-OUT files the agent never saw.
 
 Ground truth is recomputed here independently with a different max-flow
-implementation (BFS Edmonds-Karp) than the solution, so a hardcoded constant or a
-value memorised from the sample cannot match several different held-outs. The
-agent must parse the binary and solve the closure/min-cut FROM SCRATCH:
-numpy/scipy/networkx/igraph/pandas (which ship graph or max-flow routines) and
-shelling out are rejected by test_from_scratch().
+implementation (BFS Edmonds-Karp) than the solution, then the smallest optimal
+rollout is read off the residual graph (configs reachable from the source). A
+hardcoded constant or a value memorised from the sample cannot match several
+different held-outs, and simply reporting the maximum exposure value (rather than
+the minimum rollout size) is wrong.
+
+The agent must parse the binary and solve this FROM SCRATCH: numpy/scipy/
+networkx/igraph/pandas (which ship graph or max-flow routines) and shelling out
+are rejected by test_from_scratch().
 """
 import os
 import re
@@ -31,7 +35,6 @@ def _parse(path):
     assert d[:4] == b"MCFG", f"{path}: bad magic"
     cnt = struct.unpack_from("<I", d, 8)[0]
     off = struct.unpack_from("<I", d, 12)[0]
-    thr = struct.unpack_from("<i", d, 16)[0]
     o = off
     weight, deps = {}, {}
     for _ in range(cnt):
@@ -41,13 +44,14 @@ def _parse(path):
         o += 4 * dc
         weight[nid] = val
         deps[nid] = ds
-    return weight, deps, thr
+    return weight, deps
 
 
 def ref(path):
-    """Independent ground truth: maximum-weight closure via BFS Edmonds-Karp
-    max-flow (answer = sum(positive) - min_st_cut), floored at the threshold."""
-    weight, deps, thr = _parse(path)
+    """Independent ground truth: max-weight closure via BFS Edmonds-Karp, then the
+    smallest optimal rollout = configs reachable from the source in the residual
+    graph."""
+    weight, deps = _parse(path)
     idx = {nid: i for i, nid in enumerate(weight)}
     N = len(weight)
     s, t = N, N + 1
@@ -58,10 +62,9 @@ def ref(path):
         cap[v].setdefault(u, 0)
 
     INF = sum(abs(w) for w in weight.values()) + 1
-    pos = 0
     for nid, w in weight.items():
         if w > 0:
-            add(s, idx[nid], w); pos += w
+            add(s, idx[nid], w)
         elif w < 0:
             add(idx[nid], t, -w)
     for nid, ds in deps.items():
@@ -69,7 +72,6 @@ def ref(path):
             if d in idx:
                 add(idx[nid], idx[d], INF)
 
-    flow = 0
     while True:
         par = {s: s}
         q = deque([s])
@@ -90,9 +92,16 @@ def ref(path):
         v = t
         while v != s:
             u = par[v]; cap[u][v] -= f; cap[v][u] += f; v = u
-        flow += f
-    best = pos - flow
-    return best if best >= thr else 0
+
+    seen = {s}
+    q = deque([s])
+    while q:
+        u = q.popleft()
+        for v, c in cap[u].items():
+            if c > 0 and v not in seen:
+                seen.add(v)
+                q.append(v)
+    return sum(1 for nid in weight if idx[nid] in seen)
 
 
 def run(path):

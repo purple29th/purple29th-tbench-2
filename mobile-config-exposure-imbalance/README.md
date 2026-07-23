@@ -3,56 +3,59 @@
 ## Description
 
 From scratch Python script (`/app/solve.py`, standard library only) that parses a
-custom Android mobile config binary (`.mcfg`) and prints the maximum total
-exposure of a valid config activation set.
+custom Android mobile config binary (`.mcfg`) and prints the **minimum number of
+configs that must be turned on to reach the maximum total exposure**.
 
-Each config has a **signed** exposure weight (positive = benefit, negative =
-cost). You may activate any set of configs, but if you activate a config you must
-also activate every config it depends on (transitively). Among all valid
-activation sets, report the largest total weight. The empty set (0) is always
-allowed, and if the best total is below the header threshold the answer is 0.
+Each config has a **signed** exposure delta (positive = adds exposure, negative =
+costs exposure). Turning a config on forces on every config it depends on
+(transitively). A set of configs that respects this is a valid rollout. First
+find the highest total exposure any valid rollout can reach; then, among all
+rollouts that reach it, report the size of the smallest one. The empty rollout
+(exposure 0, size 0) is always allowed.
 
-## The insight (why it is hard)
+## Why it is hard (and not a one-pass recall)
 
-This is the **maximum-weight closure** problem, also known as **project
-selection**. The obvious readings all give the wrong number:
+The number that a memorised "best set of dependent items with signed profits"
+snippet produces is the **exposure value** -- which is *not* the answer here. The
+task needs two composed steps, and the second is the subtle one:
 
-- **sum every positive weight** overcounts, because a positive config can force
-  in costly negative dependencies you cannot avoid;
-- **take every config** drags in avoidable negatives;
-- **strongly-connected-component / reachability** reasoning (the shape of the
-  previous version of this task) answers a different question entirely.
+1. **Find the best achievable exposure.** You cannot just sum the positive
+   configs (a positive config can force in costly negative dependencies you
+   cannot avoid) and you cannot turn everything on (that pays avoidable costs).
+   This step is a flow/cut optimisation over the dependency graph.
+2. **Find the smallest rollout that reaches that maximum.** Several rollouts can
+   tie for the best exposure: any config whose forced cost exactly cancels its
+   benefit can be added or dropped without changing the total. The minimal
+   rollout must leave every such **zero-gain padding** config out. Reading it off
+   the residual graph (configs still reachable from the source after the max flow)
+   gives the unique smallest optimal rollout.
 
-The exact optimum needs a non-obvious reduction to a **min s-t cut / max-flow**:
-add a super source `s -> v` (capacity `w`) for each positive config, `v -> t`
-(capacity `-w`) for each negative config, and `u -> v` (capacity infinity) for
-each dependency edge; then the answer is `sum(positive weights) - maxflow(s, t)`.
-The agent must recognise this reduction and implement max-flow from scratch (no
-`networkx`/`scipy`/`igraph`), which is where trials diverge.
+Reporting the exposure value, counting all positive configs, or taking the
+*largest* optimal set (which keeps the zero-gain padding) all give wrong answers.
 
 ## Held out cases (measured)
 
 Ground truth is recomputed independently in the verifier with a **different**
-max-flow implementation (BFS Edmonds-Karp) than the oracle (Dinic). Answers below
-are the verified oracle == reference values; the two small ones are also confirmed
-by exhaustive brute force over all dependency-closed subsets.
+max-flow implementation than the oracle, then the smallest optimal rollout is read
+off the residual graph. Answers below are verified oracle == reference; the small
+ones are also confirmed by exhaustive brute force over all valid rollouts.
 
-| File | thr | offset | nodes | answer | what it exercises |
-|------|-----|--------|-------|--------|-------------------|
-| heldout_1 | 0 | 64 | ~9 | **220** | worth-it vs not-worth-it gadgets + a 3-node forced chain |
-| heldout_2 | 0 | 96 | ~7 | **220** | a net-negative dependency **cycle** that only pays off when a high-value config pulls it in |
-| heldout_3 | 0 | 96 | ~1400 | **35376** | scale: hundreds of mixed gadgets + free positives |
-| heldout_4 | 150 | 64 | ~3 | **150** | optimum sits **exactly at the threshold** floor |
-| heldout_5 | 0 | 96 | ~6 | **0** | every positive depends on a strictly costlier config, so the optimum is to activate nothing |
+| File | offset | nodes | answer (min rollout size) | what it exercises |
+|------|--------|-------|---------------------------|-------------------|
+| heldout_1 | 64 | ~11 | **6** | worth-it vs not-worth-it configs, a forced 3-config chain, and a zero-gain pad that must be excluded |
+| heldout_2 | 96 | ~7 | **5** | a net-negative dependency **cycle** pulled in by a high-value config, plus a zero-gain pad |
+| heldout_3 | 96 | ~1400 | **650** | scale: 250 worth-it gadgets + 150 free positives kept; 250 not-worth-it + 100 zero-gain pads dropped |
+| heldout_4 | 96 | ~6 | **0** | every positive depends on a strictly costlier config, so the best rollout is empty |
+| heldout_5 | 96 | ~21 | **2** | one worth-it pair plus ten zero-gain pads that a padded rollout of 22 configs would keep at the same exposure |
 
-Each obvious-but-wrong strategy is off by a wide margin (verified by the bundled
-harness against the reference):
+Obvious-but-wrong strategies (verified against the reference):
 
 | Wrong strategy | heldout_1 | heldout_3 | heldout_5 |
 |----------------|-----------|-----------|-----------|
-| correct answer | 220 | 35376 | 0 |
-| sum all positive weights | 390 | 66165 | 180 |
-| take every config | 180 | 16375 | 0 |
+| correct answer (min rollout size) | 6 | 650 | 2 |
+| print the maximum exposure value | 220 | 28201 | 70 |
+| count every positive config | 5 | 750 | 11 |
+| keep the largest optimal set (with padding) | 8 | 850 | 22 |
 
 ## Completion Rates
 
@@ -61,30 +64,28 @@ harness against the reference):
 | Oracle | `oracle` | 1.0 (deterministic; all 7 verifier tests pass) |
 | Frontier models | `metacode` / `claude-code` | to be measured by the validation pipeline |
 
-> **Calibration target:** unlike the previous version (a fully specified
-> strongly-connected-component computation, which strong models implement
-> correctly every time), this version hides a real insight barrier: the max-weight
-> closure / min-cut reduction. Trials that reach for "sum the positives", "take
-> everything", or SCC/reachability fail on every non-trivial held out, and trials
-> that recognise the reduction still have to implement max-flow from scratch
-> without a graph library. That is where the pass/fail split comes from.
+> **Calibration target:** an earlier version asked only for the best exposure
+> value, which strong models recalled and solved 5/5. Asking instead for the
+> minimum rollout size composes a well-known first step with a much less commonly
+> recalled second step (the minimal optimal set via residual reachability), so a
+> recalled snippet that stops at the value fails, and getting the minimal set
+> right from scratch is where trials diverge.
 
 ## Anti Cheating
 
-- **Hardcoded outputs:** the five held outs have different answers (220, 220,
-  35376, 150, 0), thresholds (0, 150), offsets (64, 96) and sizes; all differ
-  from the visible sample (110). A constant cannot satisfy them.
+- **Hardcoded outputs:** the five held outs have different answers (6, 5, 650, 0,
+  2), offsets (64, 96) and sizes; all differ from the visible sample (3). A
+  constant cannot satisfy them.
 - **Overfitting to visible tests:** the only data in the container is the sample
   file; held outs live under `tests/` and are absent during the agent run.
 - **Modifying test files:** tests and data are copied in only at verify time; the
-  reward is computed by the verifier with an independent max-flow implementation
-  (BFS Edmonds-Karp) different from the oracle's (Dinic), so it never trusts a
-  value baked into the agent's script. `tests/_gen.py` (the deterministic
-  generator) is co-located with the tests and never ships in the agent container.
+  reward is computed with an independent max-flow implementation different from the
+  oracle's, so it never trusts a value baked into the agent's script.
+  `tests/_gen.py` (the deterministic generator) is co-located with the tests and
+  never ships in the agent container.
 - **Bypassing the intended path:** `test_from_scratch()` rejects numpy, scipy,
   networkx, igraph, pandas (which ship graph / max-flow routines) and shelling
-  out (`subprocess`, `os.system`, `os.popen`, `__import__`, `importlib`, `eval`,
-  `exec`), forcing a hand-written parser and max-flow.
+  out, forcing a hand-written parser and flow computation.
 
 Inspired by https://github.com/codimango/mehag-tbench/tree/main/mri-volume-calc
 and https://github.com/codimango/purple29th-tbench-2/tree/main/android-depth-object-volume.

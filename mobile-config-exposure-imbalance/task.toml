@@ -4,9 +4,9 @@ schema_version="1.1"
 name="codimango/mobile-config-exposure-imbalance"
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
-description="Write a from-scratch Python script that parses a custom Android mobile config binary and reports the maximum total exposure of a valid config activation set, where activating a config forces activating everything it depends on and configs carry signed exposure weights. This is the maximum-weight dependency closure (project-selection) problem: the obvious readings (sum all positives, take everything, SCC/reachability) are all wrong, and the exact answer needs a min-cut / max-flow reduction implemented by hand. Graded on held-out files with independent max-flow ground truth."
+description="Write a from-scratch Python script that parses a custom Android mobile config binary and reports the minimum number of configs that must be turned on to reach the maximum total exposure, where turning on a config forces on everything it depends on and configs carry signed exposure deltas (some add exposure, some cost it). Two steps are needed: find the best achievable exposure (which requires weighing forced costs against benefits), then find the smallest rollout that reaches it (excluding configs whose forced cost exactly cancels their benefit). Reporting the exposure value itself is wrong. Graded on held-out files with independent ground truth."
 authors=[{name="Tosin Daniel Jimoh",email="purple29th@meta.com"}]
-keywords=["binary-parsing","max-flow","min-cut","maximum-weight-closure","project-selection","from-scratch"]
+keywords=["binary-parsing","dependency-graph","optimization","android-config","from-scratch"]
 [metadata]
 author_name="Tosin Daniel Jimoh"
 author_email="purple29th@meta.com"
@@ -15,7 +15,7 @@ category="data-science"
 category_subdomain="database_internals"
 category_usecase="parsing_lexing"
 reward_type="binary"
-tags=["binary-parsing","max-flow","min-cut","maximum-weight-closure","project-selection","from-scratch","algorithms"]
+tags=["binary-parsing","dependency-graph","optimization","android-config","from-scratch","algorithms"]
 expert_time_estimate_min=40.0
 junior_time_estimate_min=120.0
 [verifier]
