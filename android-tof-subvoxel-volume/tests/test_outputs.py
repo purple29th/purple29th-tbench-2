@@ -4,19 +4,19 @@
 The object's intensity is spread by the sensor point-spread function, so a
 threshold-and-count approach cannot recover the volume. The blur is a normalized
 kernel and therefore CONSERVES total intensity, so the ground truth is recovered
-here independently with numpy/scipy by intensity conservation:
+here independently, in PURE standard-library Python (no third-party libraries are
+needed at grade time), by intensity conservation:
 
     object_voxels = sum(intensity - background over the object) / plateau_amplitude
 
 computed on the largest-mass 26-connected component (so the far specks are
-excluded). This is the same physical quantity the generator built (a binary
-object of a known voxel count), recomputed from the bytes -- a hardcoded constant
-or a value memorised from the visible sample cannot match several different
-held-outs.
+excluded). This is the same physical quantity the generator built, recomputed
+from the bytes -- a hardcoded constant or a value memorised from the sample
+cannot match several different held-outs.
 
 The agent must parse the binary format and implement the reasoning FROM SCRATCH:
-numpy/scipy/imaging/graph libraries and shelling out are rejected by
-test_from_scratch().
+array/imaging/graph libraries, dynamic execution, and shelling out or reading the
+verifier / held-out data are rejected by test_from_scratch().
 """
 import ast
 import os
@@ -26,9 +26,7 @@ import struct
 import subprocess
 import tempfile
 
-import numpy as np
 import pytest
-from scipy import ndimage
 
 SCRIPT = "/app/solve.py"
 REL_TOL = 0.03
@@ -38,25 +36,22 @@ HELDOUTS = [
     "/tests/data/heldout_3.tvol",
 ]
 
-# Modules the from-scratch solution must not import: array/imaging/graph helpers
-# that would do the work, dynamic-import / process / FFI / socket modules that
-# could shell out or reach the verifier, and filesystem-scan helpers that could
-# hunt for the held-out data.
 BANNED_MODULES = {
     "numpy", "scipy", "skimage", "cv2", "PIL", "Pillow",
     "networkx", "igraph", "imageio", "pandas", "torch", "tensorflow",
     "subprocess", "importlib", "runpy", "ctypes", "socket",
     "multiprocessing", "glob",
 }
-# Dynamic-execution builtins that could bypass the import audit.
 BANNED_CALLS = {"eval", "exec", "compile", "__import__"}
-# Substrings that betray an attempt to read the verifier or the held-out data,
-# scan the filesystem, or shell out (checked on whitespace-stripped source).
 BANNED_TOKENS = [
-    "/tests", "test_outputs", "heldout", "reference_volume",
+    "/tests", "test_outputs", "heldout",
     "os.system", "os.popen", "os.exec", "os.walk", "os.listdir", "os.scandir",
     "pty.", "importlib", "runpy",
 ]
+
+NEIGH = [(dx, dy, dz)
+         for dz in (-1, 0, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+         if not (dx == 0 and dy == 0 and dz == 0)]
 
 
 def _parse(path):
@@ -66,60 +61,122 @@ def _parse(path):
     nx, ny, nz = struct.unpack_from("<III", d, 12)
     sx, sy, sz = struct.unpack_from("<fff", d, 24)
     off = struct.unpack_from("<I", d, 36)[0]
-    npdt = {2: "<i2", 16: "<f4"}[dtype]
-    arr = np.frombuffer(d, dtype=npdt, count=nx * ny * nz, offset=off).astype(np.float64)
-    vol = arr.reshape((nz, ny, nx))  # x varies fastest
-    return vol, (float(sx), float(sy), float(sz))
+    n = nx * ny * nz
+    fmt = {2: "<%dh", 16: "<%df"}[dtype] % n
+    vals = [float(v) for v in struct.unpack_from(fmt, d, off)]
+    return nx, ny, nz, float(sx), float(sy), float(sz), vals
+
+
+def _median(sorted_vals):
+    m = len(sorted_vals)
+    if m == 0:
+        return 0.0
+    return sorted_vals[m // 2] if m % 2 else 0.5 * (sorted_vals[m // 2 - 1] + sorted_vals[m // 2])
 
 
 def reference_volume_mm3(path):
-    """Independent ground truth by intensity conservation (numpy/scipy)."""
-    vol, (sx, sy, sz) = _parse(path)
+    """Independent ground truth by intensity conservation, pure stdlib."""
+    nx, ny, nz, sx, sy, sz, vals = _parse(path)
+    n = nx * ny * nz
 
-    # background floor + noise scale (robust)
-    bg = float(np.median(vol))
-    r = vol - bg
-    lo = r[r < np.median(r)] if np.any(r < np.median(r)) else r
-    noise_sigma = max(1e-6, 1.4826 * float(np.median(np.abs(lo - np.median(lo)))))
+    def idx(x, y, z):
+        return x + nx * (y + ny * z)
 
-    # largest-MASS 26-connected component above the noise floor -> the object
-    mask = r > 4.0 * noise_sigma
-    structure = ndimage.generate_binary_structure(3, 3)  # 26-connectivity
-    labels, n = ndimage.label(mask, structure=structure)
-    assert n >= 1, f"no bright region in {path}"
-    masses = ndimage.sum(np.where(r > 0, r, 0.0), labels, index=np.arange(1, n + 1))
-    obj = int(np.argmax(masses)) + 1
-    comp = labels == obj
+    sv = sorted(vals)
+    bg = _median(sv)
+    lo = [v for v in vals if v < bg] or vals
+    med_lo = _median(sorted(lo))
+    mad = _median(sorted(abs(v - med_lo) for v in lo))
+    noise_sigma = max(1e-6, 1.4826 * mad)
 
-    # plateau amplitude: 3x3x3 mean-filter peak over the object component
-    filt = ndimage.uniform_filter(r, size=3, mode="nearest")
-    fv = np.sort(filt[comp])[::-1]
-    amp = float(np.mean(fv[: max(1, min(8, fv.size))]))
+    r = [v - bg for v in vals]
+    thr = 4.0 * noise_sigma
+
+    # largest-mass 26-connected component above the noise floor
+    occ = [v > thr for v in r]
+    seen = bytearray(n)
+    best_mass = -1.0
+    best_comp = None
+    for z0 in range(nz):
+        for y0 in range(ny):
+            for x0 in range(nx):
+                s = idx(x0, y0, z0)
+                if not occ[s] or seen[s]:
+                    continue
+                stack = [(x0, y0, z0)]
+                seen[s] = 1
+                comp = []
+                mass = 0.0
+                while stack:
+                    x, y, z = stack.pop()
+                    comp.append(idx(x, y, z))
+                    mass += r[idx(x, y, z)]
+                    for dx, dy, dz in NEIGH:
+                        a, b, c = x + dx, y + dy, z + dz
+                        if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
+                            k = idx(a, b, c)
+                            if occ[k] and not seen[k]:
+                                seen[k] = 1
+                                stack.append((a, b, c))
+                if mass > best_mass:
+                    best_mass = mass
+                    best_comp = comp
+    assert best_comp, f"no bright region in {path}"
+
+    # plateau amplitude: mean of the top few 3x3x3 mean-filter values over the object
+    filt = []
+    for j in best_comp:
+        x = j % nx
+        y = (j // nx) % ny
+        z = j // (nx * ny)
+        acc = 0.0
+        cnt = 0
+        for dz in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    a = min(max(x + dx, 0), nx - 1)
+                    b = min(max(y + dy, 0), ny - 1)
+                    c = min(max(z + dz, 0), nz - 1)
+                    acc += r[idx(a, b, c)]
+                    cnt += 1
+        filt.append(acc / cnt)
+    filt.sort(reverse=True)
+    topk = filt[: max(1, min(8, len(filt)))]
+    amp = sum(topk) / len(topk)
     assert amp > 0, f"non-positive amplitude in {path}"
 
-    # adaptively grow to capture the faint blur halo, then integrate signed
-    # residual over the bounded region
-    region = comp.copy()
+    # adaptively grow to capture the faint halo, then integrate signed residual
+    region = set(best_comp)
+    frontier = set(best_comp)
     for _ in range(40):
-        grown = ndimage.binary_dilation(region, structure=structure)
-        shell = grown & ~region
-        if not shell.any():
+        shell = set()
+        for j in frontier:
+            x = j % nx
+            y = (j // nx) % ny
+            z = j // (nx * ny)
+            for dx, dy, dz in NEIGH:
+                a, b, c = x + dx, y + dy, z + dz
+                if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
+                    k = idx(a, b, c)
+                    if k not in region:
+                        shell.add(k)
+        if not shell:
             break
-        if float(r[shell].mean()) <= noise_sigma:
+        if sum(r[j] for j in shell) / len(shell) <= noise_sigma:
             break
-        region = grown
+        region |= shell
+        frontier = shell
 
-    voxels = float(r[region].sum()) / amp
+    voxels = sum(r[j] for j in region) / amp
     return voxels * sx * sy * sz
 
 
 def run_agent(path):
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
-    # Run the agent script on an ISOLATED copy of the scan under a neutral name,
-    # from a temp working directory. It receives only the input path -- it cannot
-    # tell which held-out this is, and has no reason or easy route to reach the
-    # mounted verifier / held-out data under /tests (also blocked statically by
-    # test_from_scratch).
+    # Run the agent script on an isolated copy of the scan under a neutral name,
+    # from a temp working directory: it receives only the input path, cannot tell
+    # which held-out this is, and has no route to the mounted verifier / held-out
+    # data under /tests (also blocked statically by test_from_scratch).
     with tempfile.TemporaryDirectory() as td:
         neutral = os.path.join(td, "scan.tvol")
         shutil.copyfile(path, neutral)
@@ -143,21 +200,18 @@ def test_script_exists():
 
 
 def test_from_scratch():
-    """Enforce the from-scratch rule with an AST import/exec audit (robust to
-    spacing and aliasing) plus a token scan that blocks reading the verifier or
-    held-out data, scanning the filesystem, and shelling out."""
+    """AST import/exec audit (robust to spacing and aliasing) plus a token scan
+    that blocks reading the verifier or held-out data and shelling out."""
     src = open(SCRIPT).read()
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
-                top = a.name.split(".")[0]
-                assert top not in BANNED_MODULES, f"banned module import: {a.name}"
+                assert a.name.split(".")[0] not in BANNED_MODULES, f"banned module import: {a.name}"
                 assert "test_output" not in a.name, "importing the verifier is not allowed"
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
-            top = mod.split(".")[0]
-            assert top not in BANNED_MODULES, f"banned module import: {mod}"
+            assert mod.split(".")[0] not in BANNED_MODULES, f"banned module import: {mod}"
             assert "test_output" not in mod, "importing the verifier is not allowed"
         elif isinstance(node, ast.Call):
             fn = node.func
