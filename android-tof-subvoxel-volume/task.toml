@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/android-tof-subvoxel-volume"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom on-device ToF depth volume binary format and reports the physical volume in mm^3 of the scanned object, whose intensity is spread by the sensor point-spread function. Thresholding cannot recover the volume; the answer requires intensity-conservation (integrate background-subtracted intensity over the isolated object and normalize by the interior plateau amplitude). Graded on held-out scans with independent numpy/scipy ground truth at 3% tolerance."
+description = "Android ToF LiDAR parcel scanner: the phone's rear Time-of-Flight sensor dumps a raw occupancy confidence cube (.tvol) from ARCore Depth API + Sensor.TYPE_TOF extended path. The cube's VCSEL lens PSF is anisotropic (wide XY, narrow Z) and obscures thin parcel flaps via partial-volume effects plus flying-pixel specks from multipath. The agent must implement from-scratch Python (stdlib only, no numpy/array/imaging/graph libs) to parse the custom little-endian binary, isolate the main parcel via largest-mass 26-connected component, remove ambient IR background, estimate the saturated interior plateau, and recover sub-voxel volume by conserving total IR energy (integrate residual over object+halo / plateau * anisotropic voxel pitch). Graded on hidden parcel scans at 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["android", "depth", "tof", "binary-parsing", "point-spread", "partial-volume", "from-scratch"]
+keywords = ["android", "tof", "lidar", "arcore", "depth-api", "package-volume", "vcsel", "flying-pixels", "binary-parsing", "from-scratch"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["android", "depth-sensor", "tof", "binary-parsing", "point-spread", "partial-volume", "intensity-conservation", "from-scratch", "algorithms"]
+tags = ["android", "tof", "lidar", "arcore-depth", "package-scanner", "binary-parsing", "vcsel-psf", "flying-pixels", "partial-volume", "intensity-conservation", "from-scratch", "mobile-vision", "warehouse-logistics"]
 expert_time_estimate_min = 55.0
 junior_time_estimate_min = 180.0
 

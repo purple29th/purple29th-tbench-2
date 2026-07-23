@@ -1,29 +1,28 @@
 #!/usr/bin/env python3
-"""Oracle: recover the physical volume of a ToF-scanned object from a .tvol
-volume, standard library only.
+"""Oracle: recover parcel physical volume from an Android ToF LiDAR .tvol cube,
+stdlib only.
 
-The object's intensity is spread by the sensor point-spread function, so a
-threshold-and-count approach cannot recover the volume (the solid core saturates
-while thin parts have partial-volume intensity below any usable threshold). The
-blur is a normalized kernel, so it CONSERVES total intensity. Therefore:
+Phone rear ToF sensor uses VCSEL IR emitter; lens PSF is wide laterally, narrow
+axially due to timing jitter, plus multipath flying pixels. This creates a
+saturated core (parcel interior) plus thin flaps / straps with partial-volume
+intensity below any usable threshold, so threshold-and-count fails (20-130% off).
+VCSEL blur is normalized and CONSERVES total IR energy, therefore:
 
-    object_voxels = sum(intensity - background over the object) / plateau_amplitude
-    volume_mm3    = object_voxels * sx * sy * sz
+    parcel_voxels = sum(occupancy - ambient_IR over parcel+halo) / plateau_amp
+    volume_mm3    = parcel_voxels * sx * sy * sz
 
 Steps:
-  1. Parse the binary header + voxel array (x-fastest).
-  2. Estimate the background floor as the median (background dominates the
-     volume) and the noise scale via the MAD, then form the residual.
-  3. Label 26-connected components above a low (noise-level) threshold and keep
-     the one with the greatest integrated mass -> the object (this drops the far
-     specks, which carry little mass).
-  4. Estimate the plateau amplitude from a 3x3x3 mean-filter peak over the object
-     component (noise-robust; recovers the saturated interior value).
-  5. Adaptively grow the object region outward while each new shell still carries
-     signal above the noise floor (recovers the faint blur halo without bridging
-     to the specks), then integrate the signed residual over that region.
-  6. Divide by the amplitude and multiply by the per-axis voxel size.
+  1. Parse TVOL header + voxel payload x-fastest from ARCore Depth dump.
+  2. Estimate ambient IR floor as median (background dominates volume) and noise
+     via MAD on low half, form residual.
+  3. Label 26-connected components above noise floor and keep largest integrated
+     mass -> main parcel (drops far flying-pixel specks).
+  4. Estimate saturated core plateau via 3x3x3 mean-filter peak over component.
+  5. Adaptively dilate to capture faint halo while shell mean remains above noise,
+     then integrate signed residual over grown region.
+  6. Voxels / amplitude * anisotropic pitch -> mm^3.
 """
+
 import struct
 import sys
 
@@ -49,12 +48,20 @@ def parse(path):
 
 def _median(sorted_vals):
     m = len(sorted_vals)
-    return sorted_vals[m // 2] if m % 2 else 0.5 * (sorted_vals[m // 2 - 1] + sorted_vals[m // 2])
+    return (
+        sorted_vals[m // 2]
+        if m % 2
+        else 0.5 * (sorted_vals[m // 2 - 1] + sorted_vals[m // 2])
+    )
 
 
-NEIGH = [(dx, dy, dz)
-         for dz in (-1, 0, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
-         if not (dx == 0 and dy == 0 and dz == 0)]
+NEIGH = [
+    (dx, dy, dz)
+    for dz in (-1, 0, 1)
+    for dy in (-1, 0, 1)
+    for dx in (-1, 0, 1)
+    if not (dx == 0 and dy == 0 and dz == 0)
+]
 
 
 def object_volume_mm3(path):

@@ -1,29 +1,31 @@
-i built a small depth camera rig that saves scans. i need to know how big the thing in front is in cubic mm.
+my android warehouse app measures parcel volume using phone rear ToF LiDAR. i dump raw occupancy cubes from ARCore Depth API extended with Sensor.TYPE_TOF confidence. kotlin side writes ByteBuffer little endian via FileOutputStream into app private storage.
 
-there is a spot where your code should go. make a file named solve dot py inside app folder. we will run it like python app solve py with one argument which is path to a tvol scan. whatever you print last word we take as volume.
+your job is script that turns one cube into physical parcel size cubic mm.
 
-you have one file to test on locally. name is scene dot tvol inside data folder which is inside app. hidden tests use other files you never saw with different sizes brightness and voxel sizes. do not hardcode any numbers from example.
+make file named solve dot py inside app folder. we will run like python app solve py /path/to/scan.tvol and we take last whitespace token printed as float volume. one sample you can try locally named scene dot tvol lives under app/data. hidden grading uses other dumps you never saw with different parcel dimensions emitter power voxel pitch spacing background IR multipath. do not hardcode any numbers from sample size brightness.
 
-tvol is my own tiny binary. all numbers little endian.
+tvol is tiny custom container i invented for ToF cubes. all ints and floats little endian.
 
-file starts with four ascii letters T V O L.
+first four bytes ascii T V O L magic.
 
-next four bytes version unsigned thirty two bit little endian.
+next four bytes u32 version.
 
-next four bytes dtype code unsigned thirty two little endian. two means voxels are int16. sixteen means float32.
+next four bytes u32 dtype code. two equals int16 occupancy. sixteen equals float32 occupancy.
 
-next twelve bytes three unsigned counts of voxels along each axis like width height depth historically nx ny nz.
+next twelve bytes three u32 nx ny nz counts per axis width/height/depth. total voxels nx*ny*nz.
 
-next twelve bytes three float32 values saying mm per voxel per axis historically sx sy sz. they change every file anisotropic so read them from header.
+next twelve bytes three f32 sx sy sz mm per voxel per axis. anisotropic calibration from camera intrinsics xy and ToF timing jitter z. different per file so must read header every time do not assume.
 
-next four bytes unsigned offset where voxel data starts.
+next four bytes u32 data_offset where voxel payload starts.
 
-after offset there are nx times ny times nz values in announced dtype. x runs fastest so index for x y z is x plus nx times open bracket y plus ny times z close bracket.
+after offset nx*ny*nz values of declared dtype. x is fastest: linear index for x y z = x + nx * (y + ny * z).
 
-inside there is one solid bright mass. lens has point spread that makes edges fuzzy. interior flat bright. border dimmer because partly occupied and smeared to neighbours. background flat plus noise. some scans have one or two tiny bright specks far away trash keep biggest connected bright mass using twenty six neighbours.
+cube content: one solid parcel plus occasional far flying-pixel specks from multipath. VCSEL IR emitter plus lens gives anisotropic point spread wide laterally narrow axially. so true shape: thick core where occupancy saturates to plateau amplitude from fully filled voxels, plus thin flaps straps tape fingers where voxel only partially filled so intensity never reaches plateau. border voxels dimmer both from partial occupancy and smear to neighbours. flat ambient IR background plus faint per-voxel read noise. some scans have one or two extra tiny bright blobs far away - depth flying pixels / multipath artefacts - must be dropped. keep only biggest connected bright mass using 26 neighbour connectivity (faces edges corners).
 
-threshold counting fails. blur conserves energy. so you need to think about background removal and how bright fully filled interior really is and how much total light belongs to main object plus halo. precise recovery needs most concentrated area not just bright voxel count. light is everywhere so find where concentration highest.
+threshold and count cannot work: low cut includes huge blurred halo overestimates 80-130 percent. high cut misses thin partially filled flaps underestimates 30-50 percent. no fixed cut works across files because emitter power background and pitch change every file.
 
-parse bytes yourself with only stdlib like struct. dont use numpy scipy skimage opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph library. dont use subprocess os system popen exec tricks or double underscore import importlib runpy ctypes eval exec compile shell.
+blur from normalized kernel conserves total IR energy, does not create or destroy. that makes precise sub-voxel volume possible if you separate main parcel from far specks, estimate ambient background without bias from parcel itself, figure true interior plateau where concentration highest, and integrate how much total background-subtracted light belongs to main object plus its faint halo deciding halo extent without bridging specks.
 
-at end print size mm3 as last word.
+parse binary yourself using only stdlib like struct. banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing. also do not open / read tests directory.
+
+at end print volume mm3 as last token.

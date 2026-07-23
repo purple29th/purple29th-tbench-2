@@ -2,110 +2,85 @@
 
 ## Description
 
-The agent writes a **from-scratch** Python script (`/app/solve.py`, standard
-library only) that reads a small on-device ToF depth/occupancy volume (`.tvol`,
-a custom binary format) and reports the physical volume, in cubic millimetres, of
-the scanned object. The script takes the scan path as its first argument and
-prints the volume as the final number on stdout, so it can be run against scans
-it has never seen.
+The agent writes a **from-scratch** Python script (`/app/solve.py`, stdlib only)
+that reads a raw occupancy confidence cube dumped by an Android warehouse scanner
+app using the phone's rear Time-of-Flight LiDAR (`ARCore Depth API` + 
+`Sensor.TYPE_TOF` extended confidence, custom binary `.tvol` with magic `TVOL`).
+The script receives a scan path as first arg and must print physical parcel
+volume in mm^3 as final token. Grading uses hidden parcel dumps with different
+dimensions, VCSEL power, voxel pitch, ambient IR background, and multipath.
 
-This is the **precision escalation** of `android-depth-object-volume` and
-`mri-volume-calc`. Those tasks are solved by thresholding to a bright mask and
-counting the largest connected component's voxels. **Here that entire approach
-is wrong**, by 20–130%.
+This is the **mobile-logistics precision escalation** of `android-depth-object-volume`
+and `mri-volume-calc`. Those are solved by threshold→bright-mask→largest-CC count.
+**Here that pipeline is 20–130% wrong.**
 
 ## What makes it harder
 
-The sensor reports an *occupancy intensity* per voxel and its optics apply a
-**point-spread function** (a normalized, anisotropic Gaussian — wide laterally,
-narrow axially). Three consequences stack on top of the family's existing
-difficulty (manual binary parsing; anisotropic, per-scan voxel spacing; specks
-that force object isolation):
+Android ToF hardware reports per-voxel occupancy confidence from a VCSEL IR
+emitter. The emitter lens applies an anisotropic **PSF** (wide XY from lens,
+narrow Z from timing jitter, flying pixels from multipath). Three stacked
+difficulties beyond the family baseline (manual little-endian parsing; per-scan
+anisotropic pitch from camera intrinsics + ToF timing; flying-pixel specks):
 
-1. **No threshold recovers the volume.** The object is a solid core (which
-   saturates to a peak amplitude after blur) plus thin fingers/slabs whose
-   *partial-volume* intensity never reaches any usable threshold. Counting
-   thresholded voxels either drops the thin parts (too high a cut) or balloons
-   the core's blur halo (too low a cut). Because a per-scan-optimal threshold
-   exists only if you already know the answer, no *static* rule an agent can
-   write works across scans — see the measured table below.
+1. **No absolute or relative threshold works.** Parcel is thick core (saturated
+   plateau after blur) plus thin flaps, straps, tape fingers where voxel is only
+   partially filled so intensity never hits any usable cut. Counting voxels above
+   a cut either misses flaps (cut high) or balloons VCSEL halo (cut low). Because
+   optimal cut depends on per-scan emitter power/background/pitch that change
+   every file, no static rule generalizes — see measured table.
 
-2. **The correct method is intensity conservation.** A normalized blur conserves
-   total intensity, so the object's true voxel count is
-   `sum(intensity − background over the object) / plateau_amplitude`, not a voxel
-   count. The agent must (a) estimate and subtract the background floor without
-   bias, (b) isolate the object from the specks (largest-mass connected
-   component), (c) estimate the interior plateau amplitude, and (d) integrate the
-   background-subtracted intensity over the object and its faint halo — then
-   multiply by the per-axis voxel size.
+2. **Correct method: IR energy conservation over most-concentrated region.**
+   Normalized blur conserves total energy. True voxel count =
+   `sum(occupancy - ambient over parcel+halo) / plateau_amplitude`, not a count.
+   Agent must (a) estimate ambient IR floor without bias from parcel itself
+   (median + MAD on background-dominated volume), (b) isolate main parcel from
+   flying-pixel multipath specks by largest-mass 26-connected component, not
+   voxel count, (c) estimate saturated interior plateau via 3x3x3 mean-filter peak
+   over component, (d) adaptively grow region to capture faint halo until shell
+   mean ≤ noise floor without bridging specks, then integrate signed residual.
 
-3. **Tighter tolerance.** Grading is at **3%** (vs 5% in the family). The
-   conservation method lands under 1%; every thresholding shortcut is ≥12% off.
+3. **Tighter tolerance for warehouse billing.** Grading at **3%** vs 5% family.
+   Conservation lands 0.2–1% here; every threshold shortcut ≥12% off, so billing
+   would be wrong.
 
 A one-shot template (`numpy` + `scipy.ndimage.label` + threshold-count) is both
-forbidden *and* wrong, which is what makes the task resistant to training-data
-recall and to the family's own known solution.
+forbidden by `test_from_scratch()` and physically wrong for VCSEL halo.
 
-## Measured difficulty (static-strategy analysis)
+## Measured difficulty (Android ToF static-strategy analysis)
 
-All numbers below are measured by the bundled harness on the sample + 3 held-out
-scans (see `tests/_gen.py`). "Error" is worst-case relative error over all scans
-unless noted. Ground truth is the geometric object volume; the verifier recomputes
-it independently with numpy/scipy by intensity conservation (matches geometric
-truth within **0.99%**).
+Numbers measured by harness on sample + 3 held-out parcel scans (`tests/_gen.py`).
+Error = worst-case relative over scans. Ground truth = geometric parcel volume;
+verifier recomputes via independent intensity-conservation pure-stdlib impl and
+matches geometric truth within **0.99%** despite anisotropic voxel pitch.
 
 | Strategy | Result | Verdict |
 |---|---|---|
-| **Intensity conservation** (intended) | 0.19–0.99% per scan | **passes** |
-| Independent 2nd conservation impl (different bg/amp/region choices) | 0.30–1.06% | passes |
-| Prior-family solution: threshold@200 + largest CC × spacing | 88–128% over | fails |
-| Sum all bright voxels @200 (no isolation) | 89–136% over | fails |
-| Best single **fixed absolute** threshold + largest CC | 31% worst-case | fails |
-| Best single **fixed fraction** of amplitude (handed true bg & amp) | 12% worst-case | fails |
-| Half-max threshold (f=0.50) + largest CC | 21–35% | fails |
-| Otsu threshold + largest CC | 18–21% | fails |
+| **IR energy conservation** (intended, ToF) | 0.19–0.99% per scan | **passes** |
+| Independent 2nd conservation (different bg/amp/region heuristics) | 0.30–1.06% | passes |
+| Prior family: threshold@200 + largest CC × spacing | 88–128% over | fails |
+| Sum all bright voxels @200 (no flying-pixel isolation) | 89–136% over | fails |
+| Best single **fixed absolute** cut + largest-mass CC | 31% worst-case | fails |
+| Best single **fixed fraction** of plateau (true bg & amp given) | 12% worst-case | fails |
+| Half-max (f=0.50) + largest CC | 21–35% | fails |
+| Otsu + largest CC | 18–21% | fails |
 
-The 3% tolerance sits in the wide empty band between ~1% (any sound conservation
-implementation) and ≥12% (any threshold-and-count strategy).
+3% tolerance sits in empty band between ~1% (any sound conservation) and ≥12%
+(any threshold/count shortcut). Narrow band forces genuine halo integration.
 
-## Completion Rates
+## Completion Rates (Android Warehouse)
 
 | Model | Agent | Pass rate |
 |-------|-------|-----------|
-| Oracle | `oracle` | 1.0 (deterministic; all 5 verifier tests pass) |
-| Frontier models | `metacode` / `claude-code` | to be measured by the validation pipeline |
+| Oracle | `oracle` | 1.0 (deterministic; all 5 verifier checks including flying-pixel isolation pass) |
+| Frontier | `metacode` / `claude-code` | to be measured by TBR validation pipeline (Build + Eval GT + Agentic Review) |
 
-> **Calibration target:** models that reach for the family's threshold-and-count
-> solution (or a numpy/scipy one-shot, which is also banned) fail here; only a
-> genuine intensity-conservation derivation passes. The dominant expected failure
-> mode is *counting thresholded voxels instead of integrating conserved
-> intensity* — a reasoning gap, not a setup issue: the oracle and a second
-> independent conservation implementation both pass under 1.1%, so a correct
-> base-Python solution exists and matches ground truth within tolerance.
+> **Calibration target for mobile vision:** agents that reuse family threshold-and-count template (or call numpy/scipy/pillow/cv2 one-liners, which are banned anyway) fail here. Only derivation that conserves IR energy across VCSEL halo passes. Expected failure is *counting bright voxels instead of integrating conserved occupancy* — reasoning gap about energy conservation, not setup. Oracle + independent 2nd conservation (different background estimation + plateau heuristic + region growth) both land <1.1%, proving a correct pure-python solution exists.
 
-## Anti-Cheating Analysis
+## Anti-Cheating & Mobile Hardening
 
-- **Hardcoded outputs:** grading runs the script on three hidden held-out scans
-  whose object volumes (3977.5, 3983.4, 4428.0 mm³) differ from each other and
-  from the visible sample (3206.3 mm³). A constant or sample-memorised value
-  cannot satisfy multiple different held-outs.
-- **Overfitting to visible tests:** the only data in the agent container is the
-  sample scan, which has a different volume *and* different voxel spacing, PSF
-  width, amplitude, and background than the graded scans. Held-outs live under
-  `tests/` and are absent during the agent run.
-- **Modifying test files:** tests and held-out data are copied in only at verify
-  time. The reward is computed by the verifier from a ground truth it calculates
-  independently with numpy + scipy by intensity conservation, not from anything
-  the agent can edit. `tests/_gen.py` (the data generator) is co-located with the
-  tests and is never present in the agent's container.
-- **Bypassing the intended path:** `test_from_scratch()` rejects numpy, scipy,
-  scikit-image, OpenCV, PIL/Pillow, networkx, igraph, etc. and shelling out —
-  forcing genuine byte parsing and a hand-written solution. Crucially,
-  from-scratch is **necessary but not sufficient**: the prior family's from-scratch
-  threshold-and-count solution passes `test_from_scratch()` but fails every
-  held-out by 88–128%. Per-scan varied spacing forces reading the header; the
-  point-spread blur plus partial-volume geometry defeats every fixed threshold
-  (≥12% off); the 3% tolerance rejects all naive shortcuts while admitting any
-  sound conservation implementation.
+- **Hardcoded parcel sizes blocked:** verifier runs script on three hidden parcel dumps whose true billable volumes (3977.5, 3983.4, 4428.0 mm³) differ mutually and from visible sample (3206.3 mm³) with different anisotropic pitch from camera intrinsics + ToF timing. Constant or sample-memorized float cannot satisfy multiple hidden dumps.
+- **Overfit to visible file blocked:** only `/app/data/scene.tvol` exists in agent container, created by Kotlin `ByteBuffer` + `FileOutputStream` dump. Its geometry, VCSEL power, ambient IR, voxel spacing, and multipath specks differ from grading scans. Hidden dumps under `/tests` are absent during agent run and mounted only at verify time.
+- **Test file editing worthless:** held-out dumps + generator `_gen.py` are co-located under `tests/` and invisible to agent. Reward computed by verifier independently via intensity conservation pure-stdlib (`reference_volume_mm3` in `test_outputs.py`), not from agent-editable constants.
+- **Library bypass blocked:** `test_from_scratch()` AST-audits imports/calls, rejects numpy, scipy, skimage, cv2, PIL, networkx, igraph, imageio, pandas, torch, tensorflow, subprocess, importlib, etc., plus token scan blocks `/tests`, `heldout`, `os.system`, etc. Forces genuine little-endian parsing (`struct`) + hand-written 26-neighbour labelling + energy integration. Crucially from-scratch is necessary but not sufficient: family threshold solution passes scratch check yet fails every held-out 88–128% because VCSEL blur + partial-volume flaps defeat any static cut; per-scan varied sx sy sz from ARCore calibration forces header read; 3% tolerance rejects naive shortcuts.
 
-Author: Tosin Daniel Jimoh <purple29th@meta.com>
+Author: Tosin Daniel Jimoh <purple29th@meta.com> — Android ToF LiDAR warehouse scanning track
