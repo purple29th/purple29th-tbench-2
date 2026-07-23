@@ -1,15 +1,17 @@
-Read a ToF depth scan and print the volume of the scanned object in cubic millimetres.
+write a script at /app/solve.py — that's where we run it.
 
-Write a Python script at /app/solve.py. Run it as:
+usage: python3 /app/solve.py <path to .tvol file>
 
-    python3 /app/solve.py <path-to-volume>
+it should output the object's volume in mm^3. last number on stdout is graded.
 
-The scan path is the first argument. Print the volume as the last number on stdout. We test on scans you have not seen. A sample scan sits at /app/data/scene.tvol.
+local sample is at /app/data/scene.tvol for dev, hidden tests use other scans so don't hardcode.
 
-How the sensor works: every voxel stores an intensity for how much of that voxel the object fills. A voxel fully inside reads a peak value; a voxel only partly filled reads less. The optics also blur each reading into nearby voxels, so the object shows up bright with soft edges. There is a flat background level plus faint noise on every voxel, and a few small stray bright specks may sit away from the object. Voxel size in mm differs per axis and per scan, and it is stored in the header.
+format is ours, .tvol, little endian. starts with TVOL ascii at 0. at 4 bytes offset you get uint32 version. at 8 bytes dtype code uint32 — 2 means voxels are int16, 16 means float32. at 12 three uint32 nx ny nz. at 24 three float32 sx sy sz — that's mm per voxel per axis. at 36 uint32 data_offset — voxels start there.
 
-The .tvol format is ours. Little endian, fixed header: a 4 byte magic TVOL, a uint32 version (1 for now), a uint32 dtype code (2 means int16, 16 means float32), then nx, ny, nz as uint32, then sx, sy, sz as float32 giving mm per voxel on x, y, z, then a uint32 data_offset marking where the voxel data starts. After that come nx*ny*nz intensities of that dtype in x fastest order, so voxel (x, y, z) sits at index x + nx*(y + ny*z).
+then nx*ny*nz values of that dtype, x moves fastest, so (x,y,z) linear is x + nx*(y + ny*z).
 
-Parse the bytes yourself. No numpy, scipy, scikit image, opencv, pillow, networkx, igraph, or any other array, imaging, or graph library, and no shelling out (subprocess, os.system, os.popen, __import__, importlib). Standard library only.
+what you see: main thing is bright blob but fuzzy because optics have point spread, interior near flat high, surface voxels weaker due to partial fill, and that leaks to neighbors. there's flat bg plus per-voxel noise. sometimes 1-2 tiny bright specks far from main — ignore them, keep only biggest bright region. sx sy sz differ per axis and per file, must read them.
 
-We grade by running your script on scans you have not seen.
+impl: parse bytes yourself, stdlib only. no numpy, scipy, scikit-image, opencv, pillow, networkx, igraph, imageio, pandas, torch, tensorflow, or any array / imaging / graph helper. no shelling, no subprocess, no os.system/popen/exec, no __import__/importlib/runpy/ctypes/eval/exec/compile.
+
+print volume mm^3 as last token.
