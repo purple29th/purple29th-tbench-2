@@ -47,3 +47,8 @@ Threshold strategies measured on sample+3 heldouts: threshold@200 + largest CC =
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
 
+
+## Fix Log (2026-07-23)
+- Fixed TBR FAIL test_deps_not_in_image by removing numpy/scipy from Dockerfile (stdlib-only verifier)
+- Fixed Quality Review: reference now uses geometric truth 3977.5/3983.36/4428.0 mm3
+- Commit 01cc0dbf verified on GitHub API
