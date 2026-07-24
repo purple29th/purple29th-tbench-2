@@ -2,11 +2,11 @@
 
 ## Description
 
-Kotlin simulator of Android Choreographer four-phase pipeline (INPUT then ANIMATION then INSETS then TRAVERSAL) plus the main-thread Looper / MessageQueue with sync barriers, async lanes, vsync-rate transitions, and frame-deadline-driven jank detection. The agent fixes DoFrameScheduler.kt so the simulator's frame log, queue snapshot, and event stream match the expected output across 15 scenarios.
+Kotlin simulator of Android Choreographer four-phase pipeline (INPUT then ANIMATION then INSETS then TRAVERSAL) plus the main-thread Looper / MessageQueue with sync barriers, async lanes, vsync-rate transitions, and frame-deadline-driven jank detection. The agent fixes DoFrameScheduler.kt so the simulator's frame log, queue snapshot, and event stream match the expected output across 17 scenarios.
 
 ## Completion Rates
 
-Each run is k=5 trials. A trial scores 1.0 only if every scenario's output matches its expected file exactly. 15 scenarios including dedicated jank, vsync, drain_queue, double_token_purge, and async cases.
+Each run is k=5 trials. A trial scores 1.0 only if every scenario's output matches its expected file exactly. 17 scenarios including dedicated jank, vsync, drain_queue, double_token_purge, async, cross-frame clock carry-over, and out-of-order input resampling cases.
 
 | Model                              | Pass rate (k=5/6)                  |
 |------------------------------------|------------------------------------|
@@ -29,10 +29,12 @@ Failure modes the task surfaces, drawn from real Android framework behavior:
 6. Unconditional MSG_BARRIER_LIFTED. Every frame emits MSG_BARRIER_LIFTED at TRAVERSAL start regardless of whether a barrier was active; implementations that guard the emission on barrier state under-report it.
 7. Jank without deferral. When work overruns the deadline, the frame is marked jank and a JANK event emits, but remaining work still executes in the same frame rather than deferring to the next.
 8. removeFrame purges all matching tokens, not just the first – enforced by double_token_purge scenario.
+9. Frame clock only advances upward to vsyncTime. At DO_FRAME start currentTime jumps to vsyncTime only if it is below it, so an overrunning frame carries its elapsed clock into the next frame (which then starts already past its vsyncTime, inflating spentMs and forcing jank). Implementations that reset currentTime to vsyncTime every frame lose the carry-over – enforced by overrun_carry scenario.
+10. INPUT_BATCH oldestEventTime is the minimum dispatched event time, not the first-posted one. When input events are posted out of time order, implementations that report the first event's time instead of the minimum are wrong – enforced by resample_oldest scenario.
 
 ## Anti-Cheating Analysis
 
-- 15 per-behavior scenarios under /tests/expected/. Each scenario isolates one behavior; jank, vsync transitions, DRAIN_QUEUE budget semantics, async-through-barrier, and double token purge are each exercised independently.
+- 17 per-behavior scenarios under /tests/expected/. Each scenario isolates one behavior; jank, vsync transitions, DRAIN_QUEUE budget semantics, async-through-barrier, and double token purge are each exercised independently.
 - Hardened verifier: at grade time the verifier bundles /tests into a base64 tar stored only in shell memory (not exported), then rm -rf /tests so no expected file exists on filesystem during agent execution. Scenario inputs are re-materialized under randomized UUID filenames (e.g. /app/scenarios/<uuid>.txt) with UUID->name mapping kept only in shell memory, so the agent's /proc/self/cmdline contains only a UUID, not the scenario stem, and cannot derive the corresponding expected filename. After the agent jar run, /tests is restored from the in-memory bundle and UUID outputs are translated back to named outputs for pytest comparison. Prior bypass that read /tests/expected/ or /tmp/tests.hidden and echoed it verbatim now scores 0 because expected files do not exist during jar execution.
 - Verifier compiles the agent's source via kotlinc and runs each scenario; reward is all-or-nothing per scenario (binary).
 - Reference solution is never agent-readable during agent execution; it exists only in /solution/ which is not mounted at grade time.

@@ -101,7 +101,7 @@ class DoFrameScheduler {
         val dispatched = pendingInputs.filter { it.eventTime < cutoff }
         val deferred = pendingInputs.filter { it.eventTime >= cutoff }
         if (dispatched.isNotEmpty()) {
-            events += "INPUT_BATCH count=${dispatched.size} oldestEventTime=${dispatched.minOf { it.eventTime }}"
+            events += "INPUT_BATCH count=${dispatched.size} oldestEventTime=${dispatched.first().eventTime}"
         }
         if (deferred.isNotEmpty()) {
             events += "INPUT_DEFERRED count=${deferred.size}"
@@ -177,7 +177,7 @@ class DoFrameScheduler {
     }
 
     private fun advanceTimeTo(target: Int) {
-        if (currentTime < target) currentTime = target
+        currentTime = target
     }
 
     private fun takeFrameCallbacks(): MutableList<FrameCallback> {
