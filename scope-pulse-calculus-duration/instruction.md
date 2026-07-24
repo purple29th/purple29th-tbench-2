@@ -37,10 +37,10 @@ center flat where photodiode saturated but hidden by shaper plus thin pre and po
 
 this is tricky and every agent will find it hard to be precise calculus needed. threshold counting never precise. low cutoff includes huge smeared tails overcounts eighty to one hundred thirty percent. high cutoff misses thin extensions that never get high enough undercounts thirty to fifty percent. no fixed cutoff works across files because amplitude baseline dt sigma change.
 
-shaper spreads charge but does not create or destroy charge. that physics makes precise duration possible via calculus integral. total charge conserved so true width samples equals sum intensity minus baseline over pulse plus halo divided by plateau amplitude. duration ns equals width times dt.
+shaper spreads charge but does not create or destroy charge. that physics is key to precise recovery despite smear. the shaper PSF is normalized, so some integral quantity is conserved even though shape is smeared. think about what stays conserved when a normalized blur spreads a flat pulse, and how you could use that conservation to recover original width from a fuzzy trace if you can estimate background and saturated level robustly.
 
 simple tricks off large margin. grade at three percent tolerance only genuine precise method passes.
 
-parse bytes yourself only stdlib like struct. do not use numpy scipy scikit image opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph helper. do not use subprocess os system popen exec double underscore import importlib runpy ctypes eval exec compile shell. do not open tests folder list filesystem.
+parse bytes yourself only stdlib like struct and sys and math. allowed stdlib includes struct sys math os random tempfile re but not numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow subprocess socket multiprocessing glob pathlib importlib runpy ctypes. banned calls include eval exec compile __import__ chr getattr setattr. also banned is any filesystem inspection via os.system popen exec fork walk listdir scandir rglob glob() and any trick to hide paths using chr() bytes.fromhex base64 b64decode or obfuscation. do not open /tests folder and do not reference test_outputs heldout reference _gen scene.plse /app/data GEOM_TRUTH geometric_truth. solver must be from scratch and work on random temp files, not hardcoded paths.
 
 print duration ns as last word.
