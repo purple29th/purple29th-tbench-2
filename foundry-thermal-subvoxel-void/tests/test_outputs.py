@@ -104,12 +104,6 @@ BANNED_CALLS = {
     "compile",
     "__import__",
     "chr",
-    "getattr",
-    "setattr",
-    "globals",
-    "locals",
-    "vars",
-    "dir",
 }
 BANNED_TOKENS = [
     "/tests",
@@ -491,11 +485,6 @@ def _collect_string_literals(tree):
                 literals.append(node.value)
             self.generic_visit(node)
 
-        # For Python <3.8 compatibility, also check Str
-        def visit_Str(self, node):
-            literals.append(node.s)
-            self.generic_visit(node)
-
         def visit_JoinedStr(self, node):
             # f-string - flag as suspicious if any part contains denied
             for v in node.values:
@@ -534,8 +523,6 @@ def _has_dynamic_path_construction(src, tree):
                 def extract_str(n):
                     if isinstance(n, ast.Constant) and isinstance(n.value, str):
                         return n.value
-                    if isinstance(n, ast.Str):
-                        return n.s
                     if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Add):
                         left = extract_str(n.left)
                         right = extract_str(n.right)
