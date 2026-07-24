@@ -30,6 +30,6 @@ blur spreads energy but does not create or destroy heat. that physics makes prec
 
 simple tricks off large margin. grade at three percent tolerance only genuine precise method passes.
 
-parse bytes yourself only stdlib like struct. do not use numpy scipy scikit image opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph helper. do not use subprocess os system popen exec double underscore import importlib runpy ctypes eval exec compile shell. do not open tests folder list filesystem.
+parse bytes yourself only stdlib like struct. banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing glob multiprocessing socket pathlib os io chr bytes bytearray posixpath ntpath genericpath. also do not open / read tests directory.
 
 print volume mm3 as last word.
