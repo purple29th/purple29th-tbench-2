@@ -18,19 +18,25 @@ A one-shot template (numpy + scipy.ndimage.label + threshold-count) is both forb
 
 ## Completion Rates
 
-| Model | Agent | Pass rate |
-|-------|-------|-----------|
-| Oracle | `oracle` | 1.0 (deterministic; all 5 verifier tests pass) |
-| Frontier models | `metacode` / `claude-code` | to be measured by validation pipeline |
+Sync'd from validation at commit 79c0488 (15 trials + 3 oracle):
 
-> **Calibration target:** models reaching for family threshold-and-count solution or numpy one-shot fail here; only genuine intensity-conservation derivation passes. Dominant expected failure is *counting thresholded voxels instead of integrating conserved intensity* — reasoning gap not setup issue: oracle and independent conservation impl both pass under 1.1%, so correct base-Python solution exists.
+| Model | Trials | Pass rate | Notes |
+|-------|--------|-----------|-------|
+| `claude-opus-4-8` | 5 | 4/5 = 80% | Conservation solutions |
+| `gpt-5.5` | 5 | 4/5 = 80% | Conservation solutions |
+| `meta/avocado-5.14-code` | 5 | 1/5 = 20% | 1 PASSED, 4 incomplete / wrong |
+| `oracle` (golden `solution/solve.py`) | 3 | 3/3 = 100% | Validates grader |
+
+Overall: 9/15 = 60% non-oracle passes, indicating real insight needed.
+
+> **Calibration target:** models reaching for family threshold-and-count solution or numpy one-shot fail here; only genuine intensity-conservation derivation passes. Dominant expected failure is *counting thresholded voxels instead of integrating conserved intensity*.
 
 ## Model Analysis
 
 The task forces multi-step physics-informed reasoning from raw bytes:
 
-* **Binary parsing:** custom little-endian header with magic GVOL, version, dtype code 2=int16 16=float32, nx ny nz, sx sy sz mm per axis anisotropic, data_offset. X-fastest indexing. From-scratch check rejects numpy/scipy/imaging/graph libs.
-* **Background inference:** background dominates volume, must be estimated robustly without bias from tumor itself.
+* **Binary parsing:** custom little-endian header with magic GVOL, version, dtype code 2=int16 16=float32, nx ny nz, sx sy sz mm per axis anisotropic, data_offset. X-fastest indexing. From-scratch check rejects numpy/scipy/imaging/graph libs plus pathlib, glob, etc.
+* **Background inference:** background dominates volume, must be estimated robustly without bias from tumor itself. Flat constant bg plus symmetric uniform noise, robust median/MAD needed to reject tumor outliers.
 * **Speck isolation:** far gold dust artefacts must be dropped by keeping largest-mass 26-connected component, not largest voxel count.
 * **Plateau amplitude:** interior value never observed directly due to blur+noise; must be estimated from most concentrated region via filtered peak, not naive max.
 * **Halo integration:** faint Airy halo still carries gold signal and must be included via adaptive growth until shell mean hits noise floor, without bridging to specks.
@@ -40,15 +46,14 @@ Threshold strategies measured on sample+3 heldouts: threshold@200 + largest CC =
 
 ## Anti-Cheating Analysis
 
-* **Hardcoded outputs:** grading runs script on three hidden held-out scans whose volumes (3977.5, 3983.4, 4428.0 mm^3) differ from each other and visible sample (3206.3 mm^3). Constant or sample-memorized value cannot pass.
-* **Overfitting to visible tests:** only data in agent container is sample scan, which has different volume and different voxel spacing, PSF width, amplitude, background than graded scans. Held-outs live under `tests/` and absent during agent run.
-* **Modifying test files:** tests and held-out data copied only at verify time. Reward computed by verifier from ground truth it recalculates independently with numpy+scipy by intensity conservation, not from anything agent can edit. `tests/_gen.py` co-located with tests and never present in agent container.
-* **Bypassing intended path:** `test_from_scratch()` rejects numpy, scipy, scikit-image, OpenCV, PIL/Pillow, networkx, igraph, etc and shelling out — forcing genuine byte parsing and hand-written solution. From-scratch is necessary but not sufficient: prior family's threshold-and-count passes `test_from_scratch()` but fails every held-out by 88-128%. Per-scan varied spacing forces reading header; point-spread blur plus partial-volume defeats every fixed threshold >=12% off; 3% tolerance rejects naive shortcuts while admitting any sound conservation implementation.
+* **Hardcoded outputs:** grading generates held-out scans at test time from configs with geometric truth computed inside verifier, not from static files. Volumes (3977.5, 3983.36, 4428.0 mm3 plus randomized extras) differ from sample (3206.3 mm3). Constant fails. No hardcoded GEOM_TRUTH dict with filenames parseable by solver; truth is derived from field generation.
+* **Overfitting to visible:** only sample scan in agent container at `/app/data/scene.gvol`, different volume/spacing/PSF/amplitude/bg/noise than hidden generated scans. Hidden inputs are generated in temp dir with random filenames and passed to solver, not byte-identical to any committed file. `tests/data/heldout_*.gvol` no longer used by verifier.
+* **Secure runner:** verifier runs solver via `_secure_runner.py` with `sys.addaudithook` blocking any `open()` of paths containing `/tests`, `test_outputs`, `heldout`, `reference`, `_gen`, `/app/data`, `scene.gvol`, `GEOM_TRUTH`, `geometric_truth`, `reference_volume`, plus blocking `os.listdir/scandir/walk` on sensitive dirs and blocking `os.system/popen/exec/fork/spawn` and `subprocess/socket` events. Audit also blocks banned imports `numpy/scipy/skimage/cv2/PIL/pandas/torch/tensorflow/subprocess/socket/multiprocessing/glob/pathlib`. This defeats the previously reported reward hack that read `/tests/test_outputs.py` for hardcoded truths and iterated `/tests/data` via `pathlib.Path`.
+* **From-scratch guard:** `test_from_scratch()` uses AST checks for banned modules including `pathlib`, banned calls `eval/exec/compile/__import__/chr/getattr/setattr`, banned attrs `system/popen/exec/fork/walk/listdir/scandir/rglob/__subclasses__` etc, plus case-insensitive substring and compact-token checks for `/tests`, `test_outputs`, `heldout`, `reference`, `_gen`, `scene.gvol`, `/app/data`, `GEOM_TRUTH`, `geometric_truth`, `reference_volume`, and explicit bans on `chr()`, `fromhex`, `b64decode`, `base64`, `pathlib`, `rglob`, `glob(` to prevent obfuscation.
+* **Bypassing intended path:** numpy one-shot and threshold-and-count both pass from-scratch but fail every hidden generated case by 80-130%+.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
 
-
-## Fix Log (2026-07-23)
-- Fixed TBR FAIL test_deps_not_in_image by removing numpy/scipy from Dockerfile (stdlib-only verifier)
-- Fixed Quality Review: reference now uses geometric truth 3977.5/3983.36/4428.0 mm3
-- Commit 01cc0dbf verified on GitHub API
+## Fix Log
+* 2026-07-23: Fixed TBR FAIL test_deps_not_in_image by removing numpy/scipy from Dockerfile (stdlib-only verifier), reference uses geometric truth 3977.5/3983.36/4428.0 mm3
+* 2026-07-27: Fixed Needs Revision reward hack per raheel@meta.com. Rewrote `tests/test_outputs.py` to secure verifier pattern: generate heldouts in temp dir with random filenames, compute geometric truth at runtime, run solver in isolated sandbox with audit hook blocking /tests, /app/data, heldout, reference, _gen, scene.gvol, GEOM_TRUTH, pathlib, glob, chr obfuscation. Added explicit banned list to `instruction.md` and hardened `test_from_scratch()`. Verified oracle passes 7/7 and exploit `Path("/tests/data").iterdir()` + `open("/tests/test_outputs.py")` now blocked at AST and runtime.

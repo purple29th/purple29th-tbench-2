@@ -30,6 +30,6 @@ blur spreads energy but does not create or destroy light. that physics makes pre
 
 simple tricks off large margin. grade at three percent tolerance only genuine precise method passes.
 
-parse bytes yourself only stdlib like struct. do not use numpy scipy scikit image opencv pillow networkx igraph imageio pandas torch tensorflow or any array image graph helper. do not use subprocess os system popen exec double underscore import importlib runpy ctypes eval exec compile shell. do not open tests folder list filesystem.
+parse bytes yourself only stdlib like struct and sys and math and os and random and tempfile and re but not numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow subprocess socket multiprocessing glob pathlib importlib runpy ctypes. banned calls include eval exec compile __import__ chr getattr setattr. also banned is any filesystem inspection via os.system popen exec fork walk listdir scandir rglob glob() and any trick to hide paths using chr() bytes.fromhex base64 b64decode or obfuscation. do not open /tests folder and do not reference test_outputs heldout reference _gen scene.gvol /app/data GEOM_TRUTH geometric_truth reference_volume. solver must be from scratch and work on random temp files, not hardcoded paths.
 
 print volume mm3 as last word.
