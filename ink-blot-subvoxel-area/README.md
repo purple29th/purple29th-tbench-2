@@ -14,31 +14,37 @@ A numpy one-shot is both forbidden and wrong.
 
 ## Completion Rates
 
-| Model | Agent | Pass rate |
-|-------|-------|-----------|
-| Oracle | `oracle` | 1.0 (deterministic; 3 verifier tests) |
-| Frontier | `metacode` / `claude-code` | to be measured |
+Sync'd from validation at commit 72e84de (15 trials + oracle):
 
-> Calibration target: threshold-and-count fails here; only genuine intensity-conservation passes.
+| Model | Trials | Pass rate | Notes |
+|-------|--------|-----------|-------|
+| `claude-opus-4-8` | 5 | 2/5 = 40% | Conservation solutions, 3 failures incomplete/threshold |
+| `gpt-5.5` | 5 | 4/5 = 80% | 4 passes, 1 fail |
+| `meta/avocado-5.14-code` | 5 | 1/5 = 20% | 1 pass, 4 fails |
+| `oracle` (golden `solution/solve.py`) | 3 | 3/3 = 100% | Validates grader |
+
+Overall non-oracle: 7/15 = 46.7% passes, showing real difficulty vs pulse task.
+
+> Calibration target: threshold-and-count fails 80-130% over or 30-50% under; only genuine intensity-conservation passes <1% error. Grading at 3% tolerance.
 
 ## Model Analysis
 
-Forces multi-step reasoning from raw bytes:
-* **Binary parsing:** custom little-endian header magic INKB, version, dtype 2=int16 16=float32, nx ny, sx sy mm per pixel anisotropic, data_offset. X-fastest. From-scratch bans numpy/scipy/imaging/graph libs.
-* **Background:** paper background dominates image, robust median/MAD needed.
-* **Speck isolation:** far dust specks dropped by largest-mass 8-connected component.
-* **Plateau:** interior darkness hidden by diffusion+noise; filtered peak needed.
-* **Halo:** faint capillary halo carries ink signal, adaptive growth until shell mean hits noise floor.
+Forces multi-step calculus reasoning from raw bytes:
+* **Binary parsing:** custom little-endian header magic INKB, version, dtype 2=int16 16=float32, nx ny, sx sy mm per pixel anisotropic, data_offset. X-fastest. From-scratch bans numpy/scipy/imaging/graph libs plus pathlib/glob etc.
+* **Background:** flat paper background `bg` plus symmetric uniform noise `(rng-0.5)*2*noise` (no drift). Robust median/MAD over full image needed to reject blot/dust outliers.
+* **Speck isolation:** far dust specks dropped by largest-mass 8-connected component above noise, not largest voxel count.
+* **Plateau:** interior darkness hidden by diffusion+noise; 3x3 mean-filtered peak over blot needed, not naive max.
+* **Halo:** faint capillary diffusion halo carries conserved ink signal, adaptive growth until shell mean hits noise floor, without bridging to specks.
 * **Area calc:** pixels = integrated residual / amplitude; mm2 = pixels*sx*sy with per-scan anisotropic pixel size.
 
-Threshold strategies: low thr 88-128% over, best fixed absolute 31% worst, best fraction of amplitude 12% worst, half-max/Otsu 18-35% off. Conservation 0.19-0.99%.
+Threshold strategies measured on 5 generated configs: low thr 88-128% over, best fixed absolute 31% worst, best fixed fraction of amplitude 12% worst, half-max/Otsu 18-35% off. Conservation 0.19-0.99% per scan.
 
 ## Anti-Cheating Analysis
 
-* **Hardcoded outputs:** grading runs on 3 hidden held-out scans whose areas (12.36, 6.21, 10.10 mm2) differ from each other and visible sample (6.04 mm2). Constant fails.
-* **Overfitting to visible:** only sample in agent container, different area/spacing/PSF/amplitude/background than held-outs. Held-outs under tests/ absent during agent run.
-* **Modifying test files:** tests and held-out data copied only at verify time. Ground truth from generator geometric area, not agent-editable. _gen.py co-located with tests never in agent container.
-* **Bypassing intended path:** test_from_scratch rejects numpy/scipy/skimage/cv2/PIL/networkx/igraph/imageio/pandas/torch/tensorflow/socket/multiprocessing/glob and shelling out – forcing genuine byte parsing. Threshold-and-count passes from-scratch but fails every held-out by 80-130%+.
-* **New domain:** Ink blot capillary wicking on porous paper is distinct from ToF parcel, gold tumor, thermal void – uses paper lab, filter paper, ink darkness, dust specks, capillary diffusion – embedding dedup NOVEL expected.
+* **Hardcoded outputs:** grading generates 5 held-out scans at test time from configs with geometric truth computed inside verifier (`field = blurred+bg+(rng-0.5)*2*ns`), not from static files. Areas differ from sample (6.04 mm2) and from each other (e.g. heldouts ~12.36, 6.21, 10.10 mm2 plus extra large_blot and random_feather). Constant or sample-memorized value fails. No hardcoded GEOM_TRUTH dict parseable by solver.
+* **Overfitting to visible:** only sample scan present in agent container at `/app/data/scene.inkb`, with different area/spacing/PSF/amplitude/bg/noise than hidden generated scans. Hidden inputs are generated in temp dir with random filenames (`input_<hex>.inkb`) and are not byte-identical to any committed file.
+* **Secure runner:** verifier runs solver via `_secure_runner.py` with `sys.addaudithook` blocking `open()` on paths containing `/tests`, `test_outputs`, `heldout`, `reference`, `_gen`, `/app/data`, `scene.inkb`, `GEOM_TRUTH`, blocking `os.listdir/scandir/walk` on sensitive dirs, blocking `os.system/popen/exec/fork/spawn` and `subprocess/socket` events, and blocking banned imports `numpy/scipy/skimage/cv2/PIL/pandas/torch/tensorflow/subprocess/socket/multiprocessing/glob/pathlib`. Defeats reward hack that previously could read `test_outputs.py` for truths or iterate `/tests/data` via `pathlib`.
+* **From-scratch guard:** `test_from_scratch()` uses AST checks for banned modules including `pathlib`, banned calls `eval/exec/compile/__import__/chr/getattr/setattr`, banned attrs `system/popen/exec/fork/walk/listdir/scandir/rglob/__subclasses__` etc, plus case-insensitive substring and compact-token checks for `/tests`, `test_outputs`, `heldout`, `reference`, `_gen`, `scene.inkb`, `/app/data`, `GEOM_TRUTH`, `geometric_truth`, and bans `chr(`, `fromhex`, `b64decode`, `base64`, `pathlib`, `rglob`, `glob(`.
+* **New domain:** Ink blot capillary wicking on porous paper (filter paper, ink darkness, dust specks, capillary diffusion, mm2 area) is distinct from ToF parcel volume, gold tumor mm3, thermal void, and pulse ns duration. 2D 8-connected version vs 3D 26-connected family shows transfer but requires adaptation.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
