@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/ink-blot-subvoxel-area"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array/imaging libs) that parses a custom capillary ink blot scan (binary .inkb) on porous paper and reports true inked area in mm^2. Ink wicks via capillary diffusion plus lens PSF spreads intensity, so thresholding overcounts halo or undercounts thin feathered filaments. Correct method is intensity conservation: integrate background-subtracted intensity over isolated blot + halo and normalize by concentrated plateau darkness. Graded on held-out scans at 3% tolerance."
+description = "Write a from-scratch Python script (no array/imaging libs) that parses a custom capillary ink blot scan (binary .inkb) on porous paper and reports true inked area in mm^2. Ink wicks via capillary diffusion plus lens PSF spreads intensity, so thresholding overcounts halo 80-130% or undercounts thin feathered filaments 30-50%. No fixed cutoff works across paper brightness, diffusion width, and pixel pitch. Graded on held-out scans at 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["ink", "capillary", "blot", "paper", "porous", "wiking", "area", "diffusion", "binary-parsing", "from-scratch"]
 
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["ink-blot", "capillary-wicking", "paper-porous", "blot-area", "diffusion-psf", "partial-area", "intensity-conservation", "from-scratch", "binary-parsing", "calculus-area"]
+tags = ["ink-blot", "capillary-wicking", "paper-porous", "blot-area", "diffusion-psf", "partial-area", "porous-wicking", "from-scratch", "binary-parsing", "filter-paper"]
 expert_time_estimate_min = 50.0
 junior_time_estimate_min = 180.0
 

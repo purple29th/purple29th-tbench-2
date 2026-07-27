@@ -2,15 +2,13 @@
 
 ## Description
 
-The agent writes a **from-scratch** Python script (`/app/solve.py`, stdlib only) that reads a custom capillary ink blot scan (`.inkb`, magic `INKB`) on porous paper and reports true inked area in square mm. Script takes scan path as first arg and prints area as final number.
+The agent writes a **from-scratch** Python script (`/app/solve.py`, stdlib only) that reads a custom capillary ink blot scan (`.inkb`, magic `INKB`) of ink wicking on porous filter paper and reports true physical inked area in square millimetres. Script takes scan path as first argument and prints area as final number.
 
-This is the **area** version of `android-tof-subvoxel-volume` and `confocal-gold-subvoxel-volume` and `foundry-thermal-subvoxel-void` – same sweet spot but 2D calculus: threshold counting overcounts halo 80-130% or undercounts thin feathered wicking 30-50%, no fixed cutoff works across different paper porosity, ink darkness, pixel pitch.
+Paper QC scenario: a single ink drop wicks into filter paper via capillary action and is imaged under a low-cost lens that introduces a wide point spread. The raw image shows a large fuzzy dark blob, but the true inked region that would be measured under ideal optics is much smaller and has thin feathered fingers that never appear fully dark. Low threshold includes huge diffuse halo overcounting 80-130 percent, high threshold misses feathered wicking undercounting 30-50 percent, and no fixed cutoff is stable across paper batches because amplitude, paper brightness, pixel pitch, and diffusion width change per scan.
 
-Ink drop wicks via capillary diffusion plus lens PSF smears darkness everywhere, so true inked area is not recoverable by counting dark pixels. **Correct method is intensity conservation via most concentrated area (calculus integration):** `area_pixels = sum(bg-subtracted over blot+halo) / plateau_darkness`, `mm2 = pixels*sx*sy`. Agent must infer paper background, isolate main blot from far dust specks via largest-mass 8-connected component, estimate plateau darkness via filtered peak, integrate halo.
+Precise recovery requires full physics reasoning from raw bytes, not pixel counting. A naive numpy plus threshold one-shot is both forbidden by the from-scratch guard and wrong by more than 12 percent at 3 percent tolerance. The correct approach needs robust background estimation, main blot isolation from far dust specks, interior darkness estimation despite blur and noise, and halo inclusion without bridging to specks.
 
-Threshold shortcuts are 12-35% off, conservation <1%.
-
-A numpy one-shot is both forbidden and wrong.
+Threshold shortcuts are 12-35 percent off, genuine physics-informed reconstruction lands under 1 percent.
 
 ## Completion Rates
 
