@@ -2,19 +2,13 @@
 
 ## Description
 
-The agent writes a **from-scratch** Python script (`/app/solve.py`, standard library only) that reads a custom confocal fluorescence volume (`.gvol`, magic `GVOL`) of a tumor labeled with gold nanoclusters and reports its physical volume in cubic millimetres. The script takes the scan path as first argument and prints volume as final number on stdout.
+The agent writes a **from-scratch** Python script (`/app/solve.py`, stdlib only) that reads a custom confocal fluorescence volume (`.gvol`, magic `GVOL`) of a resected tissue sample labeled with gold nanocluster tumor marker and reports true physical tumor volume in cubic millimetres. Script takes scan path as first argument and prints volume as final number on stdout.
 
-This is the **precision escalation** of `mri-volume-calc` and `android-depth-object-volume`. Those tasks are solved by thresholding to a bright mask and counting largest connected component voxels. **Here that approach is wrong by 20–130%.**
+Clinical oncology scenario for intraoperative dosing: gold nanoclusters make tumor cells fluoresce brightly under confocal, but the microscope's Airy disk and tissue scattering spread that fluorescence far beyond the true margin. The raw stack shows a large fuzzy glowing cloud, but the true tumor that would be measured under ideal deconvolved optics is smaller with thin infiltrating strands that never appear fully bright. Low threshold counting includes huge diffuse glow overcounting 88 to 128 percent, high threshold misses infiltrating strands undercounting 30 to 50 percent, and no fixed cutoff is stable across samples because gold amount, autofluorescence background, voxel pitch, and PSF width change per scan.
 
-Gold labeling makes the tumor a concentrated bright mass, but the confocal microscope Airy disk point-spread function smears that concentrated light everywhere. Three consequences:
+Precise recovery requires full physics reasoning from raw bytes, not bright voxel counting. A naive numpy plus scipy.ndimage.label threshold one-shot is both forbidden by the from-scratch guard and wrong by more than 12 percent at 3 percent tolerance. The correct physics-informed reconstruction must robustly estimate background without tumor bias, isolate main gold mass from far dust artefacts, estimate interior concentrated brightness despite blur and noise, and grow to include faint diffusion halo without merging specks. Honest reconstruction lands under 1 percent error.
 
-1. **No threshold recovers volume.** Solid core saturates to a peak amplitude after blur, but thin infiltrating strands have partial-volume intensity never reaching any usable threshold. Counting thresholded voxels either misses thin strands (cut too high) or balloons halo (cut too low). No static rule works across scans.
-
-2. **Correct method is intensity conservation via most concentrated area.** A normalized blur conserves total fluorescence, so true voxel count is `sum(intensity - background over object+halo) / plateau_amplitude`. The agent must infer background, isolate main tumor from far gold dust specks, estimate interior plateau where gold is most concentrated (most concentrated area), and integrate over halo.
-
-3. **Tighter tolerance.** Grading at **3%** vs 5% in family. Conservation method lands <1%; threshold shortcuts are >=12% off.
-
-A one-shot template (numpy + scipy.ndimage.label + threshold-count) is both forbidden and wrong, making task resistant to recall.
+> Calibration: threshold shortcuts are 12-35 percent off, genuine reconstruction <1 percent at 3 percent tolerance.
 
 ## Completion Rates
 
@@ -33,16 +27,16 @@ Overall: 9/15 = 60% non-oracle passes, indicating real insight needed.
 
 ## Model Analysis
 
-The task forces multi-step physics-informed reasoning from raw bytes:
+Forces multi-step clinical image reasoning from raw bytes without array libraries:
 
-* **Binary parsing:** custom little-endian header with magic GVOL, version, dtype code 2=int16 16=float32, nx ny nz, sx sy sz mm per axis anisotropic, data_offset. X-fastest indexing. From-scratch check rejects numpy/scipy/imaging/graph libs plus pathlib, glob, etc.
-* **Background inference:** background dominates volume, must be estimated robustly without bias from tumor itself. Flat constant bg plus symmetric uniform noise, robust median/MAD needed to reject tumor outliers.
-* **Speck isolation:** far gold dust artefacts must be dropped by keeping largest-mass 26-connected component, not largest voxel count.
-* **Plateau amplitude:** interior value never observed directly due to blur+noise; must be estimated from most concentrated region via filtered peak, not naive max.
-* **Halo integration:** faint Airy halo still carries gold signal and must be included via adaptive growth until shell mean hits noise floor, without bridging to specks.
-* **Volume calc:** voxels = integrated residual / amplitude; mm3 = voxels * sx * sy * sz with per-scan anisotropic spacing.
+* **GVOL parsing:** little-endian binary with magic GVOL, version, dtype 2=int16 16=float32, dimensions nx ny nz, anisotropic voxel pitch sx sy sz mm, data offset. X fastest index `x + nx*(y+ny*z)`. From-scratch guard rejects numpy, scipy, skimage, cv2, PIL, networkx, etc plus pathlib and glob.
+* **Autofluorescence background:** tissue autofluorescence dominates voxel count, appears as flat constant plus symmetric uniform noise. Robust median and MAD over lower half needed to avoid tumor bias.
+* **Gold dust filtering:** isolated bright specks far from main lesion are manufacturing artefacts. Must keep gold mass with greatest total residual, using 26-neighbour flood fill, not largest voxel count.
+* **Concentrated brightness:** core saturated value is never directly observable after Airy blur plus noise. Requires 3D mean filtering over main mass and top few peak average, not simple maximum.
+* **Diffuse glow inclusion:** faint Airy disk halo still belongs to tumor and carries significant total signal. Adaptive shell growth outward until ring average falls to noise floor, stopping before bridging to distant specks.
+* **Anisotropic volume:** final mm3 uses per-scan pitch read from header. Thin infiltrating strands are partial volume and cannot be recovered by any fixed threshold; only total energy aware reconstruction stays within 3 percent.
 
-Threshold strategies measured on sample+3 heldouts: threshold@200 + largest CC = 88-128% over, best fixed absolute threshold = 31% worst-case, best fixed fraction of amplitude (true bg and amp given) = 12% worst-case, half-max and Otsu = 18-35% off. Conservation = 0.19-0.99% per scan.
+Measured on 4 generated configs: low threshold plus largest CC 88 to 128 percent over, best fixed absolute 31 percent worst, best fraction of true amplitude 12 percent worst, half max and Otsu 18 to 35 percent off. Physics-informed method 0.19 to 0.99 percent per scan.
 
 ## Anti-Cheating Analysis
 

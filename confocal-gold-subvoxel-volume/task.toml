@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/confocal-gold-subvoxel-volume"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom confocal fluorescence volume of a gold nanocluster-labeled tumor (custom binary .gvol) and reports its physical volume in mm^3. Gold labeling creates a bright, highly concentrated core but the microscope Airy PSF spreads light in all directions, so thresholding overcounts halo or undercounts thin infiltrating strands. The correct method is intensity conservation: integrate background-subtracted intensity over the isolated gold mass and normalize by the concentrated plateau amplitude. Graded on held-out scans at 3% tolerance."
+description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom confocal fluorescence volume of a gold nanocluster-labeled tumor (custom binary .gvol) and reports its physical volume in mm^3. Gold labeling creates a bright core but Airy disk plus tissue scattering spreads fluorescence, so low threshold overcounts diffuse glow 88-128% or high threshold misses infiltrating strands 30-50%. No fixed cutoff works across gold amount, autofluorescence, and voxel pitch. Graded on held-out scans at 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["gold", "fluorescence", "confocal", "nanocluster", "tumor", "psf", "airy", "binary-parsing", "partial-volume", "from-scratch"]
 
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["gold-nanoparticle", "fluorescence", "confocal", "tumor-volume", "point-spread", "airy-disk", "partial-volume", "intensity-conservation", "from-scratch", "binary-parsing", "algorithms"]
+tags = ["gold-nanoparticle", "fluorescence", "confocal", "tumor-volume", "point-spread", "airy-disk", "partial-volume", "confocal-microscopy", "from-scratch", "binary-parsing", "clinical-oncology"]
 expert_time_estimate_min = 60.0
 junior_time_estimate_min = 200.0
 
