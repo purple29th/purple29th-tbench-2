@@ -22,13 +22,13 @@ next four bytes unsigned data offset where pixels start.
 
 after offset you have nx times ny values in announced dtype. x fastest so index for x y is x plus nx times y.
 
-inside is one solid ink region where fibers saturated dark. border much dimmer with partial fill plus smeared halo from capillary diffusion plus optics. flat paper background plus sensor noise. some scans have one or two tiny dark specks far away from manufacturing dust, ignore them.
+inside is one solid ink region where fibers are saturated dark. border is much dimmer with partial fill plus smeared halo from capillary diffusion and lens spread. flat paper background plus sensor noise. some scans have one or two tiny dark specks far away from paper dust; ignore them and keep only the main connected blot using eight neighbours.
 
-this is tricky and every agent will find it hard to be precise. threshold counting never precise. low cutoff includes huge halo overcounts eighty to one hundred thirty percent. high cutoff misses thin feathered wicking that never gets dark enough undercounts thirty to fifty percent. no fixed cutoff works across files because paper brightness and diffusion width change.
+this is tricky and every agent will find it hard to be precise. threshold counting never precise. low cutoff includes huge halo and overcounts a lot. high cutoff misses thin feathered wicking that never gets dark enough and undercounts a lot. no fixed cutoff works across files because paper brightness, ink amount, and diffusion width change per scan. the best clue is not just how many dark pixels but the overall pattern of darkness.
 
-paper fibers spread ink but total amount does not just disappear. that physics makes subpixel area possible despite smear, but using it means separating main blot from far dust specks, estimating paper background without bias from blot itself, figuring true concentrated darkness without noise tricking you, and deciding how far faint halo really goes without accidentally merging specks. that is the hard part and where most shortcuts fail.
+measuring the true area despite blur needs careful statistical handling of background, artefacts, and faint tails. separating the main blot from far specks, getting an unbiased paper level, and deciding where the faint edge really ends without merging dust are the hard parts where most shortcuts fail. the thin feathered extensions are only visible as slightly darker than paper, never fully dark.
 
-simple tricks off by large margin. grade at three percent tolerance only genuine precise method passes.
+simple counting tricks are far outside tolerance. grade at three percent tolerance; only a careful reconstruction that handles blur and noise meets it.
 
 parse bytes yourself only stdlib like struct and sys and math and os and random and tempfile and re but not numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow subprocess socket multiprocessing glob pathlib importlib runpy ctypes. banned calls include eval exec compile __import__ chr getattr setattr. also banned is any filesystem inspection via os.system popen exec fork walk listdir scandir rglob glob() and any trick to hide paths using chr() bytes.fromhex base64 b64decode or obfuscation. do not open /tests folder and do not reference test_outputs heldout reference _gen scene.inkb /app/data GEOM_TRUTH geometric_truth. solver must be from scratch and work on random temp files, not hardcoded paths.
 
