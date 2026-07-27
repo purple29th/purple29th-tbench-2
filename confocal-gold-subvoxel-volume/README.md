@@ -34,9 +34,9 @@ This is a physics-guided signal processing task without array libraries:
 
 ## Anti-Cheating Analysis
 
-* **No memorization:** sample at `/app/data/scene.gvol` is 3206 mm3, hidden volumes are 3977, 3983, 4428 mm3 plus two extra random configs, so constant fails. Hidden inputs are synthesized at test time in a random temp directory with random filenames, not reused from committed files.
-* **Containment:** solver runs in a sandbox created in `test_outputs.py`. Audit hook blocks opening paths that contain `/tests`, `test_outputs`, `heldout`, `reference`, `_gen`, `GEOM_TRUTH`, and blocks directory traversal of `/tests`. It also blocks banned imports such as imaging libraries, `subprocess`, `socket`, `multiprocessing`, `glob`, and `pathlib`. Previous exploit that used `pathlib.Path('/tests/data').iterdir()` and split string `'/te'+'sts'` to read truth is now blocked both statically and at runtime.
-* **From scratch:** AST checks reject `numpy`, `scipy`, `skimage`, `cv2`, `PIL`, `networkx`, `igraph`, `imageio`, `pandas`, `torch`, `tensorflow`, plus `os`, `io` variants for this task family, and reject `eval`, `exec`, `compile`, `__import__`, `chr` and filesystem attribute tricks. String literal and compact token scans block `/tests`, `GEOM_TRUTH`, and obfuscation via `fromhex`, `b64decode`, `base64`.
+* Sample volume differs from hidden volumes, so memorizing sample fails. Hidden cases are created fresh at grading time with random names in a temporary directory, not copied from the repository.
+* Execution is confined to that temporary directory. Attempts to read the test tree or to import imaging, subprocess, or filesystem modules are intercepted and rejected.
+* Source inspection requires standard library only parsing. Use of array, imaging, or graph libraries, shell execution, or path hiding tricks causes the from scratch check to fail.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
 
