@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/ink-blot-subvoxel-area"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array/imaging libs) that parses a custom 2D capillary ink blot scan on filter paper (binary .inkb) and reports true inked area in mm^2. Capillary action plus optics spreads ink beyond fiber saturation, so dark pixel counts are unstable across ink load, paper brightness, and anisotropic pitch. Graded on hidden scans at 3% tolerance."
+description = "Create a pure Python paper tester that reads a filter paper ink blot scan (.inkb) holding one ink drop and reports its true fiber saturated area in mm2. Wicking plus lens spread makes dark pixel totals unreliable. Graded at 3% on hidden scans."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["ink", "capillary", "blot", "paper", "porous", "wiking", "area", "diffusion", "binary-parsing", "from-scratch"]
 
