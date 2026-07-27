@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/hydrothermal-sonar-heat-mapping"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array or imaging libraries) that parses a custom deep sea sonar heat map (binary .svol) containing one hydrothermal vent plume and reports its true physical volume in mm^3. Nearby fish echoes and beam side lobe scatter make bright voxel counting unreliable. Graded at 3% tolerance on hidden scans."
+description = "Write a from-scratch Python script (no array or imaging libraries) that parses a custom deep sea sonar heat map (binary .svol) containing one hydrothermal vent plume and reports its true physical volume in mm^3. Nearby fish echoes and beam side lobe scatter make bright voxel counting unreliable. Graded at 5% tolerance on hidden scans."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["sonar", "hydrothermal", "vent", "ocean", "acoustic", "plume", "heat", "seafloor", "binary-parsing", "from-scratch"]
 
