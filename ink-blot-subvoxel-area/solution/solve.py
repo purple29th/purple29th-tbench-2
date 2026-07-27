@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Oracle: recover true inked area from capillary ink blot .inkb scan, stdlib only.
+"""Paper QC: estimate true inked area on filter paper from .inkb scan.
 
-Ink on porous paper wicks via capillary diffusion plus lens PSF smears darkness.
-Threshold fails (core saturated to amp while feathered filaments partial). Blur
-conserves total ink: area_pixels = sum(bg-subtracted)/amp; area_mm2 = pixels*sx*sy.
+Filter paper wicks a single drop via capillary network and cheap lens adds
+extra spread. Raw image shows dark cloud larger than fiber saturated region with
+thin feathered tails that never become fully dark. Simple dark pixel totals are
+unstable across batches. This reference implementation estimates paper level
+robustly, isolates main blot with 8 neighbour connectivity to drop distant dust,
+estimates interior darkness via local averaging of the brightest filtered region,
+and expands to include faint wicking until ring average reaches noise floor.
 
-Steps similar to volume tasks but 2D with 8-neighbour connectivity.
+Stdlib only.
 """
 
 import struct
