@@ -14,18 +14,24 @@ A numpy one-shot is both forbidden and wrong.
 
 ## Completion Rates
 
-| Model | Agent | Pass rate |
-|-------|-------|-----------|
-| Oracle | `oracle` | 1.0 (deterministic; 3 verifier tests) |
-| Frontier | `metacode` / `claude-code` | to be measured |
+Sync'd from validated trails at commit 72e84de (18 attempts, 9 pytest checks each):
 
-> Calibration target: threshold-and-count fails here; only genuine integral conservation passes.
+| Model | Trials | Pass rate | Notes |
+|-------|--------|-----------|-------|
+| `claude-opus-4-8` | 5 | 5/5 = 100% | All legitimate area-over-plateau solutions |
+| `gpt-5.5` | 5 | 5/5 = 100% | All legitimate parser + conserved-charge solutions |
+| `meta/avocado-5.14-code` | 5 | 1/5 = 20% | 1 PASSED (gLccLed), 4 FAIL_INCOMPLETE due to `MetaModelCatalogError` / no `/app/solve.py` – infra failures, not reasoning failures |
+| `oracle` (golden `solution/solve.py`) | 3 | 3/3 = 100% | Validates grader accepts reference implementation |
+
+Overall: 14/18 = 77.8% passes; 4/18 failures are incomplete submissions (catalog/load errors). Excluding infra-incomplete, reasoning pass rate is 14/14 = 100% for agents that produced a file, indicating real insight but low observed difficulty (EASY) for successful runs.
+
+> Calibration target: threshold-and-count fails here; only genuine integral conservation passes. Low-threshold counting 80-130% over, high-threshold 30-50% under, no fixed cutoff stable across amplitude/baseline/dt/sigma.
 
 ## Model Analysis
 
 Forces multi-step calculus reasoning from raw bytes:
 * **Binary parsing:** custom little-endian header magic PLSE, version, dtype 2=int16 16=float32, n, dt ns per sample, data_offset, baseline_hint (must ignore). X-fastest. From-scratch bans numpy/scipy/imaging/graph libs.
-* **Baseline:** baseline drift dominates trace, robust median/MAD needed.
+* **Baseline:** flat constant background `bg` plus symmetric uniform noise `(rng-0.5)*2*noise` (no drift ramp). Verifier `tests/test_outputs.py:162` `field = blurred+bg+(rng-0.5)*2*ns`. Robust median/MAD over full trace needed to ignore pulse/afterpulse outliers and estimate flat baseline, not to track drift. Misleading `baseline_hint` test checks that solver ignores header hint.
 * **Afterpulse isolation:** far afterpulses dropped by largest-mass 1D contiguous component above noise.
 * **Plateau:** interior amplitude hidden by shaper+noise; 3-point moving-average peak needed.
 * **Halo:** faint shaper tails carry charge, adaptive growth until shell mean hits noise floor.
