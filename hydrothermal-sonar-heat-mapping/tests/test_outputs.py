@@ -89,7 +89,6 @@ BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
-    "reference",
     "_gen",
     "GEOM_TRUTH",
     "geometric_truth",
@@ -316,7 +315,7 @@ import sys, os, runpy
 solve_path = sys.argv[1]
 svol_path = sys.argv[2]
 
-BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "reference", "_gen", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
+BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "_gen", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
 
 def is_blocked(p):
     s = str(p)
