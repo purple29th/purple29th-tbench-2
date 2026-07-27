@@ -97,8 +97,6 @@ BANNED_SUBSTRINGS_SRC = [
     "heldout",
     "reference",
     "_gen",
-    "scene.tiv",
-    "/app/data",
     "GEOM_TRUTH",
     "geometric_truth",
     "reference_volume",
@@ -326,7 +324,7 @@ import sys, os, runpy
 solve_path = sys.argv[1]
 tiv_path = sys.argv[2]
 
-BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "reference", "_gen", "/app/data", "scene.tiv", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
+BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "reference", "_gen", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
 
 def is_blocked(p):
     s = str(p)
@@ -349,7 +347,7 @@ def audit_hook(event, args):
             raise RuntimeError(f"Blocked file access: {path}")
         try:
             rp = os.path.realpath(str(path))
-            if rp.startswith("/tests") or rp.startswith("/app/data") or "/tests" in rp:
+            if rp.startswith("/tests") or "/tests" in rp:
                 raise RuntimeError(f"Blocked realpath access: {path} -> {rp}")
         except RuntimeError:
             raise
@@ -361,13 +359,13 @@ def audit_hook(event, args):
             raise RuntimeError(f"Blocked dir listing: {path}")
         try:
             rp = os.path.realpath(str(path)) if path else ""
-            if rp in ("/", "/app", "/tests", "/app/data", "/tests/data") or rp.startswith("/tests") or rp.startswith("/app/data"):
+            if rp in ("/", "/tests", "/tests/data") or rp.startswith("/tests"):
                 raise RuntimeError(f"Blocked dir listing realpath: {path} -> {rp}")
         except RuntimeError:
             raise
         except:
             pass
-        if str(path) in ("", "/", "/app", "/tests", "/app/data", "/tests/data"):
+        if str(path) in ("", "/", "/tests", "/tests/data"):
             raise RuntimeError(f"Blocked listing of sensitive dir: {path}")
     elif event.startswith("os."):
         banned = {
