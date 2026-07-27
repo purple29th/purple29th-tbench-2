@@ -1,4 +1,7 @@
-import sys, struct
+import sys
+import struct
+
+HEADER = 64
 
 
 def count_live(path):
@@ -9,33 +12,64 @@ def count_live(path):
     ps = struct.unpack_from("<I", d, 8)[0]
     pc = struct.unpack_from("<I", d, 12)[0]
     fh = struct.unpack_from("<I", d, 16)[0]
-    HEADER = 64
+
     free = set()
-    p = fh
-    while p:
-        free.add(p)
-        off = HEADER + (p - 1) * ps
-        if off >= len(d) or d[off] != 0:
+    x = fh
+    visited = set()
+    while x and x not in visited:
+        visited.add(x)
+        free.add(x)
+        off = HEADER + (x - 1) * ps
+        if off >= len(d) or d[off] != 0x00:
             break
-        p = struct.unpack_from("<I", d, off + 1)[0]
+        nxt = struct.unpack_from("<I", d, off + 1)[0]
+        leaf_cnt = struct.unpack_from("<I", d, off + 5)[0]
+        for i in range(leaf_cnt):
+            if off + 9 + i * 4 + 4 > len(d):
+                break
+            lp = struct.unpack_from("<I", d, off + 9 + i * 4)[0]
+            if lp:
+                free.add(lp)
+        x = nxt
+
     total = 0
     for pn in range(1, pc + 1):
         if pn in free:
             continue
         off = HEADER + (pn - 1) * ps
-        if off >= len(d) or d[off] != 0x0D:
+        if off >= len(d):
+            continue
+        typ = d[off]
+        if typ == 0x05:
+            continue
+        if typ != 0x0D:
             continue
         cell_count = struct.unpack_from("<H", d, off + 1)[0]
         fb_off = struct.unpack_from("<H", d, off + 3)[0]
-        # count freeblocks inside page to exclude deleted cells
-        deleted = 0
+
+        intervals = []
+        seen = set()
         fb = fb_off
-        while fb:
-            deleted += 1
-            if off + fb + 2 > len(d):
+        while fb and fb not in seen:
+            seen.add(fb)
+            if off + fb + 4 > len(d):
                 break
-            fb = struct.unpack_from("<H", d, off + fb)[0]
-        total += max(0, cell_count - deleted)
+            nxt = struct.unpack_from("<H", d, off + fb)[0]
+            sz = struct.unpack_from("<H", d, off + fb + 2)[0]
+            if sz == 0:
+                break
+            intervals.append((fb, fb + sz))
+            fb = nxt
+
+        for i in range(cell_count):
+            if off + 7 + i * 2 + 2 > len(d):
+                break
+            ptr = struct.unpack_from("<H", d, off + 7 + i * 2)[0]
+            if ptr == 0 or ptr >= ps:
+                continue
+            if any(s <= ptr < e for s, e in intervals):
+                continue
+            total += 1
     return total
 
 
