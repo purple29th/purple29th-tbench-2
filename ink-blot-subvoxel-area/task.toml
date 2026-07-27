@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/ink-blot-subvoxel-area"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Create a pure Python paper tester that reads a filter paper ink blot scan (.inkb) holding one ink drop and reports its true fiber saturated area in mm2. Wicking plus lens spread makes dark pixel totals unreliable. Graded at 3% on hidden scans."
+description = "Paper absorbency test via ink wick on filter sheet. Reads custom 2D .inkb scan and returns true wet area mm2. Graded at 3% on hidden scans."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["ink", "capillary", "blot", "paper", "porous", "wiking", "area", "diffusion", "binary-parsing", "from-scratch"]
+keywords = ["paper", "ink", "filter", "absorbency", "blot", "qc", "wiking", "binary", "area"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["ink-blot", "capillary-wicking", "paper-porous", "blot-area", "diffusion-psf", "partial-area", "porous-wicking", "from-scratch", "binary-parsing", "filter-paper"]
+tags = ["paper-qc", "ink-wiking", "filter-sheet", "absorbency", "blot-area", "from-scratch", "binary-parsing"]
 expert_time_estimate_min = 50.0
 junior_time_estimate_min = 180.0
 
