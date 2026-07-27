@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/wafer-etch-pit-thermal-area"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Write a from-scratch Python script (no array or imaging libraries) that parses a custom semiconductor wafer etch pit thermal map (binary .weta) and reports true etched pit area in mm^2. Laser heating plus thermal diffusion spreads infrared signal beyond true etch boundary, so simple hot pixel counting is unreliable across etch depth, wafer background, and anisotropic pitch. Graded on hidden scans at 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["wafer", "etch", "semiconductor", "thermal", "fab", "laser", "defect", "binary-parsing", "from-scratch", "area"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["semiconductor", "wafer-etch", "thermal-area", "fab-qc", "laser-etch", "defect-inspection", "from-scratch", "binary-parsing"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
