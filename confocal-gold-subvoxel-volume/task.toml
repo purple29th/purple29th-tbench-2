@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/confocal-gold-subvoxel-volume"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom confocal fluorescence volume of a gold nanocluster-labeled tumor (custom binary .gvol) and reports its physical volume in mm^3. Gold labeling creates a bright core but Airy disk plus tissue scattering spreads fluorescence, so low threshold overcounts diffuse glow 88-128% or high threshold misses infiltrating strands 30-50%. No fixed cutoff works across gold amount, autofluorescence, and voxel pitch. Graded on held-out scans at 3% tolerance."
+description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom confocal fluorescence volume of a resected tissue labeled with gold nanocluster tumor marker (binary .gvol) and reports true physical tumor volume in mm^3. Microscope Airy pattern plus tissue scattering smears fluorescence beyond anatomical boundary, so voxel counting is unstable across gold load, autofluorescence, and anisotropic pitch. Graded on hidden scans at 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["gold", "fluorescence", "confocal", "nanocluster", "tumor", "psf", "airy", "binary-parsing", "partial-volume", "from-scratch"]
 
