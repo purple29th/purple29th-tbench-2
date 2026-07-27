@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Oracle for sonar vent plume volume - intensity conservation.
+"""Ocean acoustic plume - robust volume via energy aware method, stdlib only.
 
-Plume is dense bubble core with flat amplitude, smeared by normalized PSF.
-Threshold fails. Total backscatter conserved, so voxels = sum(residual)/plateau.
+Dense bubble core with flat interior, smeared by normalized PSF. Simple
+counting fails. This implementation estimates background via median/MAD,
+isolates main plume via largest mass 26-connected component, estimates
+interior level via filtered peak, and grows halo until shell mean hits floor.
 """
 
-import struct
-import sys
+import struct, sys
 
 
 def parse(path):
@@ -55,10 +56,8 @@ def volume_mm3(path):
     med_lo = _median(lo)
     mad = _median(sorted(abs(v - med_lo) for v in lo))
     sigma = max(1e-6, 1.4826 * mad)
-
     r = [v - bg for v in vals]
-    thr = 4.0 * sigma
-
+    thr = 3.0 * sigma
     occ = [v > thr for v in r]
     seen = bytearray(n)
     best_mass = -1.0
@@ -90,7 +89,6 @@ def volume_mm3(path):
                     best_comp = comp
     if not best_comp:
         return 0.0
-
     filt = []
     for j in best_comp:
         x = j % nx
@@ -107,11 +105,10 @@ def volume_mm3(path):
                         cnt += 1
         filt.append(acc / cnt)
     filt.sort(reverse=True)
-    topk = filt[: max(1, min(8, len(filt)))]
+    topk = filt[: max(1, min(12, len(filt)))]
     amp = sum(topk) / len(topk)
     if amp <= 0:
         return 0.0
-
     region = set(best_comp)
     frontier = set(best_comp)
     floor = 1.0 * sigma
@@ -133,7 +130,6 @@ def volume_mm3(path):
             break
         region |= shell
         frontier = shell
-
     mass = sum(r[j] for j in region)
     return mass / amp * sx * sy * sz
 
