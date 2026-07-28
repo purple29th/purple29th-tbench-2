@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
-"""Oracle for android-wakelock-imbalance: total leaked duration per (id, thread) with dedup."""
+"""Oracle for android-wakelock-imbalance v0.13 hard.
+
+Foundry-inspired hardening: thread-affine, idempotent acquire, cross-thread noise,
+final interval only, per-pair last observation, stable timestamp order.
+
+Leak = sum over (id,thread) still held at end of chronological processing of
+(last_ts_observed_for_that_pair - first_acq_of_final_interval). If just one
+acquire with no later observation for that pair, duration 0. Duplicate while held
+updates last_ts but does not restart interval. Cross-thread release ignored for
+state but counts as observation for its own (id,other_tid) pair.
+"""
 
 import struct
 import sys
-from collections import defaultdict
 
 
 def parse(path):
@@ -12,52 +21,53 @@ def parse(path):
         raise ValueError("bad magic")
     total = struct.unpack_from("<I", d, 8)[0]
     off = struct.unpack_from("<I", d, 12)[0]
-    events = []
+    events = []  # (eid, etype, ts, tid, orig_idx)
     o = off
+    idx = 0
     for _ in range(total):
         if o + 16 > len(d):
             break
         eid, etype, ts, tid = struct.unpack_from("<iIII", d, o)
         o += 16
-        events.append((eid, etype, ts, tid))
+        events.append((eid, etype, ts, tid, idx))
+        idx += 1
     return events
 
 
 def solve_one(path):
     events = parse(path)
-    # sort by timestamp to respect log order (trace already sorted but enforce)
-    events.sort(key=lambda x: x[2])
+    # stable timestamp order: sort by ts, then orig file order to preserve logger write order within same ms
+    events_sorted = sorted(events, key=lambda x: (x[2], x[4]))
 
-    held = {}  # key -> bool, currently held?
-    first_acq = {}  # key -> ts of first acquire of current held interval (final interval)
-    last_ts = {}  # key -> max ts seen for that pair
+    held = {}  # (id,tid) -> bool
+    first_acq = {}  # (id,tid) -> ts of first acquire of final still-held interval
+    last_ts = {}  # (id,tid) -> max ts seen for that pair (any event type)
 
-    for eid, etype, ts, tid in events:
+    for eid, etype, ts, tid, _orig in events_sorted:
         key = (eid, tid)
-        # track last timestamp seen for this (id, thread) pair
+        # per-pair last observation: any event for this exact (id,thread) pair, even dup/dangling, counts
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
         if etype == 1:  # acquire
             if held.get(key, False):
-                # duplicate acquire without intervening release: dedup, count once
+                # idempotent – already held, duplicate log is harmless no-op, but last_ts already updated
                 continue
             held[key] = True
-            # start of final held interval (overwrites any previous after balanced release)
             first_acq[key] = ts
         else:  # release
             if not held.get(key, False):
-                # dangling release: no matching acquire from same thread, ignore
+                # dangling or cross-thread attempt already filtered by key mismatch for cross-thread,
+                # but for same key dangling is noise
                 continue
             held[key] = False
-            # clear current interval start; next acquire will start new interval
             first_acq[key] = None
 
     total_leaked = 0
     for key, is_held in held.items():
         if is_held:
-            # if leaked, first_acq must be set and last_ts >= first_acq
             f = first_acq.get(key)
             if f is not None:
+                # per-pair last, not global trace end – if pair stopped early, don't extend to global max
                 total_leaked += last_ts[key] - f
 
     print(total_leaked)
