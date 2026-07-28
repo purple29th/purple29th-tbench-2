@@ -29,3 +29,5 @@ blur spreads energy but does not create or destroy photons, that physics makes p
 parse binary yourself using only stdlib like struct, banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing glob multiprocessing socket. also do not open / read tests directory or heldout files.
 
 at end print volume mm3 as last token, grading at 3 percent tolerance exact thresholds not prescribed you must find robust ones that work across scans with different power background pitch dust, 3 percent band allows some heuristic variation but threshold shortcuts will fail.
+
+<!-- pushed Tue Jul 28 04:47:26 AM UTC 2026 -->
