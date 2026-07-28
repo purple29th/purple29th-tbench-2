@@ -4,7 +4,7 @@ We dump the coulomb trace via custom file bctr. The test app writes little endia
 
 Your job is to write a program at /app/solve.py that reads a file path from sys argv 1. We run python3 /app/solve.py /path/to/scan.bctr and your stdout last token must be a float that is true charge capacity in mAh for the main swell event after you clean baseline and ignore far blips.
 
-Sample file is at /app/data/scene.bctr you can try locally. Expected true capacity for sample is about 943.0 mAh (within 3% relative). Hidden grading uses other files you never saw with different capacities (roughly 659, 916, 1006, 955 mAh range), charge rates, baseline drift, gain, noise, dust blips including a wide low-amplitude blip. Do not hardcode sample.
+Sample file is at /app/data/scene.bctr you can try locally. Expected true capacity for sample is about 896.0 mAh (within 3% relative, gain 0.95). Hidden grading uses other files you never saw with different capacities (roughly 527-1207 mAh range after interval/gain variation), charge rates, baseline drift, gain, noise, dust blips including a wide low-amplitude blip. Do not hardcode sample.
 
 File format is my own invented battery charge trace, magic BCTR.
 
@@ -25,9 +25,16 @@ Trace contains slowly drifting background baseline plus Gaussian random noise pl
 
 Why fixed threshold fails: low cut includes halo and dust and overestimates, high cut misses long low-amplitude tails and underestimates. No fixed cut works because gain and baseline shift per batch and per board. The smear is charge-conserving: total charge under blurred curve equals ideal occupancy * plateau, so total area is preserved even though peak is smeared lower and wider. The true capacity is defined as integral of the ideal (non-blurred) occupancy, which equals integral of the blurred residual over its full extent.
 
-Goal is coulomb counting for the main swell: estimate background current robustly in presence of slow linear drift and noise, distinguish main event from far sparse blips by how much charge it actually carries, recover the low-amplitude smeared tails that hold significant charge despite not looking bright, and integrate residual current over time to get mAh using the header interval, shunt gain, and proper unit conversion (payload is deci-mA, 1 mAh = 3600 mA·s). Think about what distinguishes concentrated charge dumps from connector noise, and how to decide where the smeared halo ends and pure noise begins without a fixed global cutoff.
+Goal is coulomb counting for the main swell: estimate background current robustly in presence of slow linear drift and noise, distinguish main event from far sparse blips by how much charge it actually carries, recover the low-amplitude smeared tails that hold significant charge despite not looking bright, and integrate residual current over time to get mAh.
 
-Sample: scene has interval 0.5 sec, gain 1.0. Grading checks within 3 percent relative tolerance.
+Exact capacity formula (canonical, must be used):
+  total_residual = sum over main-event samples of (raw_value - estimated_baseline)   # raw is int16 payload units (deci-mA)
+  capacity_mAh = total_residual / 10.0 * interval_seconds * shunt_gain / 3.6
+The division by 10 converts deci-mA to mA, multiplication by interval gives mA·s, division by 3.6 converts to mAh (since 1 mAh = 3.6 coulombs), and multiplication by shunt_gain is the charge-conservation convention for this hardware: true capacity scales linearly with the shunt_gain field — you must multiply the integrated residual by gain, not divide. Physically the gauge reports int16 = true_current *10 / gain in some boards, but in this BCTR dump the stored payload is already pre-scaled so the canonical reconstruction is multiply-by-gain. The sample file uses gain=0.95 to make this empirically disambiguable (gain=1.0 would hide the direction).
+
+Think about what distinguishes concentrated charge dumps from connector noise, and how to decide where the smeared halo ends and pure noise begins without a fixed global cutoff.
+
+Sample: scene has interval 0.5 sec, gain 0.95. Grading checks within 3 percent relative tolerance and uses varied intervals (0.4, 0.5, 0.6) across heldouts, so you must use header interval field.
 
 Parse binary yourself using only struct. Allowed modules are struct, sys, collections. Banned modules are numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, shutil, io, os, pty, importlib, runpy, ctypes. Banned calls are eval, exec, compile, __import__, getattr, setattr, hasattr, globals, locals, vars, dir, chr, ord, breakpoint, base64, binascii, codecs. Banned runtime tricks are subprocess, os system popen exec, walk listdir scandir stat fdopen path and pathlib Path shutil io open, importlib runpy pty. Do not open or read tests directory or heldout files or gen file or ground truth file. Checks via AST and literal scan; we block /tests, heldout, _gen, ground_truth strings.
 
