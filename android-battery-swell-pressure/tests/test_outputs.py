@@ -1,16 +1,17 @@
-"""Verify /app/solve.py reports true pressure peak kPa for BSWP trace.
-Ground truth is true peak from generator stored in ground_truth.json.
+"""Verify /app/solve.py reports true capacity mAh for BCTR trace.
+Ground truth is integral true capacity from generator stored in ground_truth.json.
 """
 import ast, os, re, shutil, struct, subprocess, sys, tempfile, json
 import pytest
+from collections import deque
 
 SCRIPT="/app/solve.py"
 REL_TOL=0.03
 HELDOUTS=[
-    "/tests/data/heldout_1.bswp",
-    "/tests/data/heldout_2.bswp",
-    "/tests/data/heldout_3.bswp",
-    "/tests/data/heldout_4.bswp",
+    "/tests/data/heldout_1.bctr",
+    "/tests/data/heldout_2.bctr",
+    "/tests/data/heldout_3.bctr",
+    "/tests/data/heldout_4.bctr",
 ]
 
 BANNED_MODULES={
@@ -23,16 +24,7 @@ BANNED_TOKENS_FOR_PATH=["/tests","test_outputs","heldout","_gen","reference","gr
 BANNED_OS_ATTRS={"system","popen","exec","walk","listdir","scandir","open","stat","read","fdopen","path"}
 ALLOWED_DUNDER_ATTRS={"__name__","__main__"}
 
-def _parse(path):
-    d=open(path,"rb").read()
-    assert d[:4]==b"BSWP", f"{path}: bad magic {d[:4]}"
-    total=struct.unpack_from("<I",d,8)[0]
-    off=struct.unpack_from("<I",d,12)[0]
-    n=total
-    vals=list(struct.unpack_from(f"<{n}h",d,off))
-    return n,vals
-
-def ground_truth_peak(path):
+def ground_truth_cap(path):
     for base in ["/tests/data/ground_truth.json","tests/data/ground_truth.json"]:
         if os.path.exists(base):
             gt=json.load(open(base))
@@ -44,7 +36,7 @@ def ground_truth_peak(path):
 def run_agent(path):
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
     with tempfile.TemporaryDirectory() as td:
-        neutral=os.path.join(td,"scan.bswp")
+        neutral=os.path.join(td,"scan.bctr")
         shutil.copyfile(path,neutral)
         iso=os.path.join(td,"solve.py")
         shutil.copyfile(SCRIPT, iso)
@@ -56,7 +48,7 @@ def run_agent(path):
     assert lines, f"no stdout on {path}"
     last=lines[-1]
     m=re.findall(r"[-+]?\d*\.\d+|[-+]?\d+", last)
-    assert m, f"no numeric peak on last line: {last!r}"
+    assert m, f"no numeric cap on last line: {last!r}"
     return float(m[-1])
 
 def test_script_exists():
@@ -104,13 +96,10 @@ def test_from_scratch():
     for lit in _iter_string_literals(tree):
         low=lit.lower()
         for banned in BANNED_TOKENS_FOR_PATH:
-            if banned.lower() in low:
-                # allow ground_truth.json mention in comment? No, block /tests etc.
-                # ground_truth is in banned list to prevent reading ground truth file
-                assert False, f"forbidden path {banned!r} in {lit!r}"
+            assert banned.lower() not in low, f"forbidden path {banned!r} in {lit!r}"
 
 @pytest.mark.parametrize("path", HELDOUTS)
 def test_heldout(path):
     got=run_agent(path)
-    expected=ground_truth_peak(path)
+    expected=ground_truth_cap(path)
     assert abs(got-expected) <= REL_TOL*expected, f"{os.path.basename(path)}: got {got:.2f} expected {expected:.2f} +- {REL_TOL:.0%}"

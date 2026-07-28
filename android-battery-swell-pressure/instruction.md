@@ -1,36 +1,38 @@
-hey so i am in android battery lab we track pouch swelling after fast charge in heat. the phone has strain gauge on pouch that logs pressure. when gas builds you get pressure spike that is smeared by sensor filter plus baseline drift plus dust blips.
+I work on Android battery fuel gauge team chasing capacity drift after fast charge. The gauge has Coulomb counter that logs charge current. When battery swells you get current spike that is smeared by low pass filter plus baseline drift plus random blips from connector noise.
 
-we dump trace via custom file bswp. kotlin test writes ByteBuffer little endian via FileOutputStream.
+We dump the coulomb trace via custom file bctr. The test app writes little endian using ByteBuffer and FileOutputStream.
 
-your job is write /app/solve.py that reads path as first arg. we run python3 /app/solve.py /path/to/scan.bswp and last token of stdout must be float that is true pressure peak in kPa after you clean baseline and dust.
+Your job is write program at /app/solve.py that reads file path from sys argv 1. We will run python3 /app/solve.py /path/to/scan.bctr and your stdout last token must be float that is true charge capacity in mAh for the main swell event after you clean baseline and ignore far blips.
 
-sample at /app/data/scene.bswp you can try locally. hidden grading uses other files you never saw with different pressure peaks, widths, gain, baseline, noise, dust blips. dont hardcode sample.
+Sample file is available at /app/data/scene.bctr you can run locally. Hidden grading uses other files you never saw with different capacities, charge rates, baseline drift, gain, noise, dust blips. Do not hardcode sample number.
 
-bswp format is my tiny container.
+File format is my own invented battery charge trace, magic BCTR.
 
-first four bytes ascii BSWP magic
-next four bytes u32 version 1
-next four bytes u32 total samples
-next four bytes u32 data offset
-next four bytes f32 sample rate hz
-next four bytes f32 gain
-next four bytes u32 baseline floor kPa times 10 maybe
-header at least 36 bytes plus padding, respect data offset
+Layout little endian:
 
-payload at offset is total int16 little endian pressure values times 10, x fastest.
+Bytes 0 to 3 ascii BCTR
+Bytes 4 to 7 u32 version equals 1
+Bytes 8 to 11 u32 total samples
+Bytes 12 to 15 u32 data offset
+Bytes 16 to 19 f32 sample interval seconds
+Bytes 20 to 23 f32 shunt gain
+Bytes 24 to 27 u32 baseline current floor
+Header at least 28 bytes plus padding up to data offset, respect offset
 
-trace has flat background baseline plus noise plus one main pressure spike where gas builds. spike has thick core where pressure flat high plus thin tails from filter smear. some files have one or two tiny blips far away dust artefacts trash you must ignore and keep biggest mass cluster.
+Payload at offset is total int16 little endian current values times 10, all same.
 
-simple fixed threshold fails. low threshold grabs halo and overestimates, high threshold misses tails and underestimates. no fixed cut works because gain baseline shift per batch.
+Trace contains flat background baseline plus noise plus one main charge event where current jumps high flat plus thin tails from filter smear. Some traces have one or two tiny blips far away from connector noise that must be ignored, keep biggest mass cluster via 1D contiguous grouping.
 
-real trick: filter smear conserves total pressure, interior flat saturated but hidden. best clue is where pressure most concentrated not just how many bright samples.
+Fixed threshold counting fails. Low cut includes halo overestimates, high cut misses tails underestimates. No fixed cut works because gain baseline shifts per batch.
 
-parse binary yourself using only struct. banned are numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os. also banned tricks like subprocess os system popen exec and dunder builtins dict subclasses mro and importlib runpy ctypes eval exec compile and getattr setattr hasattr globals locals vars dir chr ord base64 etc. do not open tests directory or heldout files.
+Real trick: low pass filter conserves total charge. Interior flat but hidden by smear and noise. Best clue is where charge most concentrated.
 
-at end print float peak kPa as last token. grading at 3 percent tolerance against true peak from ground truth. we have 3 hidden traces with different peaks gains baselines dust.
+Parse binary yourself using only struct. Allowed are struct sys collections deque. Banned are numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os pty importlib runpy ctypes and any array image graph helper. Also banned tricks like subprocess with os system popen exec and dunder builtins dict subclasses mro and getattr setattr hasattr globals locals vars dir chr ord base64 etc. Do not open tests directory or heldout files.
 
-files may have up to few thousand samples, recursion will fail, use iterative.
+At end print capacity mAh as last token. Grading at 3 percent tolerance against true capacity from ground truth. We have 4 hidden traces with different capacities gains baselines.
 
-this is battery swell pressure, not subvoxel volume. different from oled bond void which is mm3 IR volume and display mura ink pool which is count.
+Files up to few thousand samples, recursion will fail, use iterative.
 
-good luck.
+This is battery fuel gauge capacity, not display mura ink pool count and not OLED void volume mm3.
+
+Good luck, main discriminator is integrating halo versus counting peaks.

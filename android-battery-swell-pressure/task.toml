@@ -2,9 +2,9 @@ schema_version="1.1"
 
 [task]
 name="codimango/android-battery-swell-pressure"
-description="Android battery swell pressure: parse custom BSWP binary with pressure trace from pouch strain gauge, find main pressure spike via largest mass clustering to drop dust, estimate baseline and plateau and integrate conserved pressure to get true peak kPa despite filter smear. Different from OLED void mm3 and display mura count and mobile config closure."
+description="Android battery fuel gauge capacity drift: parse custom BCTR binary with Coulomb counter current trace from fast charge swelling, count charge via conserved total current to get true capacity mAh for main swell event despite low pass smear and baseline drift and dust blips. Distinct from display mura ink pool capacitive count and OLED void IR volume."
 authors=[{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
-keywords=["android","battery","swell","pressure","binary-parsing","from-scratch","kpa"]
+keywords=["android","battery","fuel-gauge","coulomb-counter","binary-parsing","from-scratch","capacity"]
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
 
@@ -16,8 +16,8 @@ category="data-science"
 category_subdomain="mobile_android"
 category_usecase="data_analysis"
 reward_type="binary"
-tags=["android","battery-swell","pressure","binary-parsing","from-scratch","kpa","strain-gauge"]
-expert_time_estimate_min=50.0
+tags=["android","battery-capacity","coulomb-counter","binary-parsing","from-scratch","mAh"]
+expert_time_estimate_min=55.0
 junior_time_estimate_min=170.0
 
 [verifier]
