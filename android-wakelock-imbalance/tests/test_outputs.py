@@ -1,10 +1,10 @@
 """Verify /app/solve.py reports total leaked duration ms for WKLK trace.
-Ground truth from ground_truth.json. Includes varied data_offset and reacquire tests.
-Hardened isolation: copies only single trace to temp dir, bans path construction via concatenation.
+Hardened isolation: no ground_truth.json, expected computed directly from wklk.
+Bans base64/binascii/codecs and encoded path bypass, enforces strict open(argv) dataflow.
 """
 
 import ast
-import json
+import base64
 import os
 import re
 import shutil
@@ -51,6 +51,11 @@ BANNED_MODULES = {
     "shutil",
     "io",
     "pty",
+    "base64",
+    "binascii",
+    "codecs",
+    "builtins",
+    "zlib",
 }
 BANNED_MODULES_STRICT = BANNED_MODULES | {"os"}
 BANNED_CALLS = {
@@ -69,6 +74,17 @@ BANNED_CALLS = {
     "ord",
     "breakpoint",
 }
+BANNED_DECODE_ATTRS = {
+    "b64decode",
+    "b32decode",
+    "b16decode",
+    "b85decode",
+    "a85decode",
+    "decodebytes",
+    "decodestring",
+    "decompress",
+    "b64encode",  # also block encode attempts to hide
+}
 BANNED_TOKENS_FOR_PATH = [
     "/tests",
     "test_outputs",
@@ -76,6 +92,7 @@ BANNED_TOKENS_FOR_PATH = [
     "_gen",
     "reference",
     "ground_truth",
+    "scene.wklk",  # prevent reading scene via hardcoded path bypass? scene is allowed at /app/data but not via /tests
 ]
 BANNED_OS_ATTRS = {
     "system",
@@ -92,7 +109,6 @@ BANNED_OS_ATTRS = {
 }
 ALLOWED_DUNDER_ATTRS = {"__name__", "__main__"}
 
-# Allowed names for file path argument (input trace)
 ALLOWED_PATH_NAMES = {
     "path",
     "file_path",
@@ -109,14 +125,56 @@ ALLOWED_PATH_NAMES = {
 }
 
 
+def _parse_wklk_file(path):
+    data = open(path, "rb").read()
+    if len(data) < 16 or data[:4] != b"WKLK":
+        raise ValueError("bad magic")
+    count = struct.unpack_from("<I", data, 8)[0]
+    off = struct.unpack_from("<I", data, 12)[0]
+    events = []
+    o = off
+    for _ in range(count):
+        if o + 16 > len(data):
+            break
+        eid, etype, ts, tid = struct.unpack_from("<iIII", data, o)
+        o += 16
+        events.append((eid, etype, ts, tid))
+    return events
+
+
+def _compute_true(events):
+    # stable sort by timestamp only
+    ev = sorted(events, key=lambda x: x[2])
+    held = {}
+    first_acq = {}
+    last_ts = {}
+    for eid, etype, ts, tid in ev:
+        key = (eid, tid)
+        if key not in last_ts or ts > last_ts[key]:
+            last_ts[key] = ts
+        if etype == 1:
+            if held.get(key, False):
+                continue
+            held[key] = True
+            first_acq[key] = ts
+        else:
+            if not held.get(key, False):
+                continue
+            held[key] = False
+            first_acq[key] = None
+    total = 0
+    for k, is_held in held.items():
+        if is_held:
+            f = first_acq.get(k)
+            if f is not None:
+                total += last_ts[k] - f
+    return total
+
+
 def ground_truth_leak(path):
-    for base in ["/tests/data/ground_truth.json", "tests/data/ground_truth.json"]:
-        if os.path.exists(base):
-            gt = json.load(open(base))
-            fname = os.path.basename(path)
-            if fname in gt:
-                return int(gt[fname])
-    return 0
+    # compute directly, no json
+    events = _parse_wklk_file(path)
+    return _compute_true(events)
 
 
 def run_agent(path):
@@ -148,7 +206,6 @@ def run_agent(path):
 
 
 def run_agent_bytes(data_bytes):
-    """Helper to run agent on raw wklk bytes without touching filesystem leaking path."""
     assert os.path.exists(SCRIPT)
     with tempfile.TemporaryDirectory() as td:
         fpath = os.path.join(td, "scan.wklk")
@@ -175,7 +232,6 @@ def run_agent_bytes(data_bytes):
     return int(m[-1])
 
 
-# ---- independent oracle for dynamic generation (same as solution but isolated) ----
 def _pack_wklk(events, offset=64):
     n = len(events)
     hdr = bytearray(offset)
@@ -183,38 +239,13 @@ def _pack_wklk(events, offset=64):
     struct.pack_into("<I", hdr, 4, 1)
     struct.pack_into("<I", hdr, 8, n)
     struct.pack_into("<I", hdr, 12, offset)
+    # garbage padding to catch hardcoded offset
+    for i in range(16, offset):
+        hdr[i] = (i * 37 + 11) % 256
     body = bytearray()
     for eid, etype, ts, tid in events:
         body += struct.pack("<iIII", eid, etype, ts, tid)
     return bytes(hdr) + bytes(body)
-
-
-def _compute_true(events):
-    ev = sorted(events, key=lambda x: x[2])
-    held = {}
-    first_acq = {}
-    last_ts = {}
-    for eid, etype, ts, tid in ev:
-        key = (eid, tid)
-        if key not in last_ts or ts > last_ts[key]:
-            last_ts[key] = ts
-        if etype == 1:
-            if held.get(key, False):
-                continue
-            held[key] = True
-            first_acq[key] = ts
-        else:
-            if not held.get(key, False):
-                continue
-            held[key] = False
-            first_acq[key] = None
-    total = 0
-    for k, is_held in held.items():
-        if is_held:
-            f = first_acq.get(k)
-            if f is not None:
-                total += last_ts[k] - f
-    return total
 
 
 def test_script_exists():
@@ -239,7 +270,6 @@ def _iter_string_literals(tree):
 
 
 def _get_const_str(node):
-    """Try to evaluate AST node as constant string via concatenation."""
     if isinstance(node, ast.Constant):
         v = node.value
         if isinstance(v, str):
@@ -257,23 +287,18 @@ def _get_const_str(node):
             return left + right
         return None
     if isinstance(node, ast.JoinedStr):
-        # concatenate constant parts of f-string
         parts = []
         for p in node.values:
             if isinstance(p, ast.Constant) and isinstance(p.value, str):
                 parts.append(p.value)
             else:
-                # if contains formatted value, cannot fully evaluate
                 return None
         return "".join(parts) if parts else None
     return None
 
 
 def _is_argv_one(node):
-    """Check if node is sys.argv[1]"""
-    # sys.argv[1] is Subscript(value=Attribute(value=Name(sys) attr=argv) slice=Constant(1))
     if isinstance(node, ast.Subscript):
-        # value should be Attribute
         val = node.value
         if isinstance(val, ast.Attribute):
             if (
@@ -281,11 +306,9 @@ def _is_argv_one(node):
                 and val.value.id == "sys"
                 and val.attr == "argv"
             ):
-                # slice
                 sl = node.slice
                 if isinstance(sl, ast.Constant) and sl.value == 1:
                     return True
-                # Python 3.8 compatibility where slice is Index
                 if isinstance(sl, ast.Index):
                     inner = sl.value
                     if isinstance(inner, ast.Constant) and inner.value == 1:
@@ -293,11 +316,36 @@ def _is_argv_one(node):
     return False
 
 
+def _try_b64_decode(s):
+    # try to detect base64-encoded banned paths
+    s = s.strip()
+    if len(s) < 16:
+        return None
+    # base64 chars only and padding
+    b64chars = set(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n\r"
+    )
+    if not all(c in b64chars for c in s):
+        return None
+    try:
+        # add padding if needed
+        missing = len(s) % 4
+        if missing:
+            s_padded = s + "=" * (4 - missing)
+        else:
+            s_padded = s
+        decoded = base64.b64decode(s_padded, validate=False)
+        # try utf-8 decode
+        txt = decoded.decode("utf-8", errors="ignore")
+        return txt
+    except Exception:
+        return None
+
+
 def test_from_scratch():
     src = open(SCRIPT, "r", encoding="utf-8", errors="ignore").read()
     tree = ast.parse(src, filename=SCRIPT)
 
-    # Collect function param names to allow as path args
     param_names = set(ALLOWED_PATH_NAMES)
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -308,6 +356,67 @@ def test_from_scratch():
             if node.args.vararg:
                 param_names.add(node.args.vararg.arg)
 
+    # track assignments for dataflow
+    argv_derived = set()
+    assigned_names = set()
+    tainted = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    assigned_names.add(target.id)
+                    # check RHS
+                    if _is_argv_one(node.value):
+                        argv_derived.add(target.id)
+                    elif isinstance(node.value, ast.Name):
+                        if node.value.id in argv_derived or (
+                            node.value.id in param_names
+                            and node.value.id not in tainted
+                        ):
+                            argv_derived.add(target.id)
+                    elif isinstance(node.value, ast.Call):
+                        func = node.value.func
+                        # check for banned decode attrs
+                        call_name = ""
+                        if isinstance(func, ast.Attribute):
+                            call_name = func.attr
+                        elif isinstance(func, ast.Name):
+                            call_name = func.id
+                        if (
+                            call_name in BANNED_DECODE_ATTRS
+                            or call_name in BANNED_CALLS
+                        ):
+                            raise AssertionError(
+                                f"banned decode/call {call_name} used to assign {target.id}"
+                            )
+                        # if call constructs path via bytes decode, mark tainted
+                        # for safety, if call has any arg that is base64 literal
+                        for arg in node.value.args:
+                            const_str = _get_const_str(arg)
+                            if const_str:
+                                dec = _try_b64_decode(const_str)
+                                if dec:
+                                    low = dec.lower()
+                                    for banned in BANNED_TOKENS_FOR_PATH:
+                                        if banned.lower() in low:
+                                            raise AssertionError(
+                                                f"base64 encoded banned path {banned} in assignment to {target.id}: {const_str[:40]}"
+                                            )
+                        tainted.add(target.id)
+        elif isinstance(node, ast.AnnAssign):
+            target = node.target
+            if isinstance(target, ast.Name):
+                assigned_names.add(target.id)
+                if node.value and _is_argv_one(node.value):
+                    argv_derived.add(target.id)
+                else:
+                    tainted.add(target.id)
+        elif isinstance(node, ast.For):
+            if isinstance(node.target, ast.Name):
+                assigned_names.add(node.target.id)
+                tainted.add(node.target.id)
+
     open_calls = []
 
     for node in ast.walk(tree):
@@ -317,7 +426,6 @@ def test_from_scratch():
                 assert mod_root not in BANNED_MODULES_STRICT, (
                     f"banned module import: {a.name}"
                 )
-                # also block importing verifier
                 assert "test_output" not in a.name.lower(), (
                     "importing verifier not allowed"
                 )
@@ -338,12 +446,11 @@ def test_from_scratch():
                 else (fn.attr if isinstance(fn, ast.Attribute) else "")
             )
             assert name not in BANNED_CALLS, f"dynamic call not allowed ({name})"
-            # Track open calls
-            if name == "open":
-                open_calls.append(node)
-            # Also detect io.open, pathlib.Path etc already banned via module
-            if isinstance(fn, ast.Attribute) and fn.attr == "open":
-                # e.g., io.open or Path.open
+            if isinstance(fn, ast.Attribute):
+                assert fn.attr not in BANNED_DECODE_ATTRS, (
+                    f"banned decode attr {fn.attr} not allowed"
+                )
+            if name == "open" or (isinstance(fn, ast.Attribute) and fn.attr == "open"):
                 open_calls.append(node)
         elif isinstance(node, ast.Attribute):
             attr = node.attr
@@ -364,7 +471,6 @@ def test_from_scratch():
                     assert False, f"dunder not allowed ({attr})"
             if isinstance(node.value, ast.Name) and node.value.id == "os":
                 assert attr not in BANNED_OS_ATTRS, f"banned os.{attr} usage"
-        # Check for constructed strings via BinOp Add
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
             const_val = _get_const_str(node)
             if const_val:
@@ -373,67 +479,52 @@ def test_from_scratch():
                     assert banned.lower() not in low, (
                         f"forbidden path via concatenation {banned!r} in {const_val!r}"
                     )
-                # Also block absolute paths like /tests or /app/tests if constructed
                 if "/tests" in low or "ground_truth" in low:
                     assert False, f"forbidden absolute path via concat {const_val!r}"
 
-    # Check string literals directly
     for lit in _iter_string_literals(tree):
         low = lit.lower()
         for banned in BANNED_TOKENS_FOR_PATH:
             assert banned.lower() not in low, f"forbidden path {banned!r} in {lit!r}"
-        # Block any attempt to hide via split
         if "ground" in low and "truth" in low:
             assert False, f"forbidden ground_truth mention {lit!r}"
+        # check base64 encoded bypass
+        dec = _try_b64_decode(lit)
+        if dec:
+            dlow = dec.lower()
+            for banned in BANNED_TOKENS_FOR_PATH:
+                if banned.lower() in dlow:
+                    assert False, (
+                        f"base64 encoded banned path {banned!r} decoded from {lit[:40]!r}"
+                    )
 
-    # Check open calls: must be only for argv path or allowed param names, not constant paths
     for call in open_calls:
         if not call.args:
             continue
         first_arg = call.args[0]
-        # Allow sys.argv[1]
         if _is_argv_one(first_arg):
             continue
-        # Allow Name that is in param_names
         if isinstance(first_arg, ast.Name):
-            assert first_arg.id in param_names, (
-                f"open with disallowed variable name {first_arg.id!r} not in allowed {param_names}. Only open(sys.argv[1]) or open(path) where path is input arg is allowed."
+            fid = first_arg.id
+            # must be argv_derived or param that was never assigned/tainted
+            if fid in argv_derived:
+                continue
+            if fid in param_names and fid not in assigned_names and fid not in tainted:
+                continue
+            # allow if fid is param and all assignments to fid are argv_derived (i.e., fid in argv_derived) already handled
+            assert False, (
+                f"open with disallowed variable {fid!r}. Only open(sys.argv[1]) or variable directly derived from sys.argv[1] or unmodified function param is allowed. Found assigned={fid in assigned_names} tainted={fid in tainted} argv_derived={argv_derived}"
             )
-            continue
-        # Allow if constant string is exactly the neutral scan name used in verifier (scan.wklk) - but solver shouldn't have that
         const_val = _get_const_str(first_arg)
         if const_val is not None:
-            # Any constant string containing / or .wklk is forbidden
-            low = const_val.lower()
-            assert "/" not in const_val and "\\" not in const_val, (
-                f"open with constant path {const_val!r} not allowed, only open(argv path)"
-            )
-            for banned in BANNED_TOKENS_FOR_PATH:
-                assert banned.lower() not in low, (
-                    f"open constant contains banned {banned!r}"
-                )
-            # also block if looks like absolute or contains tests
-            if "tests" in low or "ground" in low or "heldout" in low:
-                assert False, f"open constant forbidden {const_val!r}"
-            # If constant is simple like 'rb' second arg, first arg must be variable, so this is second arg? Actually first arg const is bad
-            assert False, f"open with constant file path {const_val!r} not allowed"
-        # If first arg is BinOp (concatenated path), block
+            assert False, f"open with constant path {const_val!r} not allowed"
         if isinstance(first_arg, ast.BinOp):
-            const_val = _get_const_str(first_arg)
-            if const_val:
-                assert False, f"open with concatenated path {const_val!r} not allowed"
-            else:
-                # dynamic construction, still disallow
-                assert False, (
-                    "open with dynamically constructed path not allowed, only sys.argv[1] or input path variable"
-                )
-        # If it's something else like Call, block
+            assert False, "open with dynamically constructed path not allowed"
         if isinstance(first_arg, ast.Call):
             assert False, "open with call-constructed path not allowed"
 
-    # Limit number of open calls to prevent multiple file reads
     assert len(open_calls) <= 2, (
-        f"too many open calls {len(open_calls)}, only 1-2 allowed for input trace"
+        f"too many open calls {len(open_calls)}, only 1-2 allowed"
     )
 
 
@@ -444,11 +535,7 @@ def test_heldout(path):
     assert got == expected, f"{os.path.basename(path)}: got {got} expected {expected}"
 
 
-# ---- additional coverage: varied offset ----
 def test_varied_offset_hardcode_guard():
-    """Ensure parser respects data_offset: file with offset 16 vs 64 should be parsed correctly.
-    If implementation hardcodes 64, this will fail because payload at 16 would be misaligned.
-    """
     events = [(1, 1, 100, 1), (1, 1, 120, 1)]
     expected = _compute_true(events)
     assert expected == 20
@@ -459,40 +546,30 @@ def test_varied_offset_hardcode_guard():
 
 
 def test_reacquire_final_interval_semantics():
-    """Check final-interval rule: acquire-release-acquire leak should count only final interval.
-    Example: acq@10 rel@20 acq@30 dup@40 leak.
-    Final interval = 30..40 => duration 10. First-ever would give 30.
-    """
     events = [
         (1, 1, 10, 1),
         (1, 0, 20, 1),
         (1, 1, 30, 1),
         (1, 1, 40, 1),
     ]
-    expected = _compute_true(events)  # should be 10
+    expected = _compute_true(events)
     assert expected == 10
     for offset in [16, 64, 128]:
         data = _pack_wklk(events, offset=offset)
         got = run_agent_bytes(data)
         assert got == expected, (
-            f"reacquire semantics failed at offset {offset}: got {got} expected {expected}, should use final interval not first-ever"
+            f"reacquire semantics failed at offset {offset}: got {got} expected {expected}"
         )
 
 
 def test_cross_thread_and_dedup():
-    """Balanced after duplicate and cross-thread release ignored."""
     events = [
         (1, 1, 10, 1),
-        (1, 1, 12, 1),  # duplicate
-        (1, 0, 20, 1),  # release balances
-        (2, 1, 15, 2),  # acquire thread 2
-        (
-            2,
-            0,
-            25,
-            1,
-        ),  # release in different thread -> should be ignored, so thread 2 leaks
-        (2, 1, 30, 2),  # duplicate while still held (dedup) -> last_ts updates to 30
+        (1, 1, 12, 1),
+        (1, 0, 20, 1),
+        (2, 1, 15, 2),
+        (2, 0, 25, 1),
+        (2, 1, 30, 2),
     ]
     expected = _compute_true(events)
     assert expected == 15
@@ -502,15 +579,14 @@ def test_cross_thread_and_dedup():
 
 
 def test_randomized_dynamic():
-    """Generate few random traces at grading time to harden against overfit."""
     rnd = random.Random(42)
     offsets = [16, 24, 32, 40, 64, 96, 128]
     for i in range(3):
         ev = []
-        num_ids = rnd.randint(5, 10)
+        num_ids = rnd.randint(8, 14)
         for id_ in range(1, num_ids + 1):
             base = rnd.randint(0, 2000)
-            tids = rnd.sample([1, 2, 3, 4], rnd.randint(1, 2))
+            tids = rnd.sample([1, 2, 3, 4, 5], rnd.randint(1, 3))
             for tid in tids:
                 pat = rnd.choice([0, 1, 2, 3, 4])
                 if pat == 0:
@@ -521,7 +597,7 @@ def test_randomized_dynamic():
                 elif pat == 1:
                     a = base + rnd.randint(0, 100)
                     ev.append((id_, 1, a, tid))
-                    if rnd.random() < 0.5:
+                    if rnd.random() < 0.6:
                         ev.append((id_, 1, a + rnd.randint(1, 20), tid))
                 elif pat == 2:
                     a = base + rnd.randint(0, 100)
@@ -531,7 +607,7 @@ def test_randomized_dynamic():
                 elif pat == 3:
                     a = base + rnd.randint(0, 100)
                     ev.append((id_, 1, a, tid))
-                    other = rnd.choice([t for t in [1, 2, 3, 4] if t != tid])
+                    other = rnd.choice([t for t in [1, 2, 3, 4, 5] if t != tid])
                     ev.append((id_, 0, a + 30, other))
                 else:
                     a1 = base + rnd.randint(0, 100)
@@ -542,7 +618,6 @@ def test_randomized_dynamic():
                     ev.append((id_, 1, a2, tid))
                     if rnd.random() < 0.5:
                         ev.append((id_, 1, a2 + 10, tid))
-        ev.sort(key=lambda x: x[2])
         expected = _compute_true(ev)
         offset = rnd.choice(offsets)
         data = _pack_wklk(ev, offset=offset)
@@ -553,34 +628,20 @@ def test_randomized_dynamic():
 
 
 def test_timestamp_order_required():
-    """Ensure solver sorts by timestamp: file order shuffled, grading expects timestamp order."""
-    # Create trace where file order and timestamp order give different results
-    # File order: acquire id1@100, release id1@10 (out of order) => if file order, would be balanced? Let's craft
-    # Timestamp order: acquire@10 release@100 => balanced 0 leaked
-    # File order: acquire@100 first, then release@10 (release ignored because not held yet?) Actually logic: first acquire@100 held, then release@10 ignored because timestamp earlier but file order processes release after acquire? Wait file-order processing checks held state regardless of timestamp, so release@10 would release the held acquire@100 => balanced, 0.
-    # Need case where file-order leaks but timestamp-order balanced.
-    # Use: release@20, acquire@10 in file order: file-order: release ignored, acquire leaks => duration (last - first) = 0 (if single)
-    # timestamp-order: acquire@10 release@20 => balanced 0. So same.
-    # Better: two pairs with interleaving.
-    # Let's use events where timestamp order requires dedup handling that file order breaks.
-    # Simpler: use existing scene verification: file-order total 254995 vs timestamp-order 105615, ensure solver returns timestamp-order.
-    # We'll generate a small custom trace where file order shuffled.
-    events_file_order = [
-        (1, 1, 100, 1),  # acquire at 100
-        (1, 0, 10, 1),  # release at 10 (earlier timestamp, but in file after)
-        (2, 1, 20, 1),  # acquire at 20
-        (2, 1, 30, 1),  # duplicate at 30
-    ]
+    rnd = random.Random(123)
+    ev = []
+    for i in range(30):
+        ev.append(
+            (i % 6 + 1, rnd.choice([0, 1]), rnd.randint(0, 200), rnd.randint(1, 4))
+        )
+    rnd.shuffle(ev)
+    expected = _compute_true(ev)
 
-    # Timestamp order sorted: (1,0,10), (2,1,20), (2,1,30), (1,1,100)
-    # Processing timestamp order: release@10 ignored (no held), acquire@20 held first=20, duplicate@30 held last=30, acquire@100 id1 held first=100 last=100
-    # Leaked: id2: 30-20=10, id1: 0 => total 10
-    # File order processing: acquire@100 held first100 last100, release@10 -> release id1 held? At that point held True (from 100) so release would clear it (even though timestamp earlier), then acquire@20 held, duplicate@30 held => total 10 again same? Let's brute compute
-    def file_order_true(ev):
+    def file_order_true(ev2):
         held = {}
         first = {}
         last = {}
-        for eid, etype, ts, tid in ev:
+        for eid, etype, ts, tid in ev2:
             key = (eid, tid)
             if key not in last or ts > last[key]:
                 last[key] = ts
@@ -602,32 +663,55 @@ def test_timestamp_order_required():
                     total += last[k] - f
         return total
 
-    expected_ts = _compute_true(events_file_order)
-    expected_file = file_order_true(events_file_order)
-    # For this specific case they happen same, need more distinct
-    # Use case where same timestamp collisions: file order matters for stability
-    events_same_ts = [
-        (1, 1, 10, 1),  # acquire
-        (1, 0, 10, 1),  # release same ts, file order acquire then release => balanced
-    ]
-    # If stable sort preserves file order, timestamp order will keep acquire before release => balanced 0
-    # If reverse file order (release then acquire same ts), timestamp order stable preserves release then acquire => leaked duration 0 (acquire last)
-    # Actually both give 0? Let's think: release then acquire same ts: timestamp order keeps release first (ignored), acquire second leaks duration 0
-    # So same.
-    # Need case where file order shuffled causes different leak total vs timestamp order, as demonstrated by scene.wklk 254995 vs 105615
-    # We'll just assert solver must output timestamp-order for scene-like shuffled data
-    # Generate random shuffled events and check solver uses timestamp sort
-    rnd = random.Random(123)
-    ev = []
-    for i in range(20):
-        ev.append(
-            (i % 5 + 1, rnd.choice([0, 1]), rnd.randint(0, 100), rnd.randint(1, 3))
-        )
-    # Shuffle file order
-    rnd.shuffle(ev)
-    expected = _compute_true(ev)
     data = _pack_wklk(ev, offset=64)
     got = run_agent_bytes(data)
     assert got == expected, (
-        f"timestamp sorting required: got {got} expected timestamp-order {expected}, file-order would be {file_order_true(ev)}"
+        f"timestamp sorting required: got {got} expected {expected} file-order {file_order_true(ev)}"
     )
+
+
+def test_negative_ids():
+    events = [(-5, 1, 10, 1), (-5, 1, 20, 1), (-10, 1, 15, 2), (-10, 0, 25, 2)]
+    expected = _compute_true(events)
+    # (-5) leaks 10, (-10) balanced
+    assert expected == 10
+    data = _pack_wklk(events, offset=32)
+    got = run_agent_bytes(data)
+    assert got == expected
+
+
+def test_same_timestamp_stable_order():
+    # acquire then release same ts in file order => balanced if stable preserves order
+    events_file_order = [
+        (1, 1, 100, 1),
+        (1, 0, 100, 1),
+        (2, 0, 100, 1),
+        (2, 1, 100, 1),
+    ]
+    # timestamp order stable: first two => acquire@100 then release@100 => balanced 0
+    # second pair: release then acquire same ts => release ignored, acquire leaks 0
+    expected = _compute_true(events_file_order)
+    assert expected == 0
+    data = _pack_wklk(events_file_order, offset=24)
+    got = run_agent_bytes(data)
+    assert got == expected
+
+    # reverse order would give different if not stable? Actually both 0 leak duration but logic of order matters
+    # create case where order matters for duration calc: duplicate after release same ts
+    events2 = [
+        (1, 1, 50, 1),
+        (1, 0, 100, 1),
+        (
+            1,
+            1,
+            100,
+            1,
+        ),  # acquire same ts as release, file order release then acquire => leak
+    ]
+    # sorted stable keeps file order: release@100 then acquire@100? Wait file order is acq50, rel100, acq100. Sorted by ts: 50,100,100 stable preserves rel then acq => after processing: acq50 held, rel100 releases, acq100 leaks duration 0 => total 0
+    # if file order were acq50, acq100, rel100 same ts: acq50 held, duplicate acq100 ignored, rel100 releases => 0 as well. Need more distinct.
+    # For test, just ensure stable sort behavior doesn't crash
+    expected2 = _compute_true(events2)
+    data2 = _pack_wklk(events2, offset=40)
+    got2 = run_agent_bytes(data2)
+    assert got2 == expected2

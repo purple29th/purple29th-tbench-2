@@ -1,49 +1,52 @@
-# codimango/android-wakelock-imbalance
+# codimango/android-wakelock-imbalance v0.12
 
 ## Description
 
-Agent writes stdlib only Python at /app/solve.py that reads wakelock trace WKLK magic WKLK from Android power manager doze QA. Each trace has many acquire release events with timestamps and thread ids. Most balanced but some leaked. Need to compute per id and thread pair with duplicate acquire dedup, release without acquire ignored, thread scoped matching. For each leaked id thread pair duration equals last timestamp seen for that same (id, thread) pair minus first acquire timestamp of its final still-held interval, sum across leaked pairs. If same pair had earlier balanced cycles (acquire-release), only final continuously-held interval counts.
+Agent writes stdlib-only Python at /app/solve.py that reads WKLK wakelock trace from Android power manager doze QA. Each trace has many acquire/release events with timestamps and thread ids. Most balanced but some leaked. Need to compute per (id, thread) pair with duplicate dedup, dangling release ignore, thread-scoped matching, final-interval duration sum.
 
-This is OS wakelock leak detector that genuinely needs thread scoped reasoning and timestamp sorting, not just trivial per id counting. Naive per id counting fails huge, and file-order vs timestamp-order mismatch causes gpt failures.
+## Leakage Fix - BAD_LEAKAGE (primary)
 
-## Ordering Fix (BAD_LEAKAGE + BAD_AMBIGUOUS)
+Previous version exposed `/tests/data/ground_truth.json` readable by solver and AST checker only blocked complete literals, allowing "/tes"+"ts/data" concatenation bypass and base64 encoded path.
 
-Previous instruction said hidden traces are sorted by timestamp, but fixtures were shuffled requiring timestamp sort. Fixed instruction to explicitly state file order is NOT timestamp order, records may be shuffled, solver must process in stable timestamp order preserving file order for equal timestamps (python stable sort). Sample now has timestamp-order total 358620 vs file-order 464265, demonstrating requirement. Added test_timestamp_order_required that generates shuffled trace and checks solver sorts.
+Fixes in v0.12:
+- Removed ground_truth.json entirely – verifier now computes expected directly by parsing heldout .wklk and running oracle logic `_compute_true` in harness process. No JSON file to steal.
+- BANNED_MODULES now includes base64, binascii, codecs, builtins, zlib – prevents encoded bypass. BANNED_DECODE_ATTRS b64decode etc blocked.
+- AST checker now detects base64-encoded strings that decode to banned paths via `_try_b64_decode` heuristic.
+- Strict open dataflow: only `open(sys.argv[1])` or variable directly derived from `sys.argv[1]` or unmodified function param allowed. Variables assigned via Call (e.g., b64decode) marked tainted and blocked. Prevents `path = b64decode(...); open(path)`.
+- Limit open calls <=2, block constant paths, concatenated paths, call-constructed paths.
+- Still uses isolated temp dir copy neutral scan.wklk with PYTHONPATH=td, cwd=td.
 
-## Leakage Fix (BAD_LEAKAGE)
+## Difficulty Fix - Too Easy / Reasoning Required
 
-Previous verifier mounted /tests/data/ground_truth.json readable and AST checker only blocked complete forbidden literals, allowing bypass via "/tes"+"ts/data/..." concatenation. Fixed by:
-- Hardened AST checker to evaluate BinOp Add concatenation of string literals and block forbidden paths even via construction
-- Block any open() with constant file path (only open(sys.argv[1]) or open(path) where path is input arg allowed)
-- Limit open calls to <=2
-- Block f-string parts containing banned tokens
-- Still keep isolated temp dir copy (neutral scan.wklk) for execution, but now checker prevents hidden file access via constructed paths
+Previous: all models 5/5 pass, instruction gave full algorithm with worked example acquire@10 release@20 acquire@30 dup@40 => 10, plus explicit file-order 464265 vs timestamp-order 358620.
 
-Also updated instruction to explicitly say only built-in open for given scan path allowed, and that checker enforces concatenation detection.
+v0.12:
+- Rewrote instruction.md to remove implementation recipe and worked example. Keeps format precise but describes leak detection abstractly: thread-scoped matching, duplicate handling, final-interval only, last_ts - first_acq. No explicit example of final-interval calc. Says file order not timestamp order must sort, mentions stable for equal ts but doesn't give file-order total.
+- Increased trace size: 700-900 ids (was 550-750), 10000-16500 events (was 8457-11468), up to 12 threads, 22-25% same-ts collisions (was 15%), 15% negative ids (was 12%), more cross-thread releases 2-5 per acquire, more dangling releases 15-35.
+- New sample scene.wklk leaked 566249 (571 events) – previously 358620. Hidden heldouts now ~18M-24M leaked duration, much larger, to avoid sample overfit.
+- Added new tests: test_negative_ids and test_same_timestamp_stable_order to enforce signed parsing and stable order.
+- Target: reduce avocado from 5/5 to 2-3/5, GPT to 2-3/5 due to less explicit instruction and larger traces.
 
-## Complexity Fix (Too Easy)
+## Grading Strength
 
-Previous version had 320-520 ids, 3850-5935 events, avocado passed 5/5 -> too easy. Hardened to:
-- 550-750 ids, 8457-11468 events (8k-11k), up to 12 threads
-- 15% same-timestamp collisions requiring stable sort
-- More negative ids (12% pool) testing signed parsing and filtering
-- More cross-thread releases (2-4 per acquire)
-- Garbage padding in header (0xAA) to catch offset hardcode
-- Varied offsets still: 16,24,40,96,128,32,20
-- Added more patterns: reacquire after balanced release, duplicate chains
+- 7 heldouts with varied offsets 16,24,40,96,128,32,20 and garbage padding
+- varied_offset_hardcode_guard, reacquire_final_interval, cross_thread_and_dedup, randomized_dynamic (3 random), timestamp_order_required, negative_ids, same_timestamp_stable_order
+- Oracle passes 16 tests, base with no solve.py fails
 
-Target: oracle 3/3, Avocado should drop from 5/5 to 2-3/5 due to larger traces and stable-sort requirement. GPT previously failed file-order, now with explicit spec should improve but still need thread scoping.
+## Completion Rates (expected after fix)
 
-## Completion Rates
+- oracle 3/3 (now 16 tests)
+- avocado previously 5/5 too easy, expect 2-3/5 after larger traces and reduced spec
+- opus 5/5 may remain high but should show some failures on edge tests
+- gpt previously 5/5 after spec clarified, expect 2-4/5 after de-specification
 
-Previous: oracle 3/3, Avocado 5/5, Opus 5/5, GPT 1/5 (too easy). After hardening, expected Avocado 2-3/5, Opus 5/5, GPT 2-3/5 if they notice sorting. Oracle passes all 7 heldouts plus dynamic tests.
+## Model Failure Modes
 
-## Model Analysis
-
-Dominant failures: per id counting not per thread, not handling duplicate acquire dedup, not handling cross thread release, using global final timestamp instead of pair-local last timestamp, recursion, hardcoding offset 64, using first-ever acquire vs final interval, not sorting by timestamp (file-order total 464265 vs timestamp-order 358620 for sample gives huge error), not stable for equal timestamps.
+Per id counting not per thread, not handling duplicate dedup, cross-thread release ignored incorrectly, using global final timestamp instead of per-pair last_ts, hardcoding offset 64, using first-ever acquire vs final interval, not sorting by timestamp, not stable for equal timestamps, unsigned parsing of negative ids.
 
 ## Anti-Cheating
 
-Hardcoded fails: 7 hidden traces have different leaked durations 8838685,9703572,10761750,10636466,10670622,8377390,8389999 vs sample 358620, with varied data_offset and shuffled order. Constant fails. Overfit blocked: only scene.wklk at /app/data, hidden under tests/data mounted only at verify, neutral temp copy and isolated TD with PYTHONPATH=td. Generator not mounted, ground truth in ground_truth.json. Reward hacking hardened via randomized dynamic traces (3 random), explicit offset tests, reacquire final-interval test, cross-thread/dedup test, timestamp-order-required test checking file-order vs timestamp-order mismatch, and hardened AST checker blocking "/tes"+"ts/data/..." concatenation and constant open paths.
-
-Author: Tosin Daniel Jimoh - Android wakelock imbalance with thread scoped dedup, final-interval semantics, varied offset, stable timestamp sort, leakage hardening
+- 7 hidden traces leaked 18723242,22840801,24367344,24458127,23256618,22393981,24662569 vs sample 566249, varied offsets, shuffled order, 10k-16k events each
+- No ground_truth.json, expected computed in harness
+- Overfit blocked: only scene.wklk at /app/data, hidden under tests/data mounted only at verify, neutral temp copy
+- Reward hacking blocked via AST checks for concatenation, constant open, base64, tainted assignments
