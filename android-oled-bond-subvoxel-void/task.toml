@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/android-oled-bond-subvoxel-void"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Android OLED bonding QA: Pixel factory line uses under-display IR structured-light scanner to image adhesive layer for air-bubble voids. The scanner dumps a raw IR backscatter cube (.obvl) - VCSEL diffuser PSF is anisotropic (wide XY through OLED stack, narrow Z through bond thickness) with dust-speck artefacts. Agent must implement from-scratch stdlib-only Python to parse custom little-endian OBVL format, isolate main void via largest-mass 26-connected component, remove DC background, estimate saturated interior plateau, and recover sub-voxel void volume by conserving total IR energy (integrate residual over void+halo / plateau * anisotropic voxel pitch). Graded on hidden OLED scans at 3%% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["android", "oled", "bonding", "display-qa", "pixel", "ir-scanner", "subvoxel", "vcsel", "dust-artefacts", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "mobile_android"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["android", "oled", "display-bonding", "pixel-qa", "ir-scatter", "binary-parsing", "vcsel-diffuser", "dust-specks", "partial-volume", "intensity-conservation", "from-scratch", "factory-automation"]
+expert_time_estimate_min = 55.0
+junior_time_estimate_min = 180.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
