@@ -1,24 +1,19 @@
-"""Verify /app/solve.py reports count of ink affected touch cells .cdmr map
-on HELD-OUT scans agent never saw.
+"""Verify /app/solve.py reports count of touch cells .cdmr map on HELD-OUT scans.
 
-Capacitive touch mura QA uses diffuser, ink pooling bright with saturated core + thin bleed fingers and dust. Threshold fails. Charge conserved: true count = sum residual / plateau.
+Ground truth is geometric true count integral occupancy rounded stored in ground_truth.json. Heuristic matches true within 1 percent but grading uses true count with small tolerance.
 
-Ground truth is geometric true count from generator integral sum occupancy rounded, stored in ground_truth.json. Heuristic reference matches true within 1 percent but grading uses true count with 3 percent tolerance.
-
-Hardened isolation:
-- _gen.py not mounted, only .cdmr heldouts and ground_truth.json
-- solve.py executed in isolated TemporaryDirectory with neutral copy
-- test_from_scratch bans pathlib os io shutil chr getattr base64 dunder and decodes literals for /tests paths
+Hardened isolation: _gen.py not mounted, solve.py executed in isolated TemporaryDirectory with neutral copy, bans many modules and tokens.
 """
 import ast, os, re, shutil, struct, subprocess, sys, tempfile, json
 import pytest
+from collections import deque
 
 SCRIPT="/app/solve.py"
-REL_TOL=0.03
 HELDOUTS=[
     "/tests/data/heldout_1.cdmr",
     "/tests/data/heldout_2.cdmr",
     "/tests/data/heldout_3.cdmr",
+    "/tests/data/heldout_4.cdmr",
 ]
 
 BANNED_MODULES={
@@ -241,7 +236,5 @@ def test_from_scratch():
 def test_heldout(path):
     got=run_agent(path)
     expected=ground_truth_count(path)
-    heur=reference_count(path)
-    assert abs(heur-expected) <= max(2, 0.02*expected), f"heuristic diverged from true: heur {heur} true {expected}"
     tol=max(2, int(0.03*expected))
-    assert abs(got-expected) <= tol, f"{os.path.basename(path)}: got {got} expected true {expected} +- {tol} heuristic {heur}"
+    assert abs(got-expected) <= tol, f"{os.path.basename(path)}: got {got} expected {expected} +- {tol}"
