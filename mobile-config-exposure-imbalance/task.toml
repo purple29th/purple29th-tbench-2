@@ -4,24 +4,28 @@ schema_version="1.1"
 name="codimango/mobile-config-exposure-imbalance"
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
-description="Write a from-scratch Python script that parses a custom Android mobile config binary and reports the minimum number of configs that must be turned on to reach the maximum total exposure, where turning on a config forces on everything it depends on and configs carry signed exposure deltas (some add exposure, some cost it). Two steps are needed: find the best achievable exposure (which requires weighing forced costs against benefits), then find the smallest rollout that reaches it (excluding configs whose forced cost exactly cancels their benefit). Reporting the exposure value itself is wrong. Graded on held-out files with independent ground truth."
+description="Android mobile config exposure imbalance: parse custom MCFG binary with signed exposure deltas and dependencies, compute max-weight closure via min-cut/max-flow, then report minimal rollout size reaching max exposure (residual graph reachability) excluding zero-gain padding, ignoring dangling deps, handling up to 2000-node chains that break recursive DFS. Graded on held-out MCFG files with independent Edmonds-Karp ground truth."
 authors=[{name="Tosin Daniel Jimoh",email="purple29th@meta.com"}]
-keywords=["binary-parsing","dependency-graph","optimization","android-config","from-scratch"]
+keywords=["android","mobile-config","exposure","imbalance","max-closure","min-cut","dinic","binary-parsing","from-scratch"]
+
 [metadata]
 author_name="Tosin Daniel Jimoh"
 author_email="purple29th@meta.com"
 difficulty="hard"
 category="data-science"
-category_subdomain="database_internals"
+category_subdomain="mobile_android"
 category_usecase="parsing_lexing"
 reward_type="binary"
-tags=["binary-parsing","dependency-graph","optimization","android-config","from-scratch","algorithms"]
-expert_time_estimate_min=40.0
-junior_time_estimate_min=120.0
+tags=["android","mobile-config","exposure-imbalance","binary-parsing","dependency-graph","max-weight-closure","min-cut","dinic","from-scratch","zero-gain","dangling-deps","iterative-bfs"]
+expert_time_estimate_min=50.0
+junior_time_estimate_min=150.0
+
 [verifier]
 timeout_sec=600.0
+
 [agent]
 timeout_sec=1800.0
+
 [environment]
 build_timeout_sec=900.0
 cpus=2
@@ -30,6 +34,7 @@ storage_mb=15360
 gpus=0
 allow_internet=true
 mcp_servers=[]
+
 [verifier.env]
 [environment.env]
 [solution.env]

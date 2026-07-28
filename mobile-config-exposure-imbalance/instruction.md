@@ -1,13 +1,27 @@
-We dump a config dependency file off an Android device in a custom binary format. Write your script to /app/solve.py that reads the file path from the first argument and prints one number.
+hey so i am in android mobile config lab we dump config dependency files off device in custom binary. each config has signed exposure weight, positive adds exposure negative costs it. you choose which configs to turn on but rule if you turn on a config you must also turn on everything it depends on transitively, otherwise rollout invalid. empty rollout is valid with total 0 and size 0.
 
-Each config has a signed exposure weight. Positive adds exposure, negative costs it. You choose which configs to activate, but rule: if you activate a config you must also activate every config it depends on, transitively. A set respecting this is a valid rollout. Empty rollout is valid with total 0 and size 0.
+your job is write script to /app/solve.py that reads file path from first arg and prints one number as last token. we run like python3 /app/solve.py /app/data/scene.mcfg, sample file at /app/data/scene.mcfg you can test locally. hidden grading uses other mcfg files you never saw with different sizes dependency chains exposure values. dont hardcode sample.
 
-Goal: first find the largest total exposure any valid rollout can reach. Then among all valid rollouts that reach that max, print the smallest number of configs turned on — the minimal rollout size. Do NOT print the exposure weight itself; printing the weight is wrong and will fail the held-out tests. Zero-gain padding must be excluded: for example a config +30 that depends on -30 does not change total exposure, so it can be included without changing max, but the minimal rollout must leave such pairs out. The correct minimal set is the configs reachable from source in the residual graph after max flow.
+goal is two steps, this is exposure imbalance task so careful:
+first find largest total exposure any valid rollout can reach, call it max exposure.
+then among ALL valid rollouts that reach exactly that max exposure, print smallest number of configs turned on, the minimal rollout size. do NOT print the exposure weight itself, printing weight is wrong and will fail hidden tests. also zero-gain padding must be excluded, for example config +30 that depends on -30 does not change total exposure, so it can be included without changing max, but minimal rollout must leave such pairs out. correct minimal set is configs reachable from source in residual graph after max flow, not just any max set.
 
-Watch out: just adding up every positive is wrong, because a positive can drag in negative dependencies you cannot avoid. Turning on everything is also wrong because it pulls in avoidable costs. Some configs depend on each other in a cycle, so they must be activated as all or nothing. A dependency id that names no config in the file is dangling and ignored.
+watch out traps i tried:
+just adding up every positive is wrong because positive can drag in negative dependencies you cannot avoid.
+turning on everything is also wrong because it pulls in avoidable costs.
+some configs depend on each other in cycle so they must be activated as all or nothing, so singletons count as group of one, selection by total value not node count.
+a dependency id that names no config in file is dangling and ignored, imposes no constraint.
 
-Binary format. Little endian. Magic MCFG at offset zero. Version uint32 at four. Node count uint32 at eight. Data offset uint32 at twelve. Reserved int32 at sixteen — ignore it for this task, header is at least 64 bytes and data_offset may be larger than 64 with zero padding, so respect data_offset and do not hardcode 64. Then node_count records: each has signed int32 id, signed int32 value, unsigned uint32 dependency count, then that many unsigned uint32 dependency ids. All little endian. Sample file is at /app/data/scene.mcfg.
+binary format little endian, all ints:
+first four bytes ascii M C F G magic at offset zero
+next four bytes u32 version at four
+next four bytes u32 node count at eight
+next four bytes u32 data offset at twelve
+next four bytes int32 reserved at sixteen, ignore it but header is at least 64 bytes and data_offset may be larger than 64 with zero padding, so respect data_offset dont hardcode 64
+then node_count records: each has signed int32 id, signed int32 value (signed exposure delta), unsigned uint32 dependency count, then that many unsigned uint32 dependency ids. all little endian. ids can be any int32, even negative, but dep ids are uint32 and may name no node, thats dangling.
 
-Parse it yourself from raw bytes with struct. No numpy, scipy, networkx, igraph, pandas or other graph, array or max flow libraries. No shelling out via subprocess, os.system, os.popen, importlib, eval or exec. Use only the standard library. Files may have up to about two thousand nodes.
+parse it yourself from raw bytes with struct, no numpy scipy networkx igraph pandas or other graph array max flow libs. no shelling out via subprocess os.system os.popen importlib eval exec. use only stdlib. files may have up to about two thousand nodes, long chains will cause RecursionError if you use recursive dfs, so use iterative.
 
-Run as python3 /app/solve.py <path to mcfg file> and print the final number as the last token on stdout.
+run as python3 /app/solve.py <path to mcfg> and print final number as last token on stdout.
+
+grading at 3 percent? no its exact int match on held-outs, we recompute ground truth independently with different max flow impl edmonds-karp vs dinic, so hardcoded constant fails.

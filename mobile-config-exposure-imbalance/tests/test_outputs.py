@@ -31,6 +31,8 @@ HELDOUTS = [
     "/tests/data/heldout_3.mcfg",
     "/tests/data/heldout_4.mcfg",
     "/tests/data/heldout_5.mcfg",
+    "/tests/data/heldout_6.mcfg",
+    "/tests/data/heldout_7.mcfg",
 ]
 
 BANNED_MODULES = {
