@@ -11,14 +11,14 @@ workstream="swe_public_repo"
 [metadata]
 author_name="Tosin Daniel Jimoh"
 author_email="purple29th@meta.com"
-difficulty="easy"
+difficulty="hard"
 category="software_engineering"
 category_subdomain="mobile_android"
 category_usecase="resource_handling"
 reward_type="binary"
-tags=["android","wakelock-leak","power-manager","binary-parsing","from-scratch","resource-handling"]
-expert_time_estimate_min=20.0
-junior_time_estimate_min=60.0
+tags=["android","wakelock-leak","power-manager","binary-parsing","from-scratch","resource-handling","thread-affinity","final-interval","leak-detection"]
+expert_time_estimate_min=60.0
+junior_time_estimate_min=200.0
 
 [verifier]
 timeout_sec=600.0

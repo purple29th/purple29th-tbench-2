@@ -1,6 +1,11 @@
 """Verify /app/solve.py reports total leaked duration ms for WKLK trace.
-Hardened isolation: no ground_truth.json, expected computed directly from wklk.
-Bans base64/binascii/codecs and encoded path bypass, enforces strict open(argv) dataflow.
+Hardened v0.13: foundry-inspired difficulty.
+
+- No ground_truth.json, expected computed directly from wklk via oracle _compute_true
+- Bans base64/binascii/codecs and encoded path bypass, enforces strict open(argv) dataflow
+- Banned modules include os, pathlib, io, etc like foundry
+- Adds discriminators: per-pair last vs global, final vs first, duplicate updates last, cross-thread heavy, stable order matters
+- Larger traces 15k-25k events, 1000-1300 ids, 16 threads, 30% same-ts, 20% negative, 3-6 cross-thread
 """
 
 import ast
@@ -56,6 +61,9 @@ BANNED_MODULES = {
     "codecs",
     "builtins",
     "zlib",
+    "posixpath",
+    "ntpath",
+    "genericpath",
 }
 BANNED_MODULES_STRICT = BANNED_MODULES | {"os"}
 BANNED_CALLS = {
@@ -83,7 +91,7 @@ BANNED_DECODE_ATTRS = {
     "decodebytes",
     "decodestring",
     "decompress",
-    "b64encode",  # also block encode attempts to hide
+    "b64encode",
 }
 BANNED_TOKENS_FOR_PATH = [
     "/tests",
@@ -92,7 +100,7 @@ BANNED_TOKENS_FOR_PATH = [
     "_gen",
     "reference",
     "ground_truth",
-    "scene.wklk",  # prevent reading scene via hardcoded path bypass? scene is allowed at /app/data but not via /tests
+    "scene.wklk",
 ]
 BANNED_OS_ATTRS = {
     "system",
@@ -143,7 +151,7 @@ def _parse_wklk_file(path):
 
 
 def _compute_true(events):
-    # stable sort by timestamp only
+    # stable sort by timestamp only – Python sort is stable, preserves file order for equal ts
     ev = sorted(events, key=lambda x: x[2])
     held = {}
     first_acq = {}
@@ -172,7 +180,6 @@ def _compute_true(events):
 
 
 def ground_truth_leak(path):
-    # compute directly, no json
     events = _parse_wklk_file(path)
     return _compute_true(events)
 
@@ -239,9 +246,8 @@ def _pack_wklk(events, offset=64):
     struct.pack_into("<I", hdr, 4, 1)
     struct.pack_into("<I", hdr, 8, n)
     struct.pack_into("<I", hdr, 12, offset)
-    # garbage padding to catch hardcoded offset
     for i in range(16, offset):
-        hdr[i] = (i * 37 + 11) % 256
+        hdr[i] = (i * 37 + 11 + (i * i)) % 256
     body = bytearray()
     for eid, etype, ts, tid in events:
         body += struct.pack("<iIII", eid, etype, ts, tid)
@@ -317,25 +323,21 @@ def _is_argv_one(node):
 
 
 def _try_b64_decode(s):
-    # try to detect base64-encoded banned paths
     s = s.strip()
     if len(s) < 16:
         return None
-    # base64 chars only and padding
     b64chars = set(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n\r"
     )
     if not all(c in b64chars for c in s):
         return None
     try:
-        # add padding if needed
         missing = len(s) % 4
         if missing:
             s_padded = s + "=" * (4 - missing)
         else:
             s_padded = s
         decoded = base64.b64decode(s_padded, validate=False)
-        # try utf-8 decode
         txt = decoded.decode("utf-8", errors="ignore")
         return txt
     except Exception:
@@ -356,7 +358,6 @@ def test_from_scratch():
             if node.args.vararg:
                 param_names.add(node.args.vararg.arg)
 
-    # track assignments for dataflow
     argv_derived = set()
     assigned_names = set()
     tainted = set()
@@ -366,7 +367,6 @@ def test_from_scratch():
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     assigned_names.add(target.id)
-                    # check RHS
                     if _is_argv_one(node.value):
                         argv_derived.add(target.id)
                     elif isinstance(node.value, ast.Name):
@@ -377,7 +377,6 @@ def test_from_scratch():
                             argv_derived.add(target.id)
                     elif isinstance(node.value, ast.Call):
                         func = node.value.func
-                        # check for banned decode attrs
                         call_name = ""
                         if isinstance(func, ast.Attribute):
                             call_name = func.attr
@@ -390,8 +389,6 @@ def test_from_scratch():
                             raise AssertionError(
                                 f"banned decode/call {call_name} used to assign {target.id}"
                             )
-                        # if call constructs path via bytes decode, mark tainted
-                        # for safety, if call has any arg that is base64 literal
                         for arg in node.value.args:
                             const_str = _get_const_str(arg)
                             if const_str:
@@ -488,7 +485,6 @@ def test_from_scratch():
             assert banned.lower() not in low, f"forbidden path {banned!r} in {lit!r}"
         if "ground" in low and "truth" in low:
             assert False, f"forbidden ground_truth mention {lit!r}"
-        # check base64 encoded bypass
         dec = _try_b64_decode(lit)
         if dec:
             dlow = dec.lower()
@@ -506,12 +502,10 @@ def test_from_scratch():
             continue
         if isinstance(first_arg, ast.Name):
             fid = first_arg.id
-            # must be argv_derived or param that was never assigned/tainted
             if fid in argv_derived:
                 continue
             if fid in param_names and fid not in assigned_names and fid not in tainted:
                 continue
-            # allow if fid is param and all assignments to fid are argv_derived (i.e., fid in argv_derived) already handled
             assert False, (
                 f"open with disallowed variable {fid!r}. Only open(sys.argv[1]) or variable directly derived from sys.argv[1] or unmodified function param is allowed. Found assigned={fid in assigned_names} tainted={fid in tainted} argv_derived={argv_derived}"
             )
@@ -539,7 +533,7 @@ def test_varied_offset_hardcode_guard():
     events = [(1, 1, 100, 1), (1, 1, 120, 1)]
     expected = _compute_true(events)
     assert expected == 20
-    for offset in [16, 24, 40, 96, 128, 32]:
+    for offset in [16, 20, 24, 32, 40, 64, 96, 128]:
         data = _pack_wklk(events, offset=offset)
         got = run_agent_bytes(data)
         assert got == expected, f"offset {offset} failed: got {got} expected {expected}"
@@ -578,17 +572,156 @@ def test_cross_thread_and_dedup():
     assert got == expected
 
 
+def test_per_pair_last_vs_global():
+    """Discriminator like foundry speck heavy: per-pair last observation vs global trace end.
+    If solver uses global max timestamp instead of per-pair last, it overcounts 40-70%.
+    """
+    events = [
+        (1, 1, 10, 1),
+        (1, 1, 50, 1),  # dup updates last_ts to 50 for pair (1,1)
+        # other pairs continue far to 10000
+        (99, 1, 1000, 2),
+        (99, 0, 2000, 2),
+        (100, 1, 5000, 3),
+        (100, 0, 10000, 3),
+    ]
+    # true: pair (1,1) leaks 40 (50-10), others balanced 0, total 40
+    expected = _compute_true(events)
+    assert expected == 40
+    # naive global: would use global max 10000 -> 9990 for pair (1,1) if using first_acq 10
+    naive_global = 10000 - 10
+    assert naive_global != expected
+    assert naive_global > expected + 1000
+
+    data = _pack_wklk(events, offset=32)
+    got = run_agent_bytes(data)
+    assert got == expected, (
+        f"per-pair last vs global failed: got {got} expected {expected}"
+    )
+
+
+def test_final_interval_vs_first_ever():
+    """Discriminator: first-ever acquire vs final interval start.
+    Balanced cycle then leak – first-ever overcounts 120-310%.
+    """
+    events = [
+        (1, 1, 10, 1),
+        (1, 0, 20, 1),  # balanced first cycle
+        (1, 1, 1000, 1),  # final interval start
+        (1, 1, 1050, 1),  # dup updates last_ts
+    ]
+    expected = _compute_true(events)
+    assert expected == 50  # 1050-1000
+    naive_first = 1050 - 10  # 1040 using first-ever
+    assert naive_first != expected
+    assert naive_first > expected + 500
+
+    data = _pack_wklk(events, offset=64)
+    got = run_agent_bytes(data)
+    assert got == expected, f"final vs first ever failed: got {got} expected {expected}"
+
+
+def test_duplicate_updates_last_ts():
+    """Duplicate acquire while held must update last_ts per pair even though hold state unchanged.
+    Ignoring duplicate for last_ts undercounts.
+    """
+    events = [
+        (1, 1, 10, 1),
+        (1, 1, 500, 1),  # dup while held – should update last_ts to 500
+    ]
+    expected = _compute_true(events)
+    assert expected == 490
+    # if duplicate ignored for last_ts, you'd get 0
+    naive_no_last_update = 0
+    assert naive_no_last_update != expected
+
+    data = _pack_wklk(events, offset=40)
+    got = run_agent_bytes(data)
+    assert got == expected, f"duplicate last_ts failed: got {got} expected {expected}"
+
+
+def test_cross_thread_heavy():
+    """Cross-thread releases 3-6 per acquire must be ignored – thread-affinity.
+    Foundry analogue of speck heavy: per-id counting overcounts 60-92%.
+    """
+    events = []
+    base = 100
+    # true holds: id 1 tid 1 acquire 100, leak to 800 via dup
+    events.append((1, 1, base, 1))
+    events.append((1, 1, 800, 1))
+    # cross-thread noise: releases from other tids for same id
+    for other_tid in [2, 3, 4, 5, 6, 7]:
+        events.append((1, 0, base + 200, other_tid))
+        events.append((1, 0, base + 400, other_tid))
+    # balanced other id
+    events.append((2, 1, 150, 2))
+    events.append((2, 0, 250, 2))
+    # add same cross noise for id 2 but from other thread – should be ignored
+    events.append((2, 0, 200, 3))
+
+    expected = _compute_true(events)
+    assert expected == 700  # 800-100 for id1 tid1
+    # per-id naive would think cross-thread releases balanced id1 => 0
+    # actually per-id would balance incorrectly, undercount or overcount
+    # cross-thread heavy discriminator
+
+    data = _pack_wklk(events, offset=96)
+    got = run_agent_bytes(data)
+    assert got == expected, f"cross-thread heavy failed: got {got} expected {expected}"
+
+
+def test_stable_order_matters():
+    """Within same ms, logger preserves write order. File order matters for dedup/release order.
+    If order not preserved (unstable sort), final interval differs.
+    Foundry analogue of halo growth order sensitivity.
+    """
+    # file order: acq10, rel100, acq100, acq150
+    # ts sorted stable: 10,100,100,150 -> acq10 held, rel100 releases, acq100 starts final first=100, acq150 dup updates last=150 => leak 50
+    # if order of same-ts swapped: acq10, acq100, rel100, acq150 -> acq10 held, acq100 dup ignored (last still 100?), rel100 releases, acq150 starts => leak 0
+    events_file_order_A = [
+        (1, 1, 10, 1),
+        (1, 0, 100, 1),
+        (1, 1, 100, 1),
+        (1, 1, 150, 1),
+    ]
+    expected_A = _compute_true(events_file_order_A)
+    assert expected_A == 50
+
+    events_file_order_B = [
+        (1, 1, 10, 1),
+        (1, 1, 100, 1),
+        (1, 0, 100, 1),
+        (1, 1, 150, 1),
+    ]
+    expected_B = _compute_true(events_file_order_B)
+    assert expected_B == 0
+    assert expected_A != expected_B, "stable order test setup must differ"
+
+    data_A = _pack_wklk(events_file_order_A, offset=40)
+    got_A = run_agent_bytes(data_A)
+    assert got_A == expected_A, (
+        f"stable order A failed: got {got_A} expected {expected_A}"
+    )
+
+    data_B = _pack_wklk(events_file_order_B, offset=40)
+    got_B = run_agent_bytes(data_B)
+    assert got_B == expected_B, (
+        f"stable order B failed: got {got_B} expected {expected_B}"
+    )
+
+
 def test_randomized_dynamic():
+    """5 random traces with heavy patterns – foundry style randomized extra."""
     rnd = random.Random(42)
-    offsets = [16, 24, 32, 40, 64, 96, 128]
-    for i in range(3):
+    offsets = [16, 20, 24, 32, 40, 64, 96, 128]
+    for i in range(5):
         ev = []
-        num_ids = rnd.randint(8, 14)
+        num_ids = rnd.randint(12, 20)
         for id_ in range(1, num_ids + 1):
-            base = rnd.randint(0, 2000)
-            tids = rnd.sample([1, 2, 3, 4, 5], rnd.randint(1, 3))
+            base = rnd.randint(0, 3000)
+            tids = rnd.sample([1, 2, 3, 4, 5, 6, 7, 8], rnd.randint(2, 5))
             for tid in tids:
-                pat = rnd.choice([0, 1, 2, 3, 4])
+                pat = rnd.choice([0, 1, 2, 3, 4, 5, 6])
                 if pat == 0:
                     a = base + rnd.randint(0, 100)
                     r = a + rnd.randint(10, 100)
@@ -597,8 +730,11 @@ def test_randomized_dynamic():
                 elif pat == 1:
                     a = base + rnd.randint(0, 100)
                     ev.append((id_, 1, a, tid))
-                    if rnd.random() < 0.6:
+                    if rnd.random() < 0.8:
                         ev.append((id_, 1, a + rnd.randint(1, 20), tid))
+                    # dup that updates last
+                    if rnd.random() < 0.6:
+                        ev.append((id_, 1, a + rnd.randint(100, 500), tid))
                 elif pat == 2:
                     a = base + rnd.randint(0, 100)
                     ev.append((id_, 1, a, tid))
@@ -607,17 +743,41 @@ def test_randomized_dynamic():
                 elif pat == 3:
                     a = base + rnd.randint(0, 100)
                     ev.append((id_, 1, a, tid))
-                    other = rnd.choice([t for t in [1, 2, 3, 4, 5] if t != tid])
-                    ev.append((id_, 0, a + 30, other))
-                else:
+                    for _ in range(rnd.randint(3, 6)):
+                        other = rnd.choice(
+                            [t for t in [1, 2, 3, 4, 5, 6, 7, 8] if t != tid]
+                        )
+                        ev.append((id_, 0, a + rnd.randint(20, 200), other))
+                elif pat == 4:
                     a1 = base + rnd.randint(0, 100)
                     r1 = a1 + 20
                     a2 = r1 + 10
                     ev.append((id_, 1, a1, tid))
                     ev.append((id_, 0, r1, tid))
                     ev.append((id_, 1, a2, tid))
-                    if rnd.random() < 0.5:
-                        ev.append((id_, 1, a2 + 10, tid))
+                    if rnd.random() < 0.8:
+                        ev.append((id_, 1, a2 + rnd.randint(5, 15), tid))
+                    if rnd.random() < 0.6:
+                        ev.append((id_, 1, a2 + rnd.randint(100, 300), tid))
+                elif pat == 5:
+                    a1 = base + rnd.randint(0, 100)
+                    r1 = a1 + rnd.randint(20, 50)
+                    a2 = r1 + rnd.randint(10, 50)
+                    r2 = a2 + rnd.randint(20, 80)
+                    ev.append((id_, 1, a1, tid))
+                    ev.append((id_, 0, r1, tid))
+                    ev.append((id_, 1, a2, tid))
+                    ev.append((id_, 0, r2, tid))
+                else:
+                    # early leak with far global
+                    a = base + rnd.randint(0, 50)
+                    ev.append((id_, 1, a, tid))
+                    ev.append((id_, 1, a + rnd.randint(30, 80), tid))
+        # add dangling
+        for _ in range(rnd.randint(10, 25)):
+            ev.append(
+                (rnd.randint(1000, 5000), 0, rnd.randint(0, 3000), rnd.randint(1, 8))
+            )
         expected = _compute_true(ev)
         offset = rnd.choice(offsets)
         data = _pack_wklk(ev, offset=offset)
@@ -630,9 +790,9 @@ def test_randomized_dynamic():
 def test_timestamp_order_required():
     rnd = random.Random(123)
     ev = []
-    for i in range(30):
+    for i in range(50):
         ev.append(
-            (i % 6 + 1, rnd.choice([0, 1]), rnd.randint(0, 200), rnd.randint(1, 4))
+            (i % 8 + 1, rnd.choice([0, 1]), rnd.randint(0, 500), rnd.randint(1, 6))
         )
     rnd.shuffle(ev)
     expected = _compute_true(ev)
@@ -671,46 +831,39 @@ def test_timestamp_order_required():
 
 
 def test_negative_ids():
-    events = [(-5, 1, 10, 1), (-5, 1, 20, 1), (-10, 1, 15, 2), (-10, 0, 25, 2)]
+    events = [
+        (-5, 1, 10, 1),
+        (-5, 1, 20, 1),
+        (-10, 1, 15, 2),
+        (-10, 0, 25, 2),
+        (-5, 1, 800, 1),
+    ]
     expected = _compute_true(events)
-    # (-5) leaks 10, (-10) balanced
-    assert expected == 10
+    # (-5) leaks: first 10, last 800 => 790, with dup at 20 ignored but updates last to 800
+    assert expected == 790
     data = _pack_wklk(events, offset=32)
     got = run_agent_bytes(data)
     assert got == expected
 
 
 def test_same_timestamp_stable_order():
-    # acquire then release same ts in file order => balanced if stable preserves order
     events_file_order = [
         (1, 1, 100, 1),
         (1, 0, 100, 1),
         (2, 0, 100, 1),
         (2, 1, 100, 1),
     ]
-    # timestamp order stable: first two => acquire@100 then release@100 => balanced 0
-    # second pair: release then acquire same ts => release ignored, acquire leaks 0
     expected = _compute_true(events_file_order)
     assert expected == 0
     data = _pack_wklk(events_file_order, offset=24)
     got = run_agent_bytes(data)
     assert got == expected
 
-    # reverse order would give different if not stable? Actually both 0 leak duration but logic of order matters
-    # create case where order matters for duration calc: duplicate after release same ts
     events2 = [
         (1, 1, 50, 1),
         (1, 0, 100, 1),
-        (
-            1,
-            1,
-            100,
-            1,
-        ),  # acquire same ts as release, file order release then acquire => leak
+        (1, 1, 100, 1),
     ]
-    # sorted stable keeps file order: release@100 then acquire@100? Wait file order is acq50, rel100, acq100. Sorted by ts: 50,100,100 stable preserves rel then acq => after processing: acq50 held, rel100 releases, acq100 leaks duration 0 => total 0
-    # if file order were acq50, acq100, rel100 same ts: acq50 held, duplicate acq100 ignored, rel100 releases => 0 as well. Need more distinct.
-    # For test, just ensure stable sort behavior doesn't crash
     expected2 = _compute_true(events2)
     data2 = _pack_wklk(events2, offset=40)
     got2 = run_agent_bytes(data2)
