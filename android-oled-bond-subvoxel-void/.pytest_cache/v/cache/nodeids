@@ -1,0 +1,7 @@
+[
+  "tests/test_outputs.py::test_from_scratch",
+  "tests/test_outputs.py::test_heldout[/tests/data/heldout_1.obvl]",
+  "tests/test_outputs.py::test_heldout[/tests/data/heldout_2.obvl]",
+  "tests/test_outputs.py::test_heldout[/tests/data/heldout_3.obvl]",
+  "tests/test_outputs.py::test_script_exists"
+]
