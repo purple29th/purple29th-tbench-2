@@ -3,15 +3,15 @@ hey so i am in android mobile config lab we dump config dependency files off dev
 your job is write script to /app/solve.py that reads file path from first arg and prints one number as last token. we run like python3 /app/solve.py /app/data/scene.mcfg, sample file at /app/data/scene.mcfg you can test locally. hidden grading uses other mcfg files you never saw with different sizes dependency chains exposure values thresholds. dont hardcode sample.
 
 goal is two steps, this is exposure imbalance task so careful:
-first find largest total exposure any valid rollout can reach, call it max exposure. custom twist: header int32 reserved at offset 16 is exposure imbalance threshold. configs with abs(value) < threshold are free riders. they are not counted in size and their own dependencies are ignored, they can be on without requiring their dependencies. but if a non free config depends on a free rider, that dependency is still enforced, free rider must be on. for example file with threshold 6, config value 5 with dep dangling is free rider, not counted even if reachable, and its dangling dep ignored anyway. but if config id 1 value 120 depends on id 2 value -3 and threshold is 10, then id 2 is free rider, its own dependency on id 3 is ignored, so including id 1 only needs id 2, not id 3 and beyond. this changes the closure graph itself, not just counting, so just counting reachable overcounts and just building standard max closure overcounts.
-then among ALL valid rollouts that reach exactly that max exposure, find smallest number of configs turned on but counting only configs with abs(value) >= threshold. free riders never counted even if they are forced.
+first find largest total exposure any valid rollout can reach, call it max exposure. custom twist: header int32 reserved at offset 16 is exposure imbalance threshold. configs with abs(value) < threshold are free riders. they are not counted in size and their own dependencies are ignored. but if a non free config depends on a free rider, that dependency is still enforced. for example file with threshold 6, config value 5 with dep dangling is free rider, not counted even if reachable. this free rider handling changes the closure graph itself, not just counting.
+then among ALL valid rollouts that reach exactly that max exposure, find smallest number of configs turned on counting only non free. free riders never counted.
 
 watch out traps i tried:
 just adding up every positive is wrong because positive can drag in negative dependencies you cannot avoid.
 turning on everything is also wrong because it pulls in avoidable costs.
 some configs depend on each other in cycle so they must be activated as all or nothing, so singletons count as group of one, selection by total value not node count.
 a dependency id that names no config in file is dangling and ignored, imposes no constraint.
-zero-gain padding must be excluded, for example config +30 that depends on -30 does not change total exposure, so it can be included without changing max, but minimal rollout must leave such pairs out via residual graph.
+zero-gain padding must be excluded, for example config +30 that depends on -30 does not change total exposure, so it can be included without changing max, but minimal rollout must leave such pairs out.
 
 binary format little endian, all ints:
 first four bytes ascii M C F G magic at offset zero
