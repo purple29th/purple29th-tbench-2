@@ -1,40 +1,31 @@
-Pixel factory QA line checks OLED adhesive for trapped air voids using a new under-display IR scanner mounted on Android test rigs.
+my pixel factory qa line checks oled adhesive for trapped air voids using under display ir scanner mounted on android test rig. i dump raw backscatter cubes from vcsel diffuser + ir scatter sensor via android FileOutputStream. kotlin side writes ByteBuffer little endian into app private storage just like arcore depth dumps.
 
-The rig dumps a raw backscatter cube from its VCSEL diffuser into app private storage via FileOutputStream (little-endian ByteBuffer, same path pattern as ARCore depth dumps you saw in other tasks). Each cube may contain:
+your job is script that turns one cube into physical air void volume cubic mm.
 
-- one main air-gap void (irregular bubble / delam pocket) that we need to measure
-- a few far dust specks / fibre reflections that are NOT part of the bond void
-- a flat DC background plus faint sensor noise
-- anisotropic optical bleed: OLED stack diffuses IR wide in XY, bond is thin so Z bleed is narrow. A normalized Gaussian PSF with different XY vs Z sigmas does the spreading.
+make file named solve dot py inside app folder. we will run like python app solve py /path/to/scan.obvl and we take last whitespace token printed as float volume. one sample you can try locally named scene dot obvl lives under app/data. hidden grading uses other dumps you never saw with different void sizes diffuser power voxel pitch spacing background ir dust specks. do not hardcode any numbers from sample size brightness.
 
-Your script must report the physical volume of the MAIN bond void in cubic mm.
+obvl is tiny custom container i invented for oled bond scans. all ints and floats little endian.
 
-Make a script at /app/solve.py . We run it like:
+first four bytes ascii O B V L magic.
 
-    python3 /app/solve.py /app/data/scene.obvl
+next four bytes u32 version.
 
-The path to the cube is argv[1]. Sample at /app/data/scene.obvl for local dev. Hidden grading uses other OLED scans with different void sizes, emitter power, pitch, background.
+next four bytes u32 dtype code. two equals int16 scatter. sixteen equals float32 scatter.
 
-Format .obvl is my own mini container, all little-endian:
+next twelve bytes three u32 nx ny nz counts per axis width/height/depth. total voxels nx*ny*nz.
 
-- 0-3: ascii "OBVL" magic
-- 4-7: u32 version = 1
-- 8-11: u32 dtype code: 2 means little-endian int16, 16 means little-endian float32
-- 12-23: 3x u32 nx, ny, nz voxel counts, total = nx*ny*nz
-- 24-35: 3x f32 sx, sy, sz mm per voxel, anisotropic, read from header per file, do not assume same across files
-- 36-39: u32 data_offset where payload starts (usually 64)
-- payload: nx*ny*nz values of declared dtype, x fastest, index = x + nx*(y + ny*z)
+next twelve bytes three f32 sx sy sz mm per voxel per axis. anisotropic calibration from oled stack diffusion xy and bond thickness z. different per file so must read header every time do not assume.
 
-Content: void interior is bright saturated plateau (air scattering strongest), thin delam fingers at edges partly filled -> dimmer intermediate values, border dim from partial fill + PSF smear. Threshold tricks fail: low threshold grabs huge smeared halo overestimates 70-120%, high threshold misses thin fingers underestimates 30-50%. No fixed threshold works because emitter power/background/pitch change per scan.
+next four bytes u32 data_offset where voxel payload starts.
 
-Physics that saves you: blur kernel is normalized, does not create/destroy photon counts, only spreads them. True geometric voxel count is:
+after offset nx*ny*nz values of declared dtype. x is fastest: linear index for x y z = x + nx * (y + ny * z).
 
-    void_voxels = sum( background_subtracted_intensity over void + surrounding halo ) / plateau_amplitude
+cube content: one main air void bubble plus occasional far dust speck blobs fibre reflections. vcsel diffuser plus oled stack gives anisotropic point spread wide laterally narrow axially because oled diffuses ir wide xy and bond thin so z narrow. so true shape: thick core where scatter bright and flat from air bubble, plus thin delam channels fingers along x y where voxel only partially filled so intensity lower. border voxels dimmer from partial fill and smear. flat ambient ir background plus faint per voxel noise. some scans have one or two extra tiny bright blobs far away dust artefacts trash keep main connected mass using 26 neighbours, pick by integrated mass not voxel count.
 
-Plateau = concentration where IR most saturated (interior). Use largest-mass 26-connected component above noise to drop dust specks (far tiny bright blobs). Then grow slightly to include faint halo until surrounding shell mean falls back near noise level.
+threshold counting cannot work: low cut includes huge blurred halo overestimates 70-120 percent. high cut misses thin partially filled delam channels underestimates 30-50 percent. no fixed cut works across files because diffuser power background pitch change per oled batch.
 
-Print final volume mm3 as last whitespace token on stdout (float). Example output: "123.456" . Grading tolerance 3% on hidden OBVLs.
+blur spreads energy but does not create or destroy photons. that physics makes precise subvoxel volume possible. best clue is where scatter most concentrated not just how many bright voxels. interior flat but hidden by blur noise. so true voxels = sum(background_subtracted intensity over void+halo) / plateau_amplitude. plateau is saturated interior where scatter most concentrated.
 
-Constraints: parse binary yourself via struct. BANNED: numpy, scipy, skimage, cv2, PIL/Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, subprocess, importlib, runpy, ctypes, socket, multiprocessing, glob. BANNED calls: eval, exec, compile, __import__, os.system, os.popen, os.exec, os.walk, os.listdir, os.scandir, pty. Also banned: reading /tests folder, openingheldout, importing test_outputs. Use stdlib only.
+parse binary yourself using only stdlib like struct. banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing glob multiprocessing socket. also do not open / read tests directory.
 
-We grade by recomputing volume independently in pure stdlib via intensity conservation with a different robust heuristic, so memorizing sample numbers fails.
+at end print volume mm3 as last token. grading at 3 percent tolerance, exact thresholds not prescribed, you must find robust ones that work across scans with different power background pitch dust. 3 percent band allows some heuristic variation.
