@@ -136,15 +136,16 @@ def generate_events_thread_scoped(num_ids, seed, include_reacquire=True):
 
 def build():
     # configs: (name, seed, num_ids, offset, include_reacquire)
+    # Increased complexity to avoid "too easy" - larger traces, more cross-thread and reacquire patterns
     configs = [
-        ("scene", 0, 10, 64, False),
-        ("heldout_1", 10, 12, 16, True),  # offset 16 breaks hardcode 64
-        ("heldout_2", 11, 15, 24, True),  # offset 24
-        ("heldout_3", 12, 20, 40, True),  # offset 40
-        ("heldout_4", 13, 25, 96, True),  # offset 96
-        ("heldout_5", 14, 30, 128, True),  # offset 128
-        ("heldout_6", 15, 28, 32, True),  # offset 32 with reacquire heavy
-        ("heldout_7", 16, 22, 20, True),  # offset 20
+        ("scene", 0, 12, 64, False),
+        ("heldout_1", 10, 35, 16, True),  # offset 16 breaks hardcode 64
+        ("heldout_2", 11, 45, 24, True),  # offset 24
+        ("heldout_3", 12, 60, 40, True),  # offset 40 - larger
+        ("heldout_4", 13, 80, 96, True),  # offset 96 - larger with many reacquires
+        ("heldout_5", 14, 90, 128, True),  # offset 128
+        ("heldout_6", 15, 70, 32, True),  # offset 32 with reacquire heavy
+        ("heldout_7", 16, 55, 20, True),  # offset 20
     ]
     res = {}
     for name, seed, num_ids, offset, incl in configs:
