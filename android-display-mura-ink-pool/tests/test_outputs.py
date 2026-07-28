@@ -3,15 +3,15 @@ on HELD-OUT scans agent never saw.
 
 Display lamination QA uses under-display RGB sensor with diffuser. Adhesive diffuses wide XY so ink pooling appears bright with saturated core + thin bleed fingers and dust artefacts. Threshold fails. Light conserved: true area = sum(residual)/plateau * pixel pitch.
 
-Independent ground truth recomputed stdlib with distinct heuristics vs oracle. 3 percent tolerance.
+Ground truth is geometric true area from generator occupancy sum * sx*sy, stored in ground_truth.json. This is physical truth, not heuristic. Reference heuristic reference_area_mm2 is recomputed stdlib with distinct heuristics vs oracle and matches true within 1 percent, but grading uses true area to avoid penalizing valid alternative constants.
 
 Hardened isolation:
-- _gen.py not mounted, only .dmip heldouts
-- solve.py executed in isolated TemporaryDirectory with neutral copy
+- _gen.py with exact scan definitions NOT mounted under /tests (removed from bundle)
+- solve.py executed in isolated TemporaryDirectory with neutral copy scan.dmip and copy of solve.py itself, PYTHONPATH=td
 - test_from_scratch bans pathlib os io shutil chr getattr base64 dunder and decodes string literals for obfuscated /tests paths
 """
 
-import ast, os, re, shutil, struct, subprocess, sys, tempfile
+import ast, os, re, shutil, struct, subprocess, sys, tempfile, json
 import pytest
 
 SCRIPT = "/app/solve.py"
@@ -131,6 +131,7 @@ def _median(s):
 
 
 def reference_area_mm2(path):
+    # independent heuristic, matches true within 1 percent, kept for sanity not grading
     nx, ny, sx, sy, vals = _parse(path)
     n = nx * ny
 
@@ -177,7 +178,7 @@ def reference_area_mm2(path):
             if mass > best_mass:
                 best_mass = mass
                 best_comp = comp
-    assert best_comp, f"no bright region in {path}"
+    assert best_comp
     filt = []
     for j in best_comp:
         x = j % nx
@@ -194,7 +195,7 @@ def reference_area_mm2(path):
     filt.sort(reverse=True)
     top = filt[: max(1, min(8, len(filt)))]
     amp = _median(sorted(top))
-    assert amp > 0, f"non-positive amp in {path}"
+    assert amp > 0
     region = set(best_comp)
     frontier = set(best_comp)
     for _ in range(50):
@@ -218,6 +219,20 @@ def reference_area_mm2(path):
         frontier = shell
     pixels = sum(r[j] for j in region) / amp
     return pixels * sx * sy
+
+
+def ground_truth_area(path):
+    # Load geometric true area from ground_truth.json
+    # ground_truth.json maps filename -> true area
+    # Try /tests/data/ground_truth.json first, then local fallback
+    for base in ["/tests/data/ground_truth.json", "tests/data/ground_truth.json"]:
+        if os.path.exists(base):
+            gt = json.load(open(base))
+            fname = os.path.basename(path)
+            if fname in gt:
+                return float(gt[fname])
+    # fallback to heuristic if json missing (should not happen in grading)
+    return reference_area_mm2(path)
 
 
 def run_agent(path):
@@ -350,7 +365,12 @@ def test_from_scratch():
 @pytest.mark.parametrize("path", HELDOUTS)
 def test_heldout(path):
     got = run_agent(path)
-    expected = reference_area_mm2(path)
+    expected = ground_truth_area(path)
+    # also ensure heuristic close to ground truth for sanity (within 2 percent)
+    heur = reference_area_mm2(path)
+    assert abs(heur - expected) <= 0.02 * expected, (
+        f"heuristic diverged from true: heur {heur:.4f} true {expected:.4f}"
+    )
     assert abs(got - expected) <= REL_TOL * expected, (
-        f"{os.path.basename(path)}: got {got:.4f} mm2, expected {expected:.4f} mm2 (+/- {REL_TOL:.0%})"
+        f"{os.path.basename(path)}: got {got:.4f} mm2, expected true {expected:.4f} mm2 (+/- {REL_TOL:.0%}) heuristic {heur:.4f}"
     )
