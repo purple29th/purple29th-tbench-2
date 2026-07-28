@@ -25,37 +25,40 @@ def parse(path):
 
 def solve_one(path):
     events = parse(path)
-    # sort by timestamp to respect log order
+    # sort by timestamp to respect log order (trace already sorted but enforce)
     events.sort(key=lambda x: x[2])
 
-    held = {}
-    first_acq = {}
-    last_ts = {}
+    held = {}  # key -> bool, currently held?
+    first_acq = {}  # key -> ts of first acquire of current held interval (final interval)
+    last_ts = {}  # key -> max ts seen for that pair
 
     for eid, etype, ts, tid in events:
         key = (eid, tid)
+        # track last timestamp seen for this (id, thread) pair
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
         if etype == 1:  # acquire
             if held.get(key, False):
-                # duplicate acquire without intervening release: count once
+                # duplicate acquire without intervening release: dedup, count once
                 continue
             held[key] = True
-            if key not in first_acq:
-                first_acq[key] = ts
-            else:
-                if ts < first_acq[key]:
-                    first_acq[key] = ts
+            # start of final held interval (overwrites any previous after balanced release)
+            first_acq[key] = ts
         else:  # release
             if not held.get(key, False):
                 # dangling release: no matching acquire from same thread, ignore
                 continue
             held[key] = False
+            # clear current interval start; next acquire will start new interval
+            first_acq[key] = None
 
     total_leaked = 0
     for key, is_held in held.items():
         if is_held:
-            total_leaked += last_ts[key] - first_acq[key]
+            # if leaked, first_acq must be set and last_ts >= first_acq
+            f = first_acq.get(key)
+            if f is not None:
+                total_leaked += last_ts[key] - f
 
     print(total_leaked)
 
