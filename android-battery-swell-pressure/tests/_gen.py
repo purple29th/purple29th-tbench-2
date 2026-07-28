@@ -142,14 +142,16 @@ def generate_trace(
 
 
 def build():
-    # Configs keep capacity 600-1050 mAh, interval 0.5, gain 0.92-1.14, noise 7-9.5, PSF 4.0-5.2,
-    # drift 10-20, width 38-50, plus wide low dust width 60-70 requiring mass-based.
+    # Configs keep capacity 527-1207 mAh after interval/gain variation, interval varied 0.4-0.6 to test parsing,
+    # gain varied 0.92-1.14 including scene 0.95 to empirically disambiguate multiply-by-gain,
+    # noise 7-9.5, PSF 4.0-5.2, drift 10-20, width 38-50, plus wide low dust width 60-70 requiring mass-based.
+    # Formula canonical: cap = sum_occupancy * plateau/10 * interval * gain /3.6
     configs = [
-        (0, 2048, 0.5, 1.0, 100, 7.5, 1380, 46, 4.2, 12.0, 60),
+        (0, 2048, 0.5, 0.95, 100, 7.5, 1380, 46, 4.2, 12.0, 60),
         (1, 2048, 0.5, 1.14, 108, 8.8, 1280, 42, 4.8, 18.0, 62),
-        (2, 2304, 0.5, 0.92, 92, 7.0, 1480, 50, 4.0, 10.0, 58),
+        (2, 2304, 0.6, 0.92, 92, 7.0, 1480, 50, 4.0, 10.0, 58),
         (3, 2048, 0.5, 1.08, 105, 8.2, 1350, 44, 4.5, 15.0, 64),
-        (4, 2688, 0.5, 0.96, 96, 9.5, 1200, 38, 5.2, 20.0, 66),
+        (4, 2688, 0.4, 0.96, 96, 9.5, 1200, 38, 5.2, 20.0, 66),
     ]
     res = {}
     for i, cfg in enumerate(configs):
