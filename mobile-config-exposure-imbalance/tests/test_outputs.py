@@ -85,7 +85,9 @@ def _parse(path):
     for _ in range(cnt):
         nid, val, dc = struct.unpack_from("<iiI", d, o)
         o += 12
-        ds = [struct.unpack_from("<I", d, o + 4 * i)[0] for i in range(dc)]
+        raw = [struct.unpack_from("<I", d, o + 4 * i)[0] for i in range(dc)]
+        # dep ids are uint32 but may encode signed int32 (two's complement) for negative ids
+        ds = [d - (1 << 32) if d >= (1 << 31) else d for d in raw]
         o += 4 * dc
         weight[nid] = val
         deps[nid] = ds
