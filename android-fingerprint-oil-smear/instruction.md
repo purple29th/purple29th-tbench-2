@@ -1,40 +1,44 @@
-I work in the Android fingerprint lab where we see oil smear blocking the sensor after factory assembly. The under-display optical fingerprint sensor captures raw images. When oil from display glue leaks, it pools and creates a bright smear plus thin bleed lines plus dust specks far away.
+I work on Android under-display optical fingerprint sensor qualification after factory glue assembly. Glue can leak oil that blocks light and appears as a bright smear in the captured frame. We see also narrow bleed lines where a pixel is partially covered and isolated dust spots far away from the main region.
 
-We dump images via a custom file called fpos. Kotlin tests write ByteBuffer little endian via FileOutputStream.
+We dump each captured frame into a custom file with extension fpos. Kotlin test code writes ByteBuffer little endian via FileOutputStream.
 
-Your job is to write /app/solve.py that reads a file path as first argument. We run python3 /app/solve.py /path/to/scan.fpos and the last token of stdout must be an integer count of fingerprint pixels truly affected by oil after cleaning halo and dust.
+Your task is to write a program at /app/solve.py that takes a file path as its first argument. We execute python3 /app/solve.py /path/to/scan.fpos. The last token printed on stdout must be an integer count of pixels truly covered by oil after removing halo smear and far dust.
 
-A sample file is available at /app/data/scene.fpos you can try locally. Hidden grading uses other files you never saw with different oil sizes, gain, pitch, baseline, and dust. Do not hardcode the sample.
+Sample input is available at /app/data/scene.fpos you can try locally. Hidden grading uses four other files you never saw with different oil extents, pitch, gain, baseline, and dust positions. Do not hardcode numbers from the sample.
 
-fpos format is my tiny container for fingerprint oil smear.
+FPOS binary layout little endian:
 
-Header little endian:
-Bytes 0 to 3: ascii FPOS magic
-Bytes 4 to 7: u32 version equals 1
-Bytes 8 to 11: u32 total pixels
-Bytes 12 to 15: u32 data offset
-Bytes 16 to 19: f32 sx pitch mm per pixel x
-Bytes 20 to 23: f32 sy pitch mm per pixel y
-Bytes 24 to 27: u32 baseline floor
-Bytes 28 to 31: u32 nx
-Bytes 32 to 35: u32 ny
-Header at least 36 bytes plus padding up to data offset, respect data offset.
+0 to 3: ASCII FPOS
+4 to 7: u32 version = 1
+8 to 11: u32 total pixels = nx * ny
+12 to 15: u32 data offset
+16 to 19: f32 sx pitch mm per pixel along x
+20 to 23: f32 sy pitch mm per pixel along y
+24 to 27: u32 baseline brightness floor
+28 to 31: u32 nx width
+32 to 35: u32 ny height
+At least 36 bytes header, may have padding up to data offset. Respect data offset.
 
-Payload at offset is nx times ny int16 little endian brightness values, x fastest so index equals x plus nx times y.
+Payload at data offset is nx * ny int16 little endian brightness values. X is fastest, so linear index = x + nx * y.
 
-Content:
-One main oil smear where brightness is high plus thin bleed lines where cell is partly filled with mid values plus flat background baseline plus noise plus far dust blobs that are trash far away. You must ignore dust and keep the biggest mass cluster using 8 neighbours, pick by mass not count.
+Image content:
+Flat background near baseline plus Gaussian-like sensor noise plus one dominant oil smear that raises brightness strongly plus narrow partially covered lines with intermediate values plus thin halo from optical blur plus several isolated dust blobs far away that should be ignored. Keep only the main oil region, ignore far dust.
 
-Simple fixed threshold fails. Low threshold grabs halo and merges dust and overcounts by about 70 percent, high threshold misses bleed lines and undercounts.
+Why naive counting fails:
+If you count everything above a low cut, you include halo and distant dust and overcount by roughly 70 percent. If you use a strict high cut, you lose bleed lines and halo and undercount.
 
-Real trick: smear conserves total light. Interior is saturated flat but hidden by smear and noise. The best clue is where light is most concentrated, not just how many bright pixels.
+Key property:
+Optical blur preserves integrated brightness energy. The peak is suppressed but total light is conserved. Interior of oil is flat saturated but hidden by blur and noise. Recovery must use total energy, not just bright pixel count.
 
-Parse binary yourself using only struct. Allowed modules are struct, sys, collections, and deque. Banned modules are numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, shutil, io, os, pty. Also banned tricks like subprocess, os, system, popen, exec, walk, listdir, scandir, open, stat, read, fdopen, path and pathlib Path, shutil, io open, importlib, runpy, pty. Banned calls are eval, exec, compile, __import__, getattr, setattr, hasattr, globals, locals, vars, dir, chr, ord, breakpoint, base64, binascii, codecs. Also banned dunder builtins dict, subclasses, mro, bases, code, globals, builtins. Do not open tests directory or heldout files or gen file or ground truth file.
+Parsing:
+Parse binary yourself using only struct. Allowed modules are struct, sys, collections, deque. Banned modules are numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, shutil, io, os, pty. Banned calls are eval, exec, compile, __import__, getattr, setattr, hasattr, globals, locals, vars, dir, chr, ord, breakpoint, base64, binascii, codecs. Banned runtime tricks are subprocess, os, system, popen, exec, walk, listdir, scandir, open, stat, read, fdopen, path and pathlib Path, shutil, io open, importlib, runpy, pty. Also banned dunder tricks like __dict__, __subclasses__, __mro__, __bases__, __code__, __globals__, __builtins__. Do not open or read tests directory, heldout files, _gen file, or ground truth file. We enforce via AST and literal scans.
 
-At end print integer count as last token. Grading checks exact integer count within tolerance tol = max(2, int(0.03 * expected)) i.e. 3 percent relative or 2 counts absolute against true count from ground_truth.json. True count comes from the generator's canonical occupancy map rounded sum, not from the reference estimator. We have 4 hidden maps with different counts and baselines, all with offset 64.
+Output grading:
+We check last integer on last non-empty stdout line. Ground truth comes from generator canonical occupancy rounded sum (core plus partial border plus bleed strokes), stored in ground_truth.json, not from reference estimator. Tolerance is tol = max(2, int(0.03 * expected)) meaning 3 percent relative or 2 absolute. You have 4 hidden scenes all with offset 64.
 
-Files may have up to few thousand pixels, recursion will fail, use iterative flood fill.
+Implementation notes:
+Image may have up to few thousand pixels. Recursive flood fill will hit recursion limit, use iterative stack or deque.
 
-This is fingerprint oil smear counting, not OLED void volume mm3 and not display mura ink pool count cdmr. Different sensor optical fingerprint vs capacitive touch vs IR.
+This task is about optical fingerprint oil residue light attenuation counting, not about OLED subvoxel void volume mm3 IR, not about display capacitive ghost touch ink pool CDMR count, and not about battery BCTR capacity.
 
 Good luck.

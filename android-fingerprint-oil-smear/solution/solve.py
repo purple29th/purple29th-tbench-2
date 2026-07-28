@@ -1,134 +1,147 @@
 #!/usr/bin/env python3
-"""Oracle for android-fingerprint-oil-smear: count via light conservation."""
-import struct, sys
+"""Oracle for fingerprint oil smear via integrated light energy recovery.
+Reads FPOS binary: header with pitch and baseline and nx ny, payload int16 brightness.
+Recovers true oil pixel count by background median, MAD noise sigma, dominant blob
+by residual mass using 8-direction flood fill, dust exclusion, peak from smoothed
+top values, halo expansion until shell mean below sigma, then mass/amp.
+"""
 
-def parse(path):
-    d=open(path,"rb").read()
-    if d[:4]!=b"FPOS":
-        raise ValueError(f"bad magic {d[:4]}")
-    total=struct.unpack_from("<I",d,8)[0]
-    off=struct.unpack_from("<I",d,12)[0]
-    sx=struct.unpack_from("<f",d,16)[0]
-    sy=struct.unpack_from("<f",d,20)[0]
-    baseline=struct.unpack_from("<I",d,24)[0]
-    nx,ny=struct.unpack_from("<II",d,28)
-    n=nx*ny
-    vals=list(struct.unpack_from(f"<{n}h",d,off))
-    return nx,ny,float(sx),float(sy),int(baseline),[float(v) for v in vals]
+import struct
+import sys
 
-def median_of_sorted(s):
-    m=len(s)
-    if m==0:
+
+def parse_fpos(p):
+    blob = open(p, "rb").read()
+    if blob[:4] != b"FPOS":
+        raise ValueError("bad magic")
+    total = struct.unpack_from("<I", blob, 8)[0]
+    off = struct.unpack_from("<I", blob, 12)[0]
+    sx = struct.unpack_from("<f", blob, 16)[0]
+    sy = struct.unpack_from("<f", blob, 20)[0]
+    bfloor = struct.unpack_from("<I", blob, 24)[0]
+    nx, ny = struct.unpack_from("<II", blob, 28)
+    n = nx * ny
+    vals = struct.unpack_from(f"<{n}h", blob, off)
+    return nx, ny, float(sx), float(sy), int(bfloor), [float(v) for v in vals]
+
+
+def median_sorted(arr):
+    L = len(arr)
+    if L == 0:
         return 0.0
-    if m%2==1:
-        return float(s[m//2])
-    else:
-        return 0.5*(float(s[m//2-1])+float(s[m//2]))
+    mid = L // 2
+    if L % 2 == 1:
+        return float(arr[mid])
+    return 0.5 * (float(arr[mid - 1]) + float(arr[mid]))
 
-def mean_filter_at_idx(data, idx, nx, ny, nxy):
-    x=idx%nx
-    y=(idx//nx)%ny
-    s=0.0
-    cnt=0
-    for dy in (-1,0,1):
-        for dx in (-1,0,1):
-            a=min(max(x+dx,0),nx-1)
-            b=min(max(y+dy,0),ny-1)
-            nidx=a+nx*b
-            s+=data[nidx]
-            cnt+=1
-    return s/cnt if cnt else data[idx]
 
 def solve_one(path):
-    nx,ny,sx,sy,baseline_file,vals=parse(path)
-    n=nx*ny
-    def idx(x,y): return x+nx*y
-    sv=sorted(vals)
-    bg=median_of_sorted(sv)
-    lo=sv[:n//2]
-    med_lo=median_of_sorted(lo)
-    mad=median_of_sorted(sorted(abs(v-med_lo) for v in lo))
-    noise_sigma=max(1e-6,1.4826*mad)
-    r=[v-bg for v in vals]
-    thr=4.0*noise_sigma
-    seen=bytearray(n)
-    NEIGH=[(dx,dy) for dy in (-1,0,1) for dx in (-1,0,1) if not (dx==0 and dy==0)]
-    best_mass=-1.0
-    best_comp=None
-    for y0 in range(ny):
-        for x0 in range(nx):
-            s=idx(x0,y0)
-            if r[s]<=thr or seen[s]:
+    nx, ny, sx, sy, base_file, raw = parse_fpos(path)
+    N = nx * ny
+
+    def lin(x, y):
+        return x + nx * y
+
+    sorted_raw = sorted(raw)
+    bg0 = median_sorted(sorted_raw)
+    lower = sorted_raw[: N // 2]
+    med_low = median_sorted(lower)
+    mad = median_sorted(sorted(abs(v - med_low) for v in lower))
+    sigma = max(1e-6, 1.4826 * mad)
+    resid = [v - bg0 for v in raw]
+    thresh = 4.0 * sigma
+
+    visited = bytearray(N)
+    neigh_offsets = [
+        (dx, dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if not (dx == 0 and dy == 0)
+    ]
+
+    best_region = None
+    best_mass_val = -1.0
+
+    for yy in range(ny):
+        for xx in range(nx):
+            idx0 = lin(xx, yy)
+            if resid[idx0] <= thresh or visited[idx0]:
                 continue
-            stack=[(x0,y0)]
-            seen[s]=1
-            comp=[]
-            mass=0.0
+            stack = [(xx, yy)]
+            visited[idx0] = 1
+            cur_comp = []
+            cur_mass = 0.0
             while stack:
-                x,y=stack.pop()
-                cur=idx(x,y)
-                comp.append(cur)
-                mass+=r[cur]
-                for dx,dy in NEIGH:
-                    a=x+dx
-                    b=y+dy
-                    if 0<=a<nx and 0<=b<ny:
-                        k=idx(a,b)
-                        if r[k]>thr and not seen[k]:
-                            seen[k]=1
-                            stack.append((a,b))
-            if mass>best_mass:
-                best_mass=mass
-                best_comp=comp
-    if not best_comp:
+                cx, cy = stack.pop()
+                cidx = lin(cx, cy)
+                cur_comp.append(cidx)
+                cur_mass += resid[cidx]
+                for dx, dy in neigh_offsets:
+                    ax = cx + dx
+                    by = cy + dy
+                    if 0 <= ax < nx and 0 <= by < ny:
+                        aidx = lin(ax, by)
+                        if resid[aidx] > thresh and not visited[aidx]:
+                            visited[aidx] = 1
+                            stack.append((ax, by))
+            if cur_mass > best_mass_val:
+                best_mass_val = cur_mass
+                best_region = cur_comp
+
+    if not best_region:
         print(0)
         return
-    filt=[]
-    for j in best_comp:
-        x=j%nx
-        y=j//nx
-        acc=0.0
-        cnt=0
-        for dy in (-1,0,1):
-            for dx in (-1,0,1):
-                a=min(max(x+dx,0),nx-1)
-                b=min(max(y+dy,0),ny-1)
-                acc+=r[idx(a,b)]
-                cnt+=1
-        filt.append(acc/cnt)
-    filt.sort(reverse=True)
-    top=filt[:max(1,min(8,len(filt)))]
-    amp=median_of_sorted(sorted(top))
-    if amp<=0:
+
+    # estimate peak amplitude from smoothed top values inside best region
+    smoothed = []
+    for q in best_region:
+        qx = q % nx
+        qy = q // nx
+        acc = 0.0
+        cnt = 0
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                ax = min(max(qx + dx, 0), nx - 1)
+                by = min(max(qy + dy, 0), ny - 1)
+                acc += resid[lin(ax, by)]
+                cnt += 1
+        smoothed.append(acc / cnt if cnt else 0.0)
+
+    smoothed.sort(reverse=True)
+    k_top = max(1, min(8, len(smoothed)))
+    top_vals = smoothed[:k_top]
+    amp = median_sorted(sorted(top_vals))
+    if amp <= 0:
         print(0)
         return
-    region=set(best_comp)
-    frontier=set(best_comp)
-    for _ in range(50):
-        shell=set()
-        for j in frontier:
-            x=j%nx
-            y=j//nx
-            for dx,dy in NEIGH:
-                a=x+dx
-                b=y+dy
-                if 0<=a<nx and 0<=b<ny:
-                    k=idx(a,b)
-                    if k not in region:
-                        shell.add(k)
+
+    # grow halo outward until shell mean below noise sigma
+    region_set = set(best_region)
+    frontier = set(best_region)
+    for _ in range(60):
+        shell = set()
+        for q in frontier:
+            qx = q % nx
+            qy = q // nx
+            for dx, dy in neigh_offsets:
+                ax = qx + dx
+                by = qy + dy
+                if 0 <= ax < nx and 0 <= by < ny:
+                    aidx = lin(ax, by)
+                    if aidx not in region_set:
+                        shell.add(aidx)
         if not shell:
             break
-        mean_shell=sum(r[j] for j in shell)/len(shell) if shell else 0.0
-        if mean_shell<=1.0*noise_sigma:
+        shell_mean = sum(resid[i] for i in shell) / len(shell) if shell else 0.0
+        if shell_mean <= 1.0 * sigma:
             break
-        region|=shell
-        frontier=shell
-    mass=sum(r[j] for j in region)
-    count=mass/amp
-    print(int(round(count)))
+        region_set.update(shell)
+        frontier = shell
 
-if __name__=="__main__":
-    if len(sys.argv)<2:
+    total_mass = sum(resid[i] for i in region_set)
+    pixel_count = int(round(total_mass / amp)) if amp else 0
+    print(pixel_count)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
         print(0)
     else:
         solve_one(sys.argv[1])

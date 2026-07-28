@@ -2,9 +2,9 @@ schema_version="1.1"
 
 [task]
 name="codimango/android-fingerprint-oil-smear"
-description="Android fingerprint oil smear: parse custom FPOS binary with optical fingerprint image from factory assembly QA, count truly oil affected pixels. Main smear plus bleed lines plus far dust, smear conserves light, need mass based 8 neighbour clustering to drop dust, estimate baseline plateau and integrate halo to get true count. Distinct from OLED void IR volume and display mura CDMR count and battery BCTR capacity."
+description="Android under-display optical fingerprint QA: FPOS container stores brightness map after factory glue leaves oily residue that attenuates light. Goal is to recover true count of pixels covered by oil despite blur smearing from optics, sensor noise, and distant dust particles from assembly. Requires background floor estimation, isolation of dominant oil blob via 8-direction connectivity prioritized by integrated residual mass, exclusion of far dust by mass and distance, peak brightness estimation from top smoothed values, and halo expansion until shell residual falls below noise sigma, then converting integrated residual to count. Different from capacitive ghost-touch CDMR measuring charge, IR void volume OBVL, and coulomb capacity BCTR."
 authors=[{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
-keywords=["android","fingerprint","oil-smear","binary-parsing","from-scratch","count","optical"]
+keywords=["android","fingerprint","oil-residue","optical-sensor","light-conservation","flood-fill","dust-rejection"]
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
 
@@ -14,9 +14,9 @@ author_email="purple29th@meta.com"
 difficulty="hard"
 category="data-science"
 category_subdomain="mobile_android"
-category_usecase="parsing_lexing"
+category_usecase="image_processing"
 reward_type="binary"
-tags=["android","fingerprint-oil","binary-parsing","from-scratch","count","optical-sensor"]
+tags=["android","fingerprint","oil-residue","optical","light-conservation","flood-fill","dust-filter"]
 expert_time_estimate_min=50.0
 junior_time_estimate_min=160.0
 
