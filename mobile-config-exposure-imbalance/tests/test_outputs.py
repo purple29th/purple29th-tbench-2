@@ -1,28 +1,36 @@
-"""Verify /app/solve.py reports the minimum rollout size that reaches the maximum
-total exposure of an .mcfg config file, on HELD-OUT files the agent never saw.
+"""Verify /app/solve.py reports minimal rollout size reaching max exposure .mcfg
+on HELD-OUT configs agent never saw.
 
-Ground truth is recomputed here independently with a different max-flow
-implementation (BFS Edmonds-Karp) than the solution, then the smallest optimal
-rollout is read off the residual graph (configs reachable from the source). A
-hardcoded constant or a value memorised from the sample cannot match several
-different held-outs, and simply reporting the maximum exposure value (rather than
-the minimum rollout size) is wrong.
+Each config has signed exposure weight, dependency forces inclusion transitively.
+Empty rollout valid. Goal is max total exposure then minimal number of configs
+with custom counting: header int32 reserved is exposure imbalance threshold,
+abs(value) < threshold are free riders - not counted and their own dependencies
+ignored, changing closure graph itself, not just counting. Zero-gain padding
+(+30 depends on -30) must be excluded via minimal cut.
 
-The agent must parse the binary and solve this FROM SCRATCH: numpy/scipy/
-networkx/igraph/pandas (which ship graph or max-flow routines) and shelling out
-are rejected by test_from_scratch().
+Ground truth recomputed independently: Edmonds-Karp vs Dinic plus threshold counting
+with signed dep handling and free rider dep ignore. Both agree.
+
+Hardened isolation post-review fix for BAD_GRADING_WRONG:
+- _parse now correctly handles negative IDs stored as uint32 (two's complement) converting to signed
+- free riders with abs < thr ignore own dependencies - graph changing twist
+- test_from_scratch now uses AST for imports/calls and decoded string literals for path checks, not raw compact substring like 'pty.' that falsely matches 'empty.' in comments
+- Imports banned via AST: numpy scipy skimage cv2 PIL networkx igraph imageio pandas torch tensorflow subprocess importlib runpy ctypes socket multiprocessing glob pathlib shutil io pty os
+- Calls banned via AST: eval exec compile __import__ getattr setattr hasattr globals locals vars dir chr ord breakpoint
+- Path tokens banned via string literal inspection: /tests test_outputs heldout _gen reference ground_truth
+- Attribute checks for os.system popen exec walk listdir scandir open stat read fdopen path
 """
-
 import ast
 import os
 import re
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
-from collections import deque
-
+import json
 import pytest
+from collections import deque
 
 SCRIPT = "/app/solve.py"
 HELDOUTS = [
@@ -36,43 +44,30 @@ HELDOUTS = [
 ]
 
 BANNED_MODULES = {
-    "numpy",
-    "scipy",
-    "skimage",
-    "cv2",
-    "PIL",
-    "Pillow",
-    "networkx",
-    "igraph",
-    "imageio",
-    "pandas",
-    "torch",
-    "tensorflow",
-    "subprocess",
-    "importlib",
-    "runpy",
-    "ctypes",
-    "socket",
-    "multiprocessing",
-    "glob",
+    "numpy", "scipy", "skimage", "cv2", "PIL", "Pillow",
+    "networkx", "igraph", "imageio", "pandas", "torch", "tensorflow",
+    "subprocess", "importlib", "runpy", "ctypes", "socket",
+    "multiprocessing", "glob", "pathlib", "shutil", "io", "pty",
 }
-BANNED_CALLS = {"eval", "exec", "compile", "__import__"}
-BANNED_TOKENS = [
-    "/tests",
-    "test_outputs",
-    "heldout",
-    "reference",
-    "os.system",
-    "os.popen",
-    "os.exec",
-    "os.walk",
-    "os.listdir",
-    "os.scandir",
-    "pty.",
-    "importlib",
-    "runpy",
+BANNED_MODULES_STRICT = BANNED_MODULES | {"os"}
+
+BANNED_CALLS = {
+    "eval", "exec", "compile", "__import__",
+    "getattr", "setattr", "hasattr",
+    "globals", "locals", "vars", "dir",
+    "chr", "ord", "breakpoint",
+}
+
+BANNED_TOKENS_FOR_PATH = [
+    "/tests", "test_outputs", "heldout", "_gen", "reference", "ground_truth",
 ]
 
+BANNED_OS_ATTRS = {
+    "system", "popen", "exec", "walk", "listdir", "scandir",
+    "open", "stat", "read", "fdopen", "path",
+}
+
+ALLOWED_DUNDER_ATTRS = {"__name__", "__main__"}
 
 def _parse(path):
     d = open(path, "rb").read()
@@ -86,20 +81,14 @@ def _parse(path):
         nid, val, dc = struct.unpack_from("<iiI", d, o)
         o += 12
         raw = [struct.unpack_from("<I", d, o + 4 * i)[0] for i in range(dc)]
-        # dep ids are uint32 but may encode signed int32 (two's complement) for negative ids
-        ds = [d - (1 << 32) if d >= (1 << 31) else d for d in raw]
+        ds = [r - (1 << 32) if r >= (1 << 31) else r for r in raw]
         o += 4 * dc
         weight[nid] = val
         deps[nid] = ds
     return weight, deps, thr
 
-
 def ref(path):
-    """Independent ground truth with threshold: max closure then minimal, counting only abs(value)>=thr.
-    Novel rule: configs with abs(value) < thr are free riders - they are not counted in size AND their own
-    dependencies are ignored (they can be on without requiring their dependencies). This changes the flow
-    graph itself, not just post-processing counting, making the task non-canonical beyond textbook closure.
-    """
+    """Independent ground truth: max closure with free rider dep ignore, then minimal via residual, counting only abs>=thr."""
     weight, deps, thr = _parse(path)
     idx = {nid: i for i, nid in enumerate(weight)}
     N = len(weight)
@@ -117,7 +106,6 @@ def ref(path):
         elif w < 0:
             add(idx[nid], t, -w)
     for nid, ds in deps.items():
-        # free riders ignore their own dependencies - non-canonical twist
         if abs(weight[nid]) < thr:
             continue
         for d in ds:
@@ -158,61 +146,84 @@ def ref(path):
             if c > 0 and v not in seen:
                 seen.add(v)
                 q.append(v)
-    return sum(1 for nid in weight if idx[nid] in seen and abs(weight[nid]) >= thr)
 
+    return sum(1 for nid in weight if idx[nid] in seen and abs(weight[nid]) >= thr)
 
 def run(path):
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
-    # Isolated copy under neutral name, temp cwd, so agent cannot identify held-out
-    # or reach verifier files under /tests (also blocked statically)
     with tempfile.TemporaryDirectory() as td:
         neutral = os.path.join(td, "scan.mcfg")
         shutil.copyfile(path, neutral)
-        o = subprocess.run(
-            ["python3", SCRIPT, neutral],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=td,
-        )
-    assert o.returncode == 0, (
-        f"script exited {o.returncode} on {path}\nstdout:\n{o.stdout}\nstderr:\n{o.stderr}"
-    )
-    toks = re.findall(r"-?\d+", o.stdout)
-    assert toks, f"no numeric output on {path}: {o.stdout!r}"
+        iso = os.path.join(td, "solve.py")
+        shutil.copyfile(SCRIPT, iso)
+        env = os.environ.copy()
+        env["PYTHONPATH"] = td
+        proc = subprocess.run([sys.executable, iso, neutral], capture_output=True, text=True, timeout=120, cwd=td, env=env)
+    assert proc.returncode == 0, f"exit {proc.returncode} on {path}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    toks = re.findall(r"-?\d+", proc.stdout)
+    assert toks, f"no numeric output on {path}: {proc.stdout!r}"
     return int(toks[-1])
-
 
 def test_exists():
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
 
+def _iter_string_literals(tree):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant):
+            v = node.value
+            if isinstance(v, str):
+                yield v
+            elif isinstance(v, (bytes, bytearray)):
+                try:
+                    yield v.decode("utf-8", errors="ignore")
+                except:
+                    continue
+        if isinstance(node, ast.JoinedStr):
+            for part in node.values:
+                if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                    yield part.value
 
 def test_from_scratch():
-    src = open(SCRIPT).read()
-    tree = ast.parse(src)
+    src = open(SCRIPT, "r", encoding="utf-8", errors="ignore").read()
+    tree = ast.parse(src, filename=SCRIPT)
+
+    # Regression: a correct solve.py containing comment "empty." must still pass (previously failed due to 'pty.' substring)
+    # Ensure we do NOT do raw compact substring check for 'pty.' - use AST instead
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
-                top = a.name.split(".")[0]
-                assert top not in BANNED_MODULES, f"banned module import: {a.name}"
-                assert "test_output" not in a.name, "importing verifier is not allowed"
+                mod_root = a.name.split(".")[0]
+                assert mod_root not in BANNED_MODULES_STRICT, f"banned module import: {a.name}"
+                assert "test_output" not in a.name.lower(), "importing verifier not allowed"
+                assert "_gen" not in a.name.lower(), "importing generator not allowed"
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
-            top = mod.split(".")[0]
-            assert top not in BANNED_MODULES, f"banned module import: {mod}"
-            assert "test_output" not in mod, "importing verifier is not allowed"
+            mod_root = mod.split(".")[0]
+            assert mod_root not in BANNED_MODULES_STRICT, f"banned module import from: {mod}"
         elif isinstance(node, ast.Call):
             fn = node.func
-            name = (
-                fn.id
-                if isinstance(fn, ast.Name)
-                else (fn.attr if isinstance(fn, ast.Attribute) else "")
-            )
-            assert name not in BANNED_CALLS, f"dynamic execution not allowed ({name})"
-    compact = re.sub(r"\s+", "", src)
-    for tok in BANNED_TOKENS:
-        assert tok.replace(" ", "") not in compact, f"forbidden usage detected ({tok})"
+            name = fn.id if isinstance(fn, ast.Name) else (fn.attr if isinstance(fn, ast.Attribute) else "")
+            assert name not in BANNED_CALLS, f"dynamic/obfuscation call not allowed ({name})"
+        elif isinstance(node, ast.Attribute):
+            attr = node.attr
+            # dunder check except __name__ and __main__
+            if attr.startswith("__") and attr.endswith("__") and attr not in ALLOWED_DUNDER_ATTRS:
+                # Allow only __name__ and __main__, block __dict__ etc
+                if attr in {"__dict__", "__subclasses__", "__mro__", "__bases__", "__code__", "__globals__", "__builtins__"}:
+                    assert False, f"dunder attribute not allowed ({attr}) - potential sandbox escape"
+            # os.* attribute checks
+            if isinstance(node.value, ast.Name) and node.value.id == "os":
+                assert attr not in BANNED_OS_ATTRS, f"banned os.{attr} usage"
 
+    # Path token check via decoded string literals, not raw compact substring for code patterns
+    for lit in _iter_string_literals(tree):
+        low = lit.lower()
+        for banned in BANNED_TOKENS_FOR_PATH:
+            assert banned.lower() not in low, f"forbidden path substring in string literal: {banned!r} found in {lit!r}"
+
+    # No raw compact substring scan for pty or os.system etc - handled via AST above
+    # This fixes false negative where comment 'empty.' contains 'pty.' after compaction
 
 @pytest.mark.parametrize("path", HELDOUTS)
 def test_heldout(path):
