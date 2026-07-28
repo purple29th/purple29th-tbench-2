@@ -45,3 +45,4 @@ Generator leakage fixed: _gen.py not mounted, ground truth recomputed via indepe
 Reward hacking hardened: test_from_scratch bans numpy scipy skimage cv2 PIL networkx igraph imageio pandas torch tensorflow subprocess importlib runpy ctypes socket multiprocessing glob pathlib shutil io os strict, bans getattr setattr hasattr globals locals vars dir chr ord breakpoint, bans tokens with decoded string literal inspection for obfuscated paths and dunder audit.
 
 Author: Tosin Daniel Jimoh - Android display mura ink pool QA track, 2D area version of OLED bond void, distinct from ink-blot-subvoxel-area via display lamination framing and DMIP format and human instruction
+<!-- refresh Tue Jul 28 12:37:09 PM UTC 2026 -->
