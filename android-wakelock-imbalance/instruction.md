@@ -25,9 +25,9 @@ most acquire/release pairs are balanced but some are leaked (acquire without lat
 Leaked duration per pair: last timestamp observed for that (id,thread) pair minus first acquire timestamp of its final still-held interval. If final leak is just one acquire, duration 0. Sum across all pairs that end up held.
 
 Ordering:
-File order is not timestamp order – log is shuffled. You need to process in timestamp order. If timestamps equal, preserve original file order (the logger's write order within same ms matters for acquire vs release at same ms).
+File order is not timestamp order – log is shuffled. You need to process in timestamp order. If timestamps equal, preserve original file order (logger's write order within same ms matters).
 
-Edge traits in hidden traces: 700-900 distinct ids, up to 12 threads, 10000-16000 events, negative ids, many shuffled records, same-timestamp collisions (20-25%), varied offsets (16,24,40,96,128,32 etc), duplicate acquires, cross-thread releases, final-interval reacquire patterns.
+Hidden traces vary in size, offsets, thread counts, and include messy real-world patterns you should handle generically.
 
 Output: print integer sum as last token. No extra file reads.
 
