@@ -79,6 +79,7 @@ def _parse(path):
     assert d[:4] == b"MCFG", f"{path}: bad magic"
     cnt = struct.unpack_from("<I", d, 8)[0]
     off = struct.unpack_from("<I", d, 12)[0]
+    thr = struct.unpack_from("<i", d, 16)[0]
     o = off
     weight, deps = {}, {}
     for _ in range(cnt):
@@ -88,14 +89,12 @@ def _parse(path):
         o += 4 * dc
         weight[nid] = val
         deps[nid] = ds
-    return weight, deps
+    return weight, deps, thr
 
 
 def ref(path):
-    """Independent ground truth: max-weight closure via BFS Edmonds-Karp, then the
-    smallest optimal rollout = configs reachable from the source in the residual
-    graph."""
-    weight, deps = _parse(path)
+    """Independent ground truth with threshold: max closure then minimal, counting only abs(value)>=thr."""
+    weight, deps, thr = _parse(path)
     idx = {nid: i for i, nid in enumerate(weight)}
     N = len(weight)
     s, t = N, N + 1
@@ -150,7 +149,7 @@ def ref(path):
             if c > 0 and v not in seen:
                 seen.add(v)
                 q.append(v)
-    return sum(1 for nid in weight if idx[nid] in seen)
+    return sum(1 for nid in weight if idx[nid] in seen and abs(weight[nid]) >= thr)
 
 
 def run(path):
