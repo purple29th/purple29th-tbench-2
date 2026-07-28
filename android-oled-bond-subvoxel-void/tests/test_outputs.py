@@ -405,3 +405,5 @@ def test_heldout(path):
     assert abs(got - expected) <= REL_TOL * expected, (
         f"{os.path.basename(path)}: got {got:.4f} mm3, expected {expected:.4f} mm3 (+/- {REL_TOL:.0%})"
     )
+
+# verified: all 3 heldouts heldout_1,2,3 present at Tue Jul 28 11:34:05 AM UTC 2026
