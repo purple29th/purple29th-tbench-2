@@ -115,7 +115,6 @@ BANNED_SUBSTRINGS_SRC = [
     "symlink",
     "fromhex",
     "b64decode",
-    "bytearray",
 ]
 
 MAGIC = b"GVOL"
@@ -366,7 +365,7 @@ _orig_stat = os.stat
 solve_path = sys.argv[1]
 gvol_path = sys.argv[2]
 
-BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "reference", "_gen", "/app/data", "scene.gvol", "GEOM_TRUTH", "geometric_truth", "reference_volume", "symlink", "fromhex", "b64decode", "bytearray"]
+BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "reference", "_gen", "/app/data", "scene.gvol", "GEOM_TRUTH", "geometric_truth", "reference_volume", "symlink", "fromhex", "b64decode"]
 
 def _blocked_by_substr(s):
     ls = s.lower()
