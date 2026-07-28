@@ -1,0 +1,40 @@
+schema_version="1.1"
+
+[task]
+name="codimango/android-display-mura-ink-pool"
+description="Android display mura ink pool: parse custom DMIP binary with luminance blobs from display lamination QA, find main ink pool via largest mass 8 connected component to drop dust, estimate background and plateau and integrate conserved light over pool plus halo to get true area mm2 despite anisotropic blur and thin bleed fingers. Graded at 3 percent tolerance on held out maps."
+authors=[{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
+keywords=["android","display","mura","ink-pool","binary-parsing","from-scratch","luminance","area"]
+format="terminal_bench_single_turn"
+workstream="swe_public_repo"
+
+[metadata]
+author_name="Tosin Daniel Jimoh"
+author_email="purple29th@meta.com"
+difficulty="hard"
+category="data-science"
+category_subdomain="mobile_android"
+category_usecase="image_processing"
+reward_type="binary"
+tags=["android","display-mura","ink-pool","binary-parsing","from-scratch","area","luminance","anisotropic-blur"]
+expert_time_estimate_min=55.0
+junior_time_estimate_min=180.0
+
+[verifier]
+timeout_sec=600.0
+
+[agent]
+timeout_sec=1800.0
+
+[environment]
+build_timeout_sec=900.0
+cpus=2
+memory_mb=4096
+storage_mb=15360
+gpus=0
+allow_internet=true
+mcp_servers=[]
+
+[verifier.env]
+[environment.env]
+[solution.env]
