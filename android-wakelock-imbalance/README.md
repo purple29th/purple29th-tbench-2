@@ -2,9 +2,9 @@
 
 ## Description
 
-Agent writes stdlib only Python at /app/solve.py that reads wakelock trace wklk magic WKLK from Android power manager doze QA. Each trace has flat background plus many acquire release events with timestamps and thread ids plus far dangling releases. Most balanced but some leaked where acquire exceeds release, need to compute total leaked duration as last timestamp minus first acquire summed across leaked ids.
+Agent writes stdlib only Python at /app/solve.py that reads wakelock trace wklk magic WKLK from Android power manager doze QA. Each trace has many acquire release events with timestamps and thread ids plus dangling releases. Most balanced but some leaked where acquire exceeds release, need to compute total leaked duration as last timestamp minus first acquire summed across leaked ids.
 
-This is OS wakelock leak detector, related to bitmap pool leak detector but for power manager, distinct from subvoxel void tasks and battery swell tasks.
+Distinct from bitmap pool, display mura, battery pressure.
 
 ## Completion Rates
 

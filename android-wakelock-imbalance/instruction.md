@@ -2,9 +2,9 @@ hey so i am in android framework lab we track wakelock leaks that kill battery a
 
 we dump log via custom file wklk. kotlin test writes ByteBuffer little endian via FileOutputStream.
 
-your job is write /app/solve.py that reads path as first arg. we run python3 /app/solve.py /path/to/scan.wklk and last token of stdout must be integer total leaked duration in ms for wakelocks that have imbalance.
+your job is write /app/solve.py that reads path as first arg. we run python3 /app/solve.py /path/to/scan.wklk and last token of stdout must be integer total leaked duration in ms for wakelocks that have imbalance where acquire exceeds release.
 
-sample at /app/data/scene.wklk you can try locally. hidden grading uses other files you never saw with different wakelock counts, acquire release patterns, timestamps, threads. dont hardcode sample.
+sample at /app/data/scene.wklk you can try locally. hidden grading uses other files you never saw with different wakelock counts, acquire release patterns, timestamps, threads, all sorted by timestamp. dont hardcode sample.
 
 wklk format is my tiny container.
 
@@ -16,18 +16,14 @@ header at least 16 bytes plus padding, respect data offset
 
 each event: int32 id, u32 type 1 acquire 0 release, u32 timestamp ms, u32 thread id. all little endian.
 
-trace contains many acquire and release events. most balanced but some leaked where acquire without matching release, or release without acquire ignored, or duplicate acquire counted once, or cycle where wakelock A acquire needs B.
+trace contains many acquire and release events. most balanced but some leaked where acquire without matching release, release without acquire ignored. need to compute for each id acquire count minus release count, if positive leaked duration equals last timestamp minus first acquire timestamp for that id, sum across leaked.
 
-you need to compute for each id total acquire count minus release count, if positive then leaked, compute duration as last timestamp minus first acquire timestamp for that id, sum across leaked ids.
+parse binary yourself using only struct. banned modules are numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os pty importlib runpy ctypes and any array image graph helper. banned calls are eval exec compile import builtins getattr setattr hasattr globals locals vars dir chr ord breakpoint base64 binascii codecs. banned runtime tricks are subprocess os system popen exec walk listdir scandir open stat read fdopen path and pathlib Path shutil io open and importlib runpy pty. also do not open or read tests directory or heldout files or gen file or ground truth file. we check via AST and decoded string literals.
 
-simple counting fails because duplicate acquires and out of order and dangling thread ids.
+at end print integer leaked duration as last token. grading exact int match against ground truth from ground_truth.json which is sum of last minus first acquire for imbalanced ids.
 
-parse binary yourself using only struct. banned are numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow. also banned tricks like subprocess os system popen exec and dunder builtins dict subclasses mro and importlib runpy ctypes eval exec compile and getattr setattr hasattr globals locals vars dir chr ord base64 etc. do not open tests directory or heldout files.
+files up to few thousand events, use iterative.
 
-at end print integer leaked duration as last token. grading exact int match on heldouts, we recompute via independent counting.
-
-files up to few thousand events, recursion will fail, use iterative.
-
-this is android os wakelock leak detector, related to bitmap pool leak detector but for power manager.
+this is android os wakelock leak detector, different from bitmap pool and display mura ink pool.
 
 good luck.
