@@ -15,18 +15,18 @@ A one-shot template (numpy + scipy.ndimage.label + threshold-count) is both forb
 
 ## Completion Rates
 
-Sync'd from validation at commit bc94c39 (18 attempts, secure verifier 9 checks):
+Sync'd from validation at commit 721013b (15 attempts, secure verifier 11 checks, per sthallam v2.0 review):
 
 | Model | Trials | Pass rate | Notes |
 |-------|--------|-----------|-------|
-| `claude-opus-4-8` | 5 | 5/5 = 100% | All genuine energy-conservation passes |
-| `gpt-5.5` | 5 | 4/5 = 80% | 4 passes, 1 fail |
-| `meta/avocado-5.14-code` | 5 | 4/5 = 80% | 4 passes, 1 fail (previously 2/5 with infra, now 4/5 after scaffold fix) |
-| `oracle` (golden `solution/solve.py`) | 3 | 3/3 = 100% | Validates grader |
+| `claude-opus-4-8` | 5 + 5 | 2/5 = 40% and 3/5 = 60% (combined 5/10 = 50%) | Genuine conservation but sensitive to speck heavy case, 2 fails overcount halo and 1 undercount |
+| `gpt-5.5` | 5 + 5 | 2/5 = 40% and 2/5 = 40% (combined 4/10 = 40%) | 2 fails overcount speck heavy 3707 vs 3350, 1 fail randomized extra just over tolerance |
+| `meta/avocado-5.14-code` | 5 + 5 | 0/5 = 0% and 1/5 = 20% (combined 1/10 = 10%) | 0/5 incomplete missing file, 1/5 fail reasoning overcount speck heavy up to 3901 vs 3350 |
+| `oracle` (golden `solution/solve.py`) | 3 + 3 | 3/3 = 100% and 3/3 = 100% | Validates grader, all 11 checks pass |
 
-Overall non-oracle: 13/15 = 86.7% passes, indicating method is discoverable but requires precise calibration. Earlier v1.0 had gpt-5.5 2/5 (40%) inflated by rate-limit incompletes; v1.3 after sandbox fix shows higher genuine pass rate.
+Overall non-oracle: 6/15 = 40% passes at v2.0 head, indicating task is genuinely hard, not inflated by earlier 5/5 runs at bc94c39 which had no speck heavy stress. Earlier v1.0 had gpt 1/5 rate limit incompletes, v1.3 bc94c39 had 5/5 opus and 4/5 gpt without speck heavy failure, v2.0 721013b adds speck heavy case that drops rates to 2/5 claude, 2/5 codex, 0/5 avocado per review.
 
-> Calibration target: threshold-and-count fails here 88-128% over or 30-50% under; only genuine intensity-conservation passes <1% error. Honest solutions need robust background, plateau, 26-connected main-component isolation, and halo integration to stay within 3%.
+> Calibration: threshold-and-count fails 88-128% over or 30-50% under; only genuine intensity conservation with robust background, plateau, 26-connected main component isolation, and halo growth to noise floor without merging specks passes within 3 percent. Speck heavy case is main discriminator.
 
 ## Model Analysis
 
