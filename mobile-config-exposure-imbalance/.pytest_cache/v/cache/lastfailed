@@ -1,9 +1,0 @@
-{
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_1.mcfg]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_2.mcfg]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_3.mcfg]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_4.mcfg]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_5.mcfg]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_6.mcfg]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_7.mcfg]": true
-}
