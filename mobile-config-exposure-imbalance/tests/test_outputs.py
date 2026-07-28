@@ -12,13 +12,12 @@ Ground truth recomputed independently: Edmonds-Karp vs Dinic plus threshold coun
 with signed dep handling and free rider dep ignore. Both agree.
 
 Hardened isolation post-review fix for BAD_GRADING_WRONG:
-- _parse now correctly handles negative IDs stored as uint32 (two's complement) converting to signed
-- free riders with abs < thr ignore own dependencies - graph changing twist
-- test_from_scratch now uses AST for imports/calls and decoded string literals for path checks, not raw compact substring like 'pty.' that falsely matches 'empty.' in comments
+- _parse now correctly handles negative IDs stored as uint32 (two's complement)
+- free riders ignore own dependencies - graph changing twist
+- test_from_scratch now uses AST for imports/calls and decoded string literals for path checks, not raw compact substring like pty. that falsely matches empty. in comments
 - Imports banned via AST: numpy scipy skimage cv2 PIL networkx igraph imageio pandas torch tensorflow subprocess importlib runpy ctypes socket multiprocessing glob pathlib shutil io pty os
-- Calls banned via AST: eval exec compile __import__ getattr setattr hasattr globals locals vars dir chr ord breakpoint
+- Calls banned via AST: eval exec compile import builtins getattr setattr hasattr globals locals vars dir chr ord breakpoint
 - Path tokens banned via string literal inspection: /tests test_outputs heldout _gen reference ground_truth
-- Attribute checks for os.system popen exec walk listdir scandir open stat read fdopen path
 """
 import ast
 import os
@@ -28,7 +27,6 @@ import struct
 import subprocess
 import sys
 import tempfile
-import json
 import pytest
 from collections import deque
 
@@ -41,6 +39,7 @@ HELDOUTS = [
     "/tests/data/heldout_5.mcfg",
     "/tests/data/heldout_6.mcfg",
     "/tests/data/heldout_7.mcfg",
+    "/tests/data/heldout_8.mcfg",
 ]
 
 BANNED_MODULES = {
@@ -88,7 +87,6 @@ def _parse(path):
     return weight, deps, thr
 
 def ref(path):
-    """Independent ground truth: max closure with free rider dep ignore, then minimal via residual, counting only abs>=thr."""
     weight, deps, thr = _parse(path)
     idx = {nid: i for i, nid in enumerate(weight)}
     N = len(weight)
@@ -186,10 +184,6 @@ def _iter_string_literals(tree):
 def test_from_scratch():
     src = open(SCRIPT, "r", encoding="utf-8", errors="ignore").read()
     tree = ast.parse(src, filename=SCRIPT)
-
-    # Regression: a correct solve.py containing comment "empty." must still pass (previously failed due to 'pty.' substring)
-    # Ensure we do NOT do raw compact substring check for 'pty.' - use AST instead
-
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
@@ -207,23 +201,15 @@ def test_from_scratch():
             assert name not in BANNED_CALLS, f"dynamic/obfuscation call not allowed ({name})"
         elif isinstance(node, ast.Attribute):
             attr = node.attr
-            # dunder check except __name__ and __main__
             if attr.startswith("__") and attr.endswith("__") and attr not in ALLOWED_DUNDER_ATTRS:
-                # Allow only __name__ and __main__, block __dict__ etc
                 if attr in {"__dict__", "__subclasses__", "__mro__", "__bases__", "__code__", "__globals__", "__builtins__"}:
-                    assert False, f"dunder attribute not allowed ({attr}) - potential sandbox escape"
-            # os.* attribute checks
+                    assert False, f"dunder attribute not allowed ({attr})"
             if isinstance(node.value, ast.Name) and node.value.id == "os":
                 assert attr not in BANNED_OS_ATTRS, f"banned os.{attr} usage"
-
-    # Path token check via decoded string literals, not raw compact substring for code patterns
     for lit in _iter_string_literals(tree):
         low = lit.lower()
         for banned in BANNED_TOKENS_FOR_PATH:
             assert banned.lower() not in low, f"forbidden path substring in string literal: {banned!r} found in {lit!r}"
-
-    # No raw compact substring scan for pty or os.system etc - handled via AST above
-    # This fixes false negative where comment 'empty.' contains 'pty.' after compaction
 
 @pytest.mark.parametrize("path", HELDOUTS)
 def test_heldout(path):
