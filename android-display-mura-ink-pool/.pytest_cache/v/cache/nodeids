@@ -1,0 +1,4 @@
+[
+  "tests/test_outputs.py::test_from_scratch",
+  "tests/test_outputs.py::test_script_exists"
+]
