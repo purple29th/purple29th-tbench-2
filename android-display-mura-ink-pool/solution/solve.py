@@ -1,46 +1,32 @@
 #!/usr/bin/env python3
-"""Oracle for android-display-mura-ink-pool: ink pool area via light conservation.
-
-Display lamination QA uses under-display RGB sensor with diffuser. Pool interior = saturated plateau where ink pooling brightest. Thin bleed fingers + border pixels partially filled -> dim. Light conserved: true pixels = sum(residual over pool+halo)/plateau * pixel pitch area.
-
-Steps:
- 1. Parse DMIP little-endian header + x-fastest payload (magic DMIP, version, dtype 2=int16/16=float32, nx ny, sx sy, offset)
- 2. Background median + MAD low half -> residual
- 3. 8-connected components above noise, keep largest mass -> main pool
- 4. Plateau via 3x3 mean-filter peak median top-8
- 5. Adaptive dilation capturing halo while shell mean > noise
- 6. Integrate residual / plateau * sx*sy
-"""
+"""Oracle for android-display-mura-ink-pool: count of ink affected touch cells via charge conservation."""
 import struct, sys
 
 def parse(path):
     d=open(path,"rb").read()
-    if d[:4]!=b"DMIP":
+    if d[:4]!=b"CDMR":
         raise ValueError(f"bad magic {d[:4]}")
-    dtype=struct.unpack_from("<I",d,8)[0]
-    nx,ny=struct.unpack_from("<II",d,12)
-    sx,sy=struct.unpack_from("<ff",d,20)
-    off=struct.unpack_from("<I",d,28)[0]
+    total=struct.unpack_from("<I",d,8)[0]
+    off=struct.unpack_from("<I",d,12)[0]
+    sx=struct.unpack_from("<f",d,16)[0]
+    sy=struct.unpack_from("<f",d,20)[0]
+    baseline=struct.unpack_from("<I",d,24)[0]
+    nx,ny=struct.unpack_from("<II",d,28)
     n=nx*ny
-    if dtype==2:
-        vals=list(struct.unpack_from(f"<{n}h",d,off))
-    elif dtype==16:
-        vals=list(struct.unpack_from(f"<{n}f",d,off))
-    else:
-        raise ValueError(f"bad dtype {dtype}")
-    return nx,ny,float(sx),float(sy),[float(v) for v in vals]
+    vals=list(struct.unpack_from(f"<{n}h",d,off))
+    return nx,ny,float(sx),float(sy),int(baseline),[float(v) for v in vals]
 
 def median_of_sorted(s):
     m=len(s)
     if m==0:
         return 0.0
     if m%2==1:
-        return s[m//2]
+        return float(s[m//2])
     else:
-        return 0.5*(s[m//2-1]+s[m//2])
+        return 0.5*(float(s[m//2-1])+float(s[m//2]))
 
 def solve_one(path):
-    nx,ny,sx,sy,vals=parse(path)
+    nx,ny,sx,sy,baseline_file,vals=parse(path)
     n=nx*ny
     def idx(x,y): return x+nx*y
     sv=sorted(vals)
@@ -82,7 +68,7 @@ def solve_one(path):
                 best_mass=mass
                 best_comp=comp
     if not best_comp:
-        print(0.0)
+        print(0)
         return
     filt=[]
     for j in best_comp:
@@ -101,11 +87,11 @@ def solve_one(path):
     top=filt[:max(1,min(8,len(filt)))]
     amp=median_of_sorted(sorted(top))
     if amp<=0:
-        print(0.0)
+        print(0)
         return
     region=set(best_comp)
     frontier=set(best_comp)
-    for _ in range(40):
+    for _ in range(50):
         shell=set()
         for j in frontier:
             x=j%nx
@@ -119,15 +105,14 @@ def solve_one(path):
                         shell.add(k)
         if not shell:
             break
-        mean_shell=sum(r[k] for k in shell)/len(shell) if shell else 0.0
+        mean_shell=sum(r[j] for j in shell)/len(shell) if shell else 0.0
         if mean_shell<=1.0*noise_sigma:
             break
         region|=shell
         frontier=shell
     mass=sum(r[j] for j in region)
-    pixels=mass/amp
-    area=pixels*sx*sy
-    print(area)
+    count=mass/amp
+    print(int(round(count)))
 
 if __name__=="__main__":
     if len(sys.argv)<2:

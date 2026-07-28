@@ -2,9 +2,9 @@ schema_version="1.1"
 
 [task]
 name="codimango/android-display-mura-ink-pool"
-description="Android display mura ink pool: parse custom DMIP binary with luminance blobs from display lamination QA, find main ink pool via largest mass 8 connected component to drop dust, estimate background and plateau and integrate conserved light over pool plus halo to get true area mm2 despite anisotropic blur and thin bleed fingers. Graded at 3 percent tolerance on held out maps."
+description="Android display ghost touch count: parse custom CDMR binary with capacitive grid from lamination QA, count truly ink affected touch cells. Main pool plus bleed lines plus far dust, smear conserves charge, need mass based 8 neighbour clustering to drop dust, estimate baseline plateau and integrate halo to get true count. Different from OLED void volume which is IR mm3 and DMIP luminance mm2 and mobile config exposure imbalance closure."
 authors=[{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
-keywords=["android","display","mura","ink-pool","binary-parsing","from-scratch","luminance","area"]
+keywords=["android","ghost-touch","capacitive-grid","binary-parsing","from-scratch","count","touch"]
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
 
@@ -16,9 +16,9 @@ category="data-science"
 category_subdomain="mobile_android"
 category_usecase="parsing_lexing"
 reward_type="binary"
-tags=["android","display-mura","ink-pool","binary-parsing","from-scratch","area","luminance","anisotropic-blur"]
-expert_time_estimate_min=55.0
-junior_time_estimate_min=180.0
+tags=["android","ghost-touch","capacitive","binary-parsing","from-scratch","count"]
+expert_time_estimate_min=50.0
+junior_time_estimate_min=160.0
 
 [verifier]
 timeout_sec=600.0
