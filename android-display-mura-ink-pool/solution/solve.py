@@ -19,7 +19,7 @@ Constants rationale:
 - 1.0*sigma shell stop: shell mean at background noise level means further growth adds only noise, not conserved charge.
 - top-8 median: interior plateau typically >10 cells, top few values after smoothing approximate saturated level; median of 8 robust.
 
-This passes all heldouts including heavy dust (6 blobs) and edge pools.
+This passes all hidden scans including heavy dust (6 blobs) and edge pools.
 """
 
 import struct
