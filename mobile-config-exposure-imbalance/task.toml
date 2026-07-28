@@ -4,9 +4,9 @@ schema_version="1.1"
 name="codimango/mobile-config-exposure-imbalance"
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
-description="Android mobile config exposure imbalance: parse custom MCFG binary with signed exposure deltas and dependencies, compute max-weight closure via min-cut/max-flow, then report minimal rollout size reaching max exposure (residual graph reachability) excluding zero-gain padding, ignoring dangling deps, handling up to 2000-node chains that break recursive DFS. Graded on held-out MCFG files with independent Edmonds-Karp ground truth."
+description="Android mobile config exposure imbalance: parse custom MCFG binary with signed exposure deltas and dependencies where abs(value) < threshold are free riders not counted and their own dependencies ignored, changing the closure graph itself. Find max total exposure per transitive dependency rules, then minimal counted size among optimal rollouts excluding free riders and zero gain padding, ignoring dangling deps, handling up to 2000 node chains that break recursion."
 authors=[{name="Tosin Daniel Jimoh",email="purple29th@meta.com"}]
-keywords=["android","mobile-config","exposure","imbalance","max-closure","min-cut","dinic","binary-parsing","from-scratch"]
+keywords=["android","mobile-config","exposure","imbalance","binary-parsing","from-scratch","dependency-closure","free-rider"]
 
 [metadata]
 author_name="Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category="data-science"
 category_subdomain="mobile_android"
 category_usecase="parsing_lexing"
 reward_type="binary"
-tags=["android","mobile-config","exposure-imbalance","binary-parsing","dependency-graph","max-weight-closure","min-cut","dinic","from-scratch","zero-gain","dangling-deps","iterative-bfs"]
+tags=["android","mobile-config","exposure-imbalance","binary-parsing","dependency-graph","from-scratch","zero-gain","dangling-deps","iterative-bfs","free-rider-threshold"]
 expert_time_estimate_min=50.0
 junior_time_estimate_min=150.0
 

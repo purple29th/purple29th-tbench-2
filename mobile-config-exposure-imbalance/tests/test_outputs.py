@@ -95,7 +95,11 @@ def _parse(path):
 
 
 def ref(path):
-    """Independent ground truth with threshold: max closure then minimal, counting only abs(value)>=thr."""
+    """Independent ground truth with threshold: max closure then minimal, counting only abs(value)>=thr.
+    Novel rule: configs with abs(value) < thr are free riders - they are not counted in size AND their own
+    dependencies are ignored (they can be on without requiring their dependencies). This changes the flow
+    graph itself, not just post-processing counting, making the task non-canonical beyond textbook closure.
+    """
     weight, deps, thr = _parse(path)
     idx = {nid: i for i, nid in enumerate(weight)}
     N = len(weight)
@@ -113,6 +117,9 @@ def ref(path):
         elif w < 0:
             add(idx[nid], t, -w)
     for nid, ds in deps.items():
+        # free riders ignore their own dependencies - non-canonical twist
+        if abs(weight[nid]) < thr:
+            continue
         for d in ds:
             if d in idx:
                 add(idx[nid], idx[d], INF)
