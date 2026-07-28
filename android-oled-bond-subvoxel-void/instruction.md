@@ -1,27 +1,31 @@
-hey so i am in pixel oled lab - we check display adhesive for trapped air voids. we have this android test rig with under-display ir scanner, vcsel diffuser + ir scatter sensor. kotlin side just does ByteBuffer little-endian and FileOutputStream into app private storage, same pattern as arcore depth dumps.
+I work on Pixel watch oled lamination line where we hunt tiny trapped air that causes bonding failure. The bench has an under display infrared rig with vcsel diffuser that floods adhesive and a sensor that records backscatter. We dump the raw cube from an Android kotlin test that allocates a direct ByteBuffer little endian and writes via FileOutputStream to private app storage, same style as arcore depth dumps.
 
-basically your job is a script that turns one cube into actual air void volume in cubic mm.
+You need to produce the real air void size.
 
-make file at `/app/solve.py`. we will run like `python3 /app/solve.py /path/to/scan.obvl` and we take last whitespace token as float volume. one sample you can try locally named `scene.obvl` lives under `/app/data`. hidden grading uses other dumps you never saw - different void sizes, diffuser power, voxel pitch, background ir, dust specks. dont hardcode any numbers from sample pls.
+Create program at /app/solve.py that accepts one argument which is path to a scan file. When we execute python3 /app/solve.py /path/to/scan.obvl, your stdout last token must be a float that is the main void volume in cubic millimeters. There is a dev sample at /app/data/scene.obvl you can run locally. Hidden evaluation uses different scans you never saw, with different void sizes, diffuser power, voxel pitch, infrared background, noise level, dust fiber blobs. Do not hardcode any numbers from the dev sample.
 
-obvl is tiny custom container i invented for oled bond scans. all ints and floats little-endian.
+File format is my own invented oled bond volume, magic OBVL.
 
-- first four bytes ascii `OBVL` magic
-- next four bytes u32 version, its 1
-- next four bytes u32 dtype code, 2 means int16 scatter, 16 means float32 scatter
-- next twelve bytes three u32 `nx ny nz` counts per axis width height depth, total voxels nx*ny*nz
-- next twelve bytes three f32 `sx sy sz` mm per voxel per axis, anisotropic calibration from oled stack diffusion xy and bond thickness z. different per file so must read header every time, dont assume same
-- next four bytes u32 `data_offset` where payload starts
-- after offset nx*ny*nz values of that dtype, x is fastest so linear index for x y z = x + nx * (y + ny * z)
+Layout all little endian:
 
-cube content: one main air void bubble plus occasional far dust speck blobs, fibre reflections that are not part of void. vcsel diffuser plus oled stack gives anisotropic point spread - wide laterally narrow axially becuase oled diffuses ir wide xy and bond thin so z narrow. so true shape is thick core where scatter bright flat from air bubble plus thin delam channels fingers along x y where voxel only partly filled so intensity lower. border voxels dimmer from partial fill and smear. flat ambient ir background plus faint per voxel noise. some scans have one or two extra tiny bright blobs far away dust artefacts trash you have to drop keep main connected mass using 26 neighbours, pick by integrated mass not just voxel count otherwise you pick dust.
+Bytes 0 to 3 is ascii OBVL
+Bytes 4 to 7 is u32 version which is 1
+Bytes 8 to 11 is u32 dtype code where 2 means int16 and 16 means float32
+Bytes 12 to 23 is three u32 nx ny nz number of voxels per axis, total equals nx times ny times nz
+Bytes 24 to 35 is three f32 sx sy sz physical mm per voxel, anisotropic because oled stack spreads wide in xy and bond is thin in z, different per file so you must read header, never assume constant
+Bytes 36 to 39 is u32 data offset where voxel data starts, currently 64 but may have padding
+Then at offset you have nx times ny times nz values of that dtype, x is fastest so index for coordinate x y z equals x plus nx times y plus nx times ny times z
 
-threshold counting cannot work i tried. low cut includes huge blurred halo and overestimates 70-120 percent. high cut misses thin delam channels and underestimates 30-50 percent. no fixed cut works across files because diffuser power background pitch changes per oled batch.
+Data contains one main bubble where air trapped plus sometimes zero to three far dust blobs that are fibre reflections not part of bubble. The vcsel plus oled stack gives anisotropic point spread, wide laterally narrow axially. Real shape is thick core that saturates to flat plateau after blur plus thin delamination fingers along x and y where voxel only partly filled so mid intensity that never reaches a usable threshold. Border voxels are dimmer from partial fill. There is flat ambient infrared background plus noise. To drop dust you must keep main connected component using 26 neighbours, but pick by integrated mass sum of background subtracted intensity, not voxel count, otherwise you may pick a dust speck.
 
-blur spreads energy but does not create or destroy photons, that physics makes precise subvoxel possible. interior is flat but hidden by blur noise. best clue is where scatter most concentrated not just how many bright voxels. so true voxels = sum(background_subtracted intensity over void+halo) / plateau_amplitude, plateau is saturated interior where scatter most concentrated. you need to figure out how to estimate background, plateau, and halo integration robustly across scans.
+Counting voxels above a threshold fails completely in this factory track. Low threshold includes huge halo and overestimates 70 to 120 percent. High threshold misses thin fingers and underestimates 30 to 50 percent. No fixed absolute or relative threshold works across files because diffuser power and background and pitch change per oled batch. The baseline from android depth object volume plus largest CC times spacing is 72 to 118 percent wrong here.
 
-parse binary yourself using only stdlib like struct, banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore dunder except __name__/__main__ import importlib runpy ctypes eval exec compile shell filesystem listing glob multiprocessing socket pathlib Path shutil io.open getattr setattr hasattr globals locals vars dir chr ord base64 binascii codecs __builtins__ __dict__ __subclasses__ __mro__ etc. also do not open / read tests directory or heldout files or _gen.py - we check decoded string literals for obfuscated paths too.
+The trick that makes subvoxel precise: blur is normalized and conserves total photon counts, only spreads them. So you can get true occupancy by integrating background subtracted intensity over void plus halo and dividing by plateau amplitude where plateau is saturated interior where scatter most concentrated. You need to figure out robust estimation for background floor and plateau level and halo extent without bridging to far specks.
 
-at end print volume mm3 as last token, grading at 3 percent tolerance. exact thresholds not prescribed you must find robust ones that work across scans with different power background pitch dust. 3 percent band allows some heuristic variation but threshold shortcuts will fail.
+Implement parsing and labeling and integration from scratch. Allowed imports are struct and sys only for final program, plus math if needed. Do not use numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow. Also do not use any shell or filesystem traversal tricks like subprocess with system popen exec walk listdir scandir open stat read fdopen path, nor pathlib or io open or shutil, nor dynamic tricks like getattr setattr hasattr globals locals vars dir chr ord base64 binascii codecs, nor dunder builtins dict subclasses mro etc beyond name main check, and do not open or read tests directory or heldout files. We audit source for obfuscated paths.
 
-this is factory oled qa precision escalation of android-depth-object-volume and android-tof-subvoxel-volume. those can be solved by threshold -> mask -> largest CC counting. here that pipeline is 70-120 percent wrong. conservation lands 0.2-1 percent here.
+At the end print volume as last token. Grading uses 3 percent tolerance versus independent conservation reference that has different constants than oracle and matches geometric truth within about one percent.
+
+Apply anisotropic pitch multiplication sx times sy times sz or you fail volume. Use handwritten 26 neighbour BFS.
+
+Author note: Pixel OLED bonding factory QA track.
