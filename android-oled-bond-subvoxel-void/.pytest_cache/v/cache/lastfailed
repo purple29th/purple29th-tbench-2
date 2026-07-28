@@ -1,5 +1,0 @@
-{
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_1.obvl]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_2.obvl]": true,
-  "tests/test_outputs.py::test_heldout[/tests/data/heldout_3.obvl]": true
-}
