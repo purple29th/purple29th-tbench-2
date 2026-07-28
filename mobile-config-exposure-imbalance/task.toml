@@ -2,23 +2,23 @@ schema_version="1.1"
 
 [task]
 name="codimango/mobile-config-exposure-imbalance"
+description="Android mobile config exposure imbalance: parse custom MCFG binary with signed exposure deltas and dependencies where abs below threshold are free riders not counted and their own dependencies ignored changing closure graph. Files up to 3500 node 3500 chain, find max total exposure per transitive rules then minimal counted size among optimal rollouts excluding free riders and zero gain padding, ignoring dangling, handling up to 3500 node chains. Graded exact int match on 8 held outs."
+authors=[{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
+keywords=["android","mobile-config","exposure","imbalance","binary-parsing","from-scratch","free-rider","3500-chain"]
 format="terminal_bench_single_turn"
 workstream="swe_public_repo"
-description="Android mobile config exposure imbalance: parse custom MCFG binary with signed exposure deltas and dependencies where abs(value) < threshold are free riders not counted and their own dependencies ignored, changing the closure graph itself. Find max total exposure per transitive dependency rules, then minimal counted size among optimal rollouts excluding free riders and zero gain padding, ignoring dangling deps, handling up to 2000 node chains that break recursion."
-authors=[{name="Tosin Daniel Jimoh",email="purple29th@meta.com"}]
-keywords=["android","mobile-config","exposure","imbalance","binary-parsing","from-scratch","dependency-closure","free-rider"]
 
 [metadata]
 author_name="Tosin Daniel Jimoh"
 author_email="purple29th@meta.com"
 difficulty="hard"
-category="data-science"
+category="software_engineering"
 category_subdomain="mobile_android"
 category_usecase="parsing_lexing"
 reward_type="binary"
-tags=["android","mobile-config","exposure-imbalance","binary-parsing","dependency-graph","from-scratch","zero-gain","dangling-deps","iterative-bfs","free-rider-threshold"]
-expert_time_estimate_min=50.0
-junior_time_estimate_min=150.0
+tags=["android","mobile-config","exposure-imbalance","binary-parsing","dependency-graph","from-scratch","zero-gain","dangling-deps","iterative-bfs","free-rider-threshold","3500-chain"]
+expert_time_estimate_min=60.0
+junior_time_estimate_min=180.0
 
 [verifier]
 timeout_sec=600.0
