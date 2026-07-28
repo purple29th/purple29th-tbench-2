@@ -83,7 +83,7 @@ def object_volume_mm3(path):
 
     # 2) largest-mass 26-connected component above the noise floor -> the object
     occ = [v > thr for v in r]
-    seen = bytearray(n)
+    seen = [0] * n
     best_mass = -1.0
     best_comp = None
     for z0 in range(nz):
