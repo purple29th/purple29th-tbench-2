@@ -1,31 +1,102 @@
-hey so i am in pixel oled lab we check display adhesive for trapped air voids, we have this android test rig with under display ir scanner. i dump raw backscatter cubes from vcsel diffuser + ir scatter sensor, kotlin side just does ByteBuffer little endian and FileOutputStream into app private storage same pattern as arcore depth dumps.
+# Android OLED Bond Subvoxel Void
 
-basically your job is script that turns one cube into actual air void volume in cubic mm.
+## Lab context
 
-make file at /app/solve.py. we will run like python3 /app/solve.py /path/to/scan.obvl and we take last whitespace token as float volume. one sample you can try locally named scene dot obvl lives under app/data. hidden grading uses other dumps you never saw with different void sizes diffuser power voxel pitch background ir dust specks. dont hardcode any numbers from sample pls.
+Pixel OLED bonding QA line uses an under-display IR scanner. Under the OLED stack a VCSEL diffuser illuminates the adhesive layer. Trapped air scatters IR strongly. The rig dumps a raw IR backscatter cube via a Kotlin test rig (`ByteBuffer` little-endian + `FileOutputStream` into app private storage, same pattern as ARCore depth dumps).
 
-obvl is tiny custom container i invented for oled bond scans, all ints floats little endian.
+Your job: turn one cube into the true trapped-air void volume in mm³.
 
-first four bytes ascii O B V L magic
+## Goal
 
-next four bytes u32 version, its 1
+Write a pure-stdlib Python program at:
 
-next four bytes u32 dtype code, 2 means int16 scatter, 16 means float32 scatter
+```
+/app/solve.py
+```
 
-next twelve bytes three u32 nx ny nz counts per axis width height depth, total voxels nx*ny*nz
+It will be executed as:
 
-next twelve bytes three f32 sx sy sz mm per voxel per axis, anisotropic calibration from oled stack diffusion xy and bond thickness z, different per file so must read header every time dont assume same
+```
+python3 /app/solve.py /path/to/scan.obvl
+```
 
-next four bytes u32 data_offset where payload starts
+Your program must print the main air-void volume in mm³ as the last whitespace-separated token on stdout. One sample scan exists for local dev at `/app/data/scene.obvl`. Hidden grading uses different scans you never saw.
 
-after offset nx*ny*nz values of that dtype, x is fastest so linear index for x y z = x + nx * (y + ny * z)
+Do not hardcode any numbers from the sample.
 
-cube content: one main air void bubble plus occasional far dust speck blobs fibre reflections that are not part of void. vcsel diffuser plus oled stack gives anisotropic point spread wide laterally narrow axially becuase oled diffuses ir wide xy and bond thin so z narrow. so true shape is thick core where scatter bright flat from air bubble plus thin delam channels fingers along x y where voxel only partly filled so intensity lower. border voxels dimmer from partial fill and smear. flat ambient ir background plus faint per voxel noise. some scans have one or two extra tiny bright blobs far away dust artefacts trash you have to drop keep main connected mass using 26 neighbours, pick by integrated mass not just voxel count otherwise you pick dust.
+## OBVL format (custom, little-endian)
 
-threshold counting cannot work i tried: low cut includes huge blurred halo overestimates 70-120 percent, high cut misses thin delam channels underestimates 30-50 percent, no fixed cut works across files because diffuser power background pitch changes per oled batch
+All integers and floats are little-endian.
 
-blur spreads energy but does not create or destroy photons, that physics makes precise subvoxel possible. interior is flat but hidden by blur noise. best clue is where scatter most concentrated not just how many bright voxels. so true voxels = sum(background_subtracted intensity over void+halo) / plateau_amplitude, plateau is saturated interior where scatter most concentrated.
+Offset | Size | Type | Meaning
+------ | ---- | ---- | -------
+0 | 4 | ASCII | Magic `OBVL`
+4 | 4 | u32 | Version = 1
+8 | 4 | u32 | dtype code: 2 = int16 scatter, 16 = float32 scatter
+12 | 12 | 3×u32 | `nx ny nz` voxel counts per axis (width, height, depth). Total voxels = nx*ny*nz.
+24 | 12 | 3×f32 | `sx sy sz` mm per voxel per axis. Anisotropic calibration from OLED stack diffusion (XY) and bond thickness (Z). Different per file - must read header every time, never assume same pitch.
+36 | 4 | u32 | `data_offset` where payload starts (currently 64)
+data_offset | nx*ny*nz × dtype | dtype | Payload. X is fastest. Linear index for (x,y,z) = `x + nx * (y + ny*z)`.
 
-parse binary yourself using only stdlib like struct, banned: numpy scipy skimage cv2 PIL pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob any array image graph helper. banned runtime tricks: subprocess os.system os.popen exec double underscore import importlib runpy ctypes eval exec compile shell filesystem listing glob multiprocessing socket. also do not open / read tests directory or heldout files.
+Payload interpretation: per-voxel IR scatter. One main air void bubble plus occasional far dust speck blobs / fibre reflections that are NOT part of the void.
 
-at end print volume mm3 as last token, grading at 3 percent tolerance exact thresholds not prescribed you must find robust ones that work across scans with different power background pitch dust, 3 percent band allows some heuristic variation but threshold shortcuts will fail.
+## Cube physics
+
+- VCSEL diffuser + OLED stack gives anisotropic PSF: wide laterally (XY) through OLED diffusion, narrow axially (Z) through thin bond.
+- True shape: thick core where air bubble scatters bright and saturates to a flat plateau after blur, plus thin delamination channels/fingers along X/Y where voxel is only partly filled -> intermediate intensity that never reaches any usable threshold. Border voxels dimmer from partial fill and smear.
+- Content: flat ambient IR background (DC floor) + faint per-voxel noise + one main void + 0-3 far dust artefacts far from main void.
+- You must drop dust: keep the main connected component via 26-neighbour connectivity, selected by integrated mass (sum of background-subtracted intensity), NOT voxel count. Otherwise you may pick a dust speck.
+
+## Why threshold counting fails (tested)
+
+- Low cut includes huge blurred halo: +70% to +120% overestimate.
+- High cut misses thin delamination channels: -30% to -50% underestimate.
+- No single fixed absolute or relative cut works across files because diffuser power, DC background, voxel pitch, and noise change per OLED batch.
+- Family baseline `threshold@200 + largest CC * spacing` from `android-depth-object-volume` is 72-118% wrong here.
+
+## Correct method: IR scatter energy conservation
+
+Blur is normalized and conserves total photon counts, only spreads them. Interior is flat but hidden by blur and noise. Best clue is where scatter is most concentrated, not how many voxels are bright.
+
+True occupancy voxels = `sum(background_subtracted intensity over void+halo) / plateau_amplitude`
+
+Where:
+
+- `plateau_amplitude` = saturated interior scatter where air scattering is most concentrated (robust peak estimate).
+- Void+halo = main void plus its faint diffused halo captured via adaptive dilation until shell mean ~ noise floor, without bridging to far specks.
+
+Required sub-steps:
+
+1. Parse binary yourself using only stdlib (`struct`).
+2. Estimate DC background robustly: median + MAD on background-dominated volume, without bias from void itself. Use low-half median/MAD for noise sigma.
+3. Residual = scatter - background.
+4. 26-connected components above noise floor. Keep largest-mass component (mass = integrated residual) to drop dust.
+5. Estimate saturated interior plateau via 3x3x3 mean-filter peak over component, median of top-8 filtered values.
+6. Adaptively dilate to capture faint halo: grow frontier while shell mean > ~0.9*noise_sigma, max ~60 iterations, without bridging specks. Then integrate signed residual (noise cancels) over grown region.
+7. Volume = `voxels * sx*sy*sz` mm³.
+
+## Output spec
+
+- Print volume mm³ as last token. Example: `python3 /app/solve.py /app/data/scene.obvl` -> prints something like `1667.04` (exact depends on estimator, ~1676 geometric truth for sample).
+- Grading tolerance: 3% relative vs independent conservation reference (distinct heuristics vs oracle, pure-stdlib, matches geometric truth within 0.95%).
+
+## Hidden grading
+
+- 3 hidden OLED dumps with different void sizes, diffuser power, voxel pitch, DC background, dust positions/sizes. True volumes differ mutually and from visible sample (~1676 mm³ sample). Constant float cannot pass multiple dumps at 3%.
+- Only `/app/data/scene.obvl` exists in agent container. Hidden dumps under `/tests/data/` are absent at agent run and mounted only at verify time. Generator that created them (`_gen.py`) is NOT included in grading bundle after hardening (removed to close BAD_LEAKAGE).
+- Reward computed independently via intensity conservation pure-stdlib `reference_volume_mm3`, not from agent-editable constants. `run_agent()` copies scan to neutral temp name and copies `solve.py` into isolated TemporaryDirectory (cwd=td, PYTHONPATH=td) so agent cannot infer which heldout or import from /tests.
+
+## Bans / anti-cheat
+
+- Implement parsing, labeling, and integration from scratch. Banned imports: `numpy`, `scipy`, `skimage`, `cv2`, `PIL`, `pillow`, `networkx`, `igraph`, `imageio`, `pandas`, `torch`, `tensorflow`, `subprocess`, `importlib`, `runpy`, `ctypes`, `socket`, `multiprocessing`, `glob`, `pathlib`, `shutil`, `io`, `os` (strict). Banned calls: `eval`, `exec`, `compile`, `__import__`, `getattr`, `setattr`, `hasattr`, `globals`, `locals`, `vars`, `dir`, `chr`, `ord`, `breakpoint`.
+- Banned filesystem tricks: `os.system`, `os.popen`, `os.exec`, `os.walk`, `os.listdir`, `os.scandir`, `os.open`, `os.stat`, `os.read`, `os.fdopen`, `os.path`, `pty.`, `pathlib.Path`, `shutil`, `io.open`, `/tests`, `test_outputs`, `heldout`, `_gen`, `__builtins__`, `__dict__`, `__subclasses__`, `__mro__`, `base64`, `binascii`, `codecs`, double-underscore dunder attributes other than `__name__`/`__main__`.
+- Also: do not open/read tests directory or heldout files. String literals are decoded and checked for obfuscated paths (`\x2f...` -> `/tests`). Obfuscated path construction via `chr`/`ord`/dynamic getattr is blocked.
+- AST-audit via `test_from_scratch()`. Violation = immediate fail.
+
+## Notes
+
+- Exact thresholds not prescribed - you must find robust ones that work across power/background/pitch/dust variations. 3% band allows heuristic variation but threshold shortcuts fail.
+- Apply anisotropic pitch multiplication `sx*sy*sz` - forgetting it fails volume product.
+- Pure stdlib only; handwritten 26-neighbour BFS/DFS required.
+
+Author: Pixel OLED bonding factory QA track - distinct from TOF parcel but same subvoxel physics core.
