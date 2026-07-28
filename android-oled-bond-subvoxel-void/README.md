@@ -96,3 +96,4 @@ Primary discriminant is ability to derive energy-conservation volume vs reuse th
 - **Library bypass blocked:** rejects banned array/image/graph helpers; forces stdlib-only.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com> - Android OLED bonding factory QA track - distinct from TOF parcel but same subvoxel physics core
+<!-- forced refresh Tue Jul 28 11:02:23 AM UTC 2026 -->
