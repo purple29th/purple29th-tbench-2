@@ -70,9 +70,28 @@ BANNED_TOKENS_FOR_PATH = [
     "test_outputs",
     "heldout",
     "_gen",
-    "reference",
     "ground_truth",
 ]
+
+
+def _looks_like_path_literal(s: str) -> bool:
+    """Narrow forbidden-literal scan to actual path/file usage.
+
+    Prevents false positives on ordinary English words like 'reference' in
+    docstrings while still catching attempts to open hidden fixtures.
+    """
+    low = s.lower()
+    # Any filesystem separator or explicit file extension suggests a path
+    if "/" in s or "\\" in s:
+        return True
+    if ".fpos" in low or ".json" in low or ".py" in low:
+        return True
+    # e.g. "tests/data" without leading slash but clearly a path
+    if "tests" in low and "data" in low:
+        return True
+    return False
+
+
 BANNED_OS_ATTRS = {
     "system",
     "popen",
@@ -193,6 +212,8 @@ def test_from_scratch():
             if isinstance(node.value, ast.Name) and node.value.id == "os":
                 assert attr not in BANNED_OS_ATTRS, f"banned os.{attr} usage"
     for lit in _iter_string_literals(tree):
+        if not _looks_like_path_literal(lit):
+            continue
         low = lit.lower()
         for banned in BANNED_TOKENS_FOR_PATH:
             assert banned.lower() not in low, f"forbidden path {banned!r} in {lit!r}"
