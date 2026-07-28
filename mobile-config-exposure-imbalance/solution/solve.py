@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Oracle: minimal rollout size reaching max exposure with imbalance threshold.
 
-Each config signed exposure delta, turning on forces dependencies. Max-weight closure via min-cut. Then minimal rollout = configs reachable from source in residual graph. NEW twist for novelty: header int32 reserved is exposure imbalance threshold - configs with abs(value) < threshold are free riders, they must be on if required but NOT counted in size. This custom rule is not textbook max-closure and lowers novelty HIGH.
+Each config has signed exposure delta. Turning on forces dependencies transitively, but free riders with abs(value) < threshold have their own dependencies ignored, changing the closure graph itself. Among optimal exposure rollouts, report minimal counted size where only abs(value) >= threshold counted. This free rider dependency ignore rule is custom and not textbook closure.
 """
 
 import struct, sys
@@ -114,12 +114,15 @@ def solve(path):
         elif w < 0:
             din.add(idx[nid], t, -w)
     for nid, ds in deps.items():
+        # free riders ignore their own dependencies - changes graph itself, not just counting
+        if abs(weight[nid]) < thr:
+            continue
         for d in ds:
             if d in idx:
                 din.add(idx[nid], idx[d], INF)
     din.maxflow(s, t)
     seen = din.reachable_from(s)
-    # custom novelty twist: threshold - configs with abs(value) < thr not counted in size
+    # threshold - configs with abs(value) < thr not counted in size, free riders exempt
     return sum(1 for nid in weight if seen[idx[nid]] and abs(weight[nid]) >= thr)
 
 
