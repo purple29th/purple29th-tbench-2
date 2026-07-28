@@ -98,3 +98,4 @@ Primary discriminant is ability to derive energy-conservation volume vs reuse th
 Author: Tosin Daniel Jimoh <purple29th@meta.com> - Android OLED bonding factory QA track - distinct from TOF parcel but same subvoxel physics core
 <!-- forced refresh Tue Jul 28 11:02:23 AM UTC 2026 -->
 
+<!-- force dedup reindex Tue Jul 28 01:01:46 PM UTC 2026 -->
