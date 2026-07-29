@@ -1,0 +1,13 @@
+BEGIN t1
+ADD t1 main Root
+COMMIT t1
+BEGIN t2
+ADD_CHILD t2 Root container1 Child1
+COMMIT t2
+BEGIN t3
+ADD_CHILD t3 Child1 container2 Child2
+COMMIT t3
+BEGIN t4
+ADD_CHILD t4 Child2 container3 Child3
+COMMIT t4
+QUERY

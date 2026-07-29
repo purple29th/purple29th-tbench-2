@@ -1,0 +1,4 @@
+BEGIN t1
+ADD_CHILD t1 Ghost tab Child
+COMMIT t1
+QUERY

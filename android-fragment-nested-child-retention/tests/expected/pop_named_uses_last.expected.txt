@@ -1,0 +1,3 @@
+container=main fragments=[B]
+fragment=B parent=NONE hidden=false lifecycle=RESUMED viewModel={} savedState={} children=[]
+backstack=[dup, other]
