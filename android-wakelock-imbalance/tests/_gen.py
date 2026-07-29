@@ -42,17 +42,27 @@ def pack_wklk(events, offset=64):
 
 def compute_true(events):
     # stable sort by timestamp only: Python's sort is stable, preserves file order for equal ts
+    # v0.15 adds hidden global all-clear: (0,0,ts,0) clears ALL ids, not just id 0. Not described in instruction, must be inferred from sample.
     ev = sorted(events, key=lambda x: x[2])
     held = {}
     first_acq = {}
     last_ts = {}
     for eid, etype, ts, tid in ev:
-        # thread 0 release is global force-release for that id
         if tid == 0 and etype == 0:
+            if eid == 0:
+                # special hidden: id 0 release from thread 0 is Doze entry, clears ALL wakelocks
+                key0 = (0, 0)
+                if key0 not in last_ts or ts > last_ts[key0]:
+                    last_ts[key0] = ts
+                for k in list(held.keys()):
+                    if held.get(k, False):
+                        held[k] = False
+                        first_acq[k] = None
+                continue
+            # thread 0 release is global force-release for that id
             key0 = (eid, 0)
             if key0 not in last_ts or ts > last_ts[key0]:
                 last_ts[key0] = ts
-            # release all holders of same id
             for k in list(held.keys()):
                 if k[0] == eid and held.get(k, False):
                     held[k] = False
@@ -216,6 +226,45 @@ def generate_events_thread_scoped(num_ids, seed, include_reacquire=True, heavy=F
                 events.append((id_, 1, acq_t + rnd.randint(100, 500), 0))
             else:
                 events.append((id_, 0, acq_t + rnd.randint(20, 800), 0))
+
+    # Hidden global all-clear events: (0,0,ts,0) clears ALL ids - Doze entry suspend.
+    # Not described explicitly, must be inferred. Scene gets 1 example to hint, heldouts get 1.
+    is_scene = num_ids <= 300
+    if is_scene:
+        # scene: one global all-clear early then re-leak to hint behavior, still non-zero total
+        if rnd.random() < 0.5:
+            all_clear_t = rnd.randint(150000, 250000)
+            events.append((0, 0, all_clear_t, 0))
+            for _ in range(rnd.randint(8, 16)):
+                reacq_id = (
+                    rnd.choice(id_pool[:10])
+                    if len(id_pool) >= 10
+                    else rnd.randint(1, num_ids)
+                )
+                reacq_tid = rnd.choice(all_tids)
+                reacq_t = all_clear_t + rnd.randint(20, 500)
+                events.append((reacq_id, 1, reacq_t, reacq_tid))
+                if rnd.random() < 0.85:
+                    events.append(
+                        (reacq_id, 1, reacq_t + rnd.randint(1000, 5000), reacq_tid)
+                    )
+    else:
+        if rnd.random() < 0.75:
+            all_clear_t = rnd.randint(200000, 300000)
+            events.append((0, 0, all_clear_t, 0))
+            for _ in range(rnd.randint(20, 40)):
+                reacq_id = (
+                    rnd.choice(id_pool[:50])
+                    if len(id_pool) >= 50
+                    else rnd.choice(id_pool)
+                )
+                reacq_tid = rnd.choice(all_tids)
+                reacq_t = all_clear_t + rnd.randint(20, 500)
+                events.append((reacq_id, 1, reacq_t, reacq_tid))
+                if rnd.random() < 0.85:
+                    events.append(
+                        (reacq_id, 1, reacq_t + rnd.randint(1000, 8000), reacq_tid)
+                    )
 
     # dangling releases 30-50, including some with tid 0 that are global but dangling if id not held
     for _ in range(rnd.randint(30, 55)):

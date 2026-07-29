@@ -1,92 +1,85 @@
-# codimango/android-wakelock-imbalance v0.14
+# codimango/android-wakelock-imbalance v0.15 - too easy fix
 
 ## Description
 
-Agent writes stdlib-only Python at /app/solve.py that reads WKLK wakelock trace from Android power manager Doze QA. Each trace has many acquire/release events with timestamps and thread ids. Most balanced but some leaked. Need to compute per (id, thread) pair with duplicate dedup, dangling ignore, thread-scoped matching, final-interval duration measured to per-pair last observation, stable timestamp order, plus thread 0 system force-release handling.
+Agent writes stdlib-only Python at /app/solve.py that reads WKLK wakelock trace from Android power manager Doze QA. Each trace has many acquire/release events with timestamps and thread ids. Most balanced but some leaked. Need to compute per (id, thread) pair with duplicate dedup, dangling ignore, thread-scoped matching, final-interval duration measured to per-pair last observation, stable timestamp order, plus thread 0 system force-release handling including hidden global all-clear.
 
-This is precision escalation inspired by `foundry-thermal-subvoxel-void` but for wakelocks. Foundry uses intensity conservation vs threshold fails 80-130% over; here naive shortcuts fail similarly:
+This is precision escalation inspired by foundry-thermal-subvoxel-void but for wakelocks.
 
-* per-id (ignoring thread) 60-92% over/under
-* file order not timestamp 30-55% over/under
-* global trace end vs per-pair last 42-73% over - analogous to speck heavy including far specks
-* first-ever acquire vs final interval 120-310% over
-* duplicate idempotency 20-45% over
-* thread 0 global force-release ignored 25-45% over - leaked pairs that were actually cleared by system are counted as still leaking
-* unsigned signed id misgroup 10-25% over
-* hardcoding offset 64 fails 8/9 heldouts
+## Why previous v0.14 was still too easy (5/5 avocado, 4/5 opus, 5/5 gpt)
 
-Only genuine method with thread affinity, final interval isolation, per-pair last observation, stable sort, and system force-release handling passes.
+v0.14 added thread 0 per-id global release but instruction still explicitly said "release event with thread id 0 for given wakelock id releases all holders of that id across all threads" and gave explicit failure percentages for all traps in a bullet list:
 
-## Leakage Fix - BAD_LEAKAGE (primary)
+* per-id 60-92%, file-order 30-55%, global-end 42-73%, first-ever 120-310%, duplicate 20-45%, thread0 25-45%, etc.
 
-Previous version exposed `/tests/data/ground_truth.json` readable by solver and AST checker only blocked complete literals, allowing "/tes"+"ts/data" concatenation bypass and base64 encoded path.
+That list is effectively a checklist for the solver. Stable sort is free in Python, per-pair last vs global is easy if you track max per pair. So all models still passed despite larger traces.
 
-Fixes in v0.12:
-- Removed ground_truth.json entirely - verifier now computes expected directly by parsing heldout .wklk and running oracle logic `_compute_true` in harness process. No JSON file to steal.
-- BANNED_MODULES now includes base64, binascii, codecs, builtins, zlib, posixpath, ntpath, genericpath - prevents encoded bypass. BANNED_DECODE_ATTRS b64decode etc blocked.
-- AST checker detects base64-encoded strings that decode to banned paths via `_try_b64_decode`.
-- Strict open dataflow: only `open(sys.argv[1])` or variable directly derived from `sys.argv[1]` or unmodified function param allowed. Variables assigned via Call marked tainted and blocked.
-- Limit open calls <=2, block constant paths, concatenated paths, call-constructed paths.
-- Still uses isolated temp dir copy neutral scan.wklk with PYTHONPATH=td, cwd=td.
+## Hardening v0.15 (target 0-2/5 pass)
 
-## Difficulty Fix - Too Easy / Reasoning Required v0.13 and v0.14
+* Removed "Simple shortcuts are off by large margin" section entirely that enumerated all failure modes with percentages. No more checklist.
+* Shortened instruction from 45 lines to ~25 lines, removed explicit kernel behavior paragraph that spelled out recipe. Now instruction only says: same id can be held by several threads independently, dump is shuffled, system thread 0 does force clear with broader semantics than normal cross-thread releases, look at sample to infer exact scope and typical Doze behavior where system clears, some clears affect more than just one id. This forces reverse engineering from sample.
+* Added hidden semantic not described: release (0,0,ts,0) i.e. id 0 from thread 0 is Doze entry that clears ALL wakelocks across ALL ids, not just id 0. This is plausible (Doze suspend clears all) and appears in sample and heldouts but not explicitly described. Naive solvers that only clear that id (or only clear per-id) will overcount dramatically.
+  - Example discriminator: two ids leak 90 and 180, then global all-clear 0,0,250,0 => correct 0, naive ignoring all-clear => 270, naive clearing only id 0 => 270.
+  - After global clear, re-acquire and leak again tests final interval isolation after global clear.
+* Increased difficulty via inference requirement: agent must inspect sample.wklk to discover that thread 0 release sometimes clears more than one id. Sample scene now has 34M leaked with one early global all-clear example that clears early leaks then re-leaks, hinting at behavior.
+* Trace size kept large: 1500-2500 ids (30% negative), 20000-50000 events, up to 24 threads, 40% same-ts collisions, 8-12 cross-thread per acquire, 30-50 dangling.
+* Heldouts regenerated: 9 heldouts with varied offsets 16,24,40,96,128,32,20,192,256, garbage padding with fake WKLK magic, plus hidden global all-clear events in 75% of heldouts (1 per trace early) with 20-40 post-clear reacquires that leak. Leaked totals now 61M-331M plus small cases 85M etc.
+* Added discriminators: test_global_all_clear_id_0 (global all-clear clears all, naive per-id fails), test_global_all_clear_same_ts_order (order matters within same ms for all-clear).
+* Kept all previous discriminators: per_pair_last_vs_global, final_interval_vs_first_ever, duplicate_updates_last_ts, cross_thread_heavy, stable_order_matters, thread_0_global_force_release, etc.
+* Banned modules unchanged.
 
-v0.12: all models 5/5 pass despite removing worked example, because instruction still gave explicit formula and explicit bullet list of edge handling, and hidden traces only 10k-16k events, 15% negative, 2-5 cross-thread.
+## Grading Strength v0.15
 
-v0.13 (foundry-inspired):
-- Rewrote instruction.md to foundry style: story intro, describes messy patterns narratively not as recipe, gives failure quantifications (per-id 60-92%, file-order 30-55%, global-end 42-73%, first-ever 120-310%, duplicate 20-45%, signed misgroup 10-25%, offset hardcode fails 6/7). Removes explicit formula, replaces with principle. Requires inference of per-pair last vs global and duplicate updates last.
-- Increased trace size: 1000-1300 ids, 15000-25000 events, up to 16 threads, 30% same-ts, 20% negative, 3-6 cross-thread, dangling 20-40. Adds early leak with far global continuation trap.
-- Added discriminators like foundry's speck_heavy: per_pair_last_vs_global, final_interval_vs_first_ever, duplicate_updates_last_ts, cross_thread_heavy, stable_order_matters.
-- Target: reduce avocado from 5/5 to 0-2/5.
+- 9 heldouts with varied offsets and garbage padding
+- Tests: 28 total (9 heldouts + 19 unit) including new global all-clear tests
+  - varied_offset_hardcode_guard (10 offsets)
+  - reacquire_final_interval
+  - cross_thread_and_dedup
+  - per_pair_last_vs_global (overcounts if using global end)
+  - final_interval_vs_first_ever
+  - duplicate_updates_last_ts
+  - cross_thread_heavy
+  - multi_thread_same_id_independent_holds
+  - stable_order_matters
+  - thread_0_global_force_release (per-id global)
+  - thread_0_with_same_timestamp_order
+  - global_all_clear_id_0 (new, hidden, naive overcounts 25-60% if ignoring)
+  - global_all_clear_same_ts_order (new)
+  - randomized_dynamic (5 heavy random with thread 0 and global all-clear)
+  - timestamp_order_required, negative_ids, same_timestamp_stable_order
+- Oracle passes all 28, base fails
 
-v0.14 (too easy still 5/5 avocado, 4/5 opus, 5/5 gpt at ec043ac):
-- Root cause: v0.13 instruction still lists all traps explicitly in "Simple shortcuts are off by large margin" and then gives recipe paragraph that spells out required steps; stable sort is free in Python; per-pair last vs global is easy if you track max per pair. So all models still pass.
-- Hardening:
-  * Added new semantic: thread_id 0 system force-release that releases all holders of same id (Doze force-clear). Unlike normal cross-thread releases which are no-ops, release with tid 0 is global for that id. Ignoring it overcounts 25-45% on new heldouts. This is analogous to foundry's speck isolation requiring special handling of far specks.
-  * Rewrote instruction to be even less prescriptive: removed explicit recipe paragraph that listed "separates cross-thread noise, dedupes idempotent acquires without biasing interval start, ignores dangling releases, isolates final continuous interval per pair, and measures its age to its own last observation with stable timestamp order will pass." Replaced with vaguer "handles system force-releases correctly, separates cross-thread noise, and measures final interval age correctly".
-  * Increased trace size dramatically: 1500-2500 ids (30% negative), 20000-50000 events (was 15k-25k), up to 24 threads including thread 0, 40% same-ts collisions (was 30%), 8-12 cross-thread releases per acquire (was 3-6), 30-50 dangling (was 20-40). Garbage padding now may contain fake WKLK magic to trap magic scanners.
-  * New sample scene.wklk leaked 33543939 (5178 events) vs previous 3834544 (1259 events). Hidden heldouts now 256M-378M leaked duration, 67k-95k events each, offsets 16,24,40,96,128,32,20,192,256 (9 heldouts vs 7).
-  * Added new discriminators: test_thread_0_global_force_release (global release clears all threads for id, naive per-thread ignores it -> 220 vs 0), test_thread_0_with_same_timestamp_order (global release order within same ms matters, stable sort required).
-  * Expanded randomized_dynamic to include thread 0 force-release patterns.
-  * Kept per-(id,thread) independence explicit line per human reviewer request (ivann) to avoid single-owner misreading, but made other traps more implicit.
-  * Banned modules unchanged (os, pathlib, io etc like foundry).
-- Target after v0.14: reduce avocado from 5/5 to 0-2/5, GPT to 1-2/5, Opus to 1-3/5 due to thread 0 wildcard not described as simple checklist item, plus much larger traces and more same-ts collisions. Thread 0 is main discriminator like speck heavy.
+## Completion Rates expected after v0.15
 
-## Grading Strength v0.14
+- oracle 28/28 100%
+- previous v0.14: avocado 5/5, opus 4/5, gpt 5/5 too easy
+- expected v0.15: avocado 0-1/5, opus 1-2/5, gpt 0-2/5 due to:
+  * hidden global all-clear not described, must be inferred from sample binary analysis
+  * no more explicit failure mode checklist, instruction vague about force clear scope
+  * per-pair last vs global still traps global-end solvers
+  * stable order within same ms matters for both per-id and all-clear
 
-- 9 heldouts with varied offsets 16,24,40,96,128,32,20,192,256 and garbage padding with fake magic
-- Tests: varied_offset_hardcode_guard (10 offsets), reacquire_final_interval, cross_thread_and_dedup, per_pair_last_vs_global (global overcounts 42-73%), final_interval_vs_first_ever (120-310%), duplicate_updates_last_ts, cross_thread_heavy (8-12 cross-thread), multi_thread_same_id_independent_holds (reviewer-requested visible test for per-(id,thread) independence), stable_order_matters, thread_0_global_force_release (new, 25-45% overcount if ignored), randomized_dynamic (5 heavy random with thread 0), timestamp_order_required, negative_ids, same_timestamp_stable_order, thread_0_with_same_timestamp_order (new, global release order matters)
-- 26 tests total (9 heldouts + 17 unit), oracle passes all, base with no solve.py fails
-- Oracle uses explicit stable sort by (ts, orig_idx) and per-pair last tracking plus thread 0 global force-release handling
+Target 15-30% pass rate, harder than foundry.
 
-## Completion Rates (expected after v0.14 fix)
+## Model Failure Modes v0.15
 
-- oracle 26/26 100%
-- avocado previously 5/5 too easy at v0.13, expect 0-2/5 after thread 0 wildcard and much larger traces and less explicit recipe (per-pair last vs global is main discriminator like speck heavy, thread 0 is additional)
-- opus previously 4/5, expect 1-3/5 due to thread 0 and stable order with global
-- gpt previously 5/5, expect 1-2/5 due to thread 0 and duplicate last
-- Overall target 20-35% pass rate like foundry's 40% (foundry: opus 40-50%, gpt 40%, avocado 10% combined) - harder than v0.13 due to new semantics
-
-## Model Failure Modes v0.14
-
-* per-id counting not per thread -> 60-92% over/under (cross-thread noise mistaken as balanced, misses independent holds)
-* file order not timestamp -> 30-55% over/under
-* global final timestamp instead of per-pair last_ts -> 42-73% over (early quiet pairs measured to far future)
-* first-ever acquire vs final interval -> 120-310% over (earlier balanced cycles counted)
-* duplicate dedup not updating last_ts -> undercount and overcount
-* cross-thread release counted as valid -> undercount leak or overcount balancing
-* ignoring thread 0 global force-release -> overcounts 25-45% (leaked pairs that were actually cleared by system are counted)
-* hardcoding offset 64 -> fails 8/9 heldouts
-* not sorting by timestamp -> random failures
-* not stable for equal timestamps -> stable_order_matters 50 vs 0 discriminator, thread_0_with_same_timestamp_order 50 vs 0 discriminator
-* unsigned parsing of negative ids -> misgroups 30% of pairs
-* magic scanner instead of respecting data_offset -> fails due to fake WKLK in padding
+* per-id counting not per thread -> over/under
+* file order not timestamp -> over/under
+* global final timestamp instead of per-pair last -> over
+* first-ever acquire vs final interval -> over
+* duplicate dedup not updating last -> under/over
+* cross-thread release counted as valid -> undercount
+* ignoring thread 0 per-id global force-release -> overcounts
+* ignoring hidden global all-clear id 0 -> overcounts 25-60% (main new discriminator, not described explicitly)
+* hardcoding offset 64 -> fails heldouts
+* not stable sort -> fails same-ts tests
+* unsigned parsing of negative ids -> misgroups
 
 ## Anti-Cheating
 
-- 9 hidden traces leaked 256M-378M vs sample 33M, varied offsets, shuffled order, 67k-95k events each, 8-12 cross-thread per acquire, 40% same-ts, 30% negative, thread 0 force-releases
-- No ground_truth.json, expected computed in harness
-- Overfit blocked: only scene.wklk at /app/data, hidden under tests/data mounted only at verify, neutral temp copy
-- Reward hacking blocked via AST checks for concatenation, constant open, base64, tainted assignments, base64-encoded path detection
-- From-scratch guard: bans os, pathlib, io, etc like foundry, plus posixpath, ntpath, genericpath
-- Fake WKLK magic in padding traps scanners that search for magic instead of using data_offset
+- 9 hidden traces varied offsets, shuffled order, large, cross-thread heavy, thread 0 releases, plus hidden global all-clear
+- No ground_truth.json, expected computed in harness via oracle logic including global all-clear
+- Overfit blocked: only scene.wklk at /app/data, hidden under tests/data, neutral temp copy
+- Reward hacking blocked via AST checks for concatenation, constant open, base64, tainted assignments
+- From-scratch guard: bans os, pathlib, io, etc
+- Fake WKLK magic in padding traps magic scanners

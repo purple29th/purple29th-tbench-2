@@ -154,13 +154,22 @@ def _parse_wklk_file(path):
 
 def _compute_true(events):
     # stable sort by timestamp only - Python sort is stable, preserves file order for equal ts
+    # v0.15: hidden global all-clear (0,0,ts,0) clears ALL ids, not described explicitly
     ev = sorted(events, key=lambda x: x[2])
     held = {}
     first_acq = {}
     last_ts = {}
     for eid, etype, ts, tid in ev:
-        # Thread 0 release is global force-release for that id (Doze force-clear)
         if tid == 0 and etype == 0:
+            if eid == 0:
+                key0 = (0, 0)
+                if key0 not in last_ts or ts > last_ts[key0]:
+                    last_ts[key0] = ts
+                for kk in list(held.keys()):
+                    if held.get(kk, False):
+                        held[kk] = False
+                        first_acq[kk] = None
+                continue
             key0 = (eid, 0)
             if key0 not in last_ts or ts > last_ts[key0]:
                 last_ts[key0] = ts
@@ -972,7 +981,6 @@ def test_same_timestamp_stable_order():
 
 def test_thread_0_with_same_timestamp_order():
     """Within same ms, global release order matters relative to other events."""
-    # file order: acq 10 tid1, global release 100 tid0, acq 100 tid1, acq 150 tid1 => after global release at 100, acq at 100 starts new interval to 150 => leak 50
     events_A = [
         (1, 1, 10, 1),
         (1, 0, 100, 0),
@@ -982,9 +990,6 @@ def test_thread_0_with_same_timestamp_order():
     expected_A = _compute_true(events_A)
     assert expected_A == 50
 
-    # file order: acq 10 tid1, acq 100 tid1, global release 100 tid0, acq 150 tid1
-    # stable order: 10, then 100 (acq), then 100 (global release) -> global clears, then 150 acq leak 0? Actually acq 150 with no later => 0
-    # So 10->acq, 100 acq dup updates last to 100, then global release clears, then acq 150 leak 0 => total 0
     events_B = [
         (1, 1, 10, 1),
         (1, 1, 100, 1),
@@ -1006,3 +1011,71 @@ def test_thread_0_with_same_timestamp_order():
     assert got_B == expected_B, (
         f"thread0 same-ts B failed: got {got_B} expected {expected_B}"
     )
+
+
+def test_global_all_clear_id_0():
+    """Hidden Doze entry: release id 0 from thread 0 clears ALL ids, not just id 0. Must be inferred from sample."""
+    # Two ids leak, then global all-clear (0,0,0) clears both, total 0
+    events = [
+        (1, 1, 10, 1),
+        (1, 1, 100, 1),
+        (2, 1, 20, 2),
+        (2, 1, 150, 2),
+        (0, 0, 200, 0),
+    ]
+    expected = _compute_true(events)
+    assert expected == 0, f"global all-clear should clear all, got {expected}"
+    data = _pack_wklk(events, offset=32)
+    got = run_agent_bytes(data)
+    assert got == expected, f"global all-clear failed: got {got} expected {expected}"
+
+    # After global clear, re-acquire and leak again
+    events2 = [
+        (1, 1, 10, 1),
+        (1, 1, 50, 1),
+        (0, 0, 60, 0),
+        (1, 1, 100, 1),
+        (1, 1, 180, 1),
+        (2, 1, 110, 2),
+        (2, 1, 200, 2),
+    ]
+    expected2 = _compute_true(events2)
+    # first interval cleared, final: (1,1) 80 + (2,2) 90 = 170
+    assert expected2 == 170, f"setup error got {expected2}"
+    data2 = _pack_wklk(events2, offset=64)
+    got2 = run_agent_bytes(data2)
+    assert got2 == expected2, (
+        f"global all-clear re-acquire failed: got {got2} expected {expected2}"
+    )
+
+    # Naive solver that only clears id 0 would keep leaks for id 1 and 2 before clear
+    # That naive would give 40+? Actually before clear leaks 40, after clear 80+90=170 total 210 if not clearing all, vs 170 correct
+    # More dramatic: leaks before clear only
+    events3 = [
+        (1, 1, 10, 1),
+        (1, 1, 100, 1),
+        (2, 1, 20, 2),
+        (2, 1, 200, 2),
+        (0, 0, 250, 0),
+    ]
+    expected3 = _compute_true(events3)
+    assert expected3 == 0
+    naive_ignore_all = 90 + 180  # if ignoring global all-clear
+    assert naive_ignore_all != expected3
+    data3 = _pack_wklk(events3, offset=40)
+    got3 = run_agent_bytes(data3)
+    assert got3 == expected3
+
+
+def test_global_all_clear_same_ts_order():
+    events = [
+        (1, 1, 10, 1),
+        (0, 0, 100, 0),
+        (1, 1, 100, 1),
+        (1, 1, 150, 1),
+    ]
+    expected = _compute_true(events)
+    assert expected == 50
+    data = _pack_wklk(events, offset=40)
+    got = run_agent_bytes(data)
+    assert got == expected

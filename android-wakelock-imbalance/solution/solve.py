@@ -47,18 +47,25 @@ def solve_one(path):
     last_ts = {}  # (id,tid) -> max ts seen for that pair (any event type)
 
     for eid, etype, ts, tid, _orig in events_sorted:
-        # Thread 0 release is global force-release for that id
+        # Thread 0 release is global force-release for that id, plus hidden id 0 clears ALL
         if tid == 0 and etype == 0:
+            if eid == 0:
+                # hidden Doze entry: clears ALL wakelocks across all ids
+                key0 = (0, 0)
+                if key0 not in last_ts or ts > last_ts[key0]:
+                    last_ts[key0] = ts
+                for k in list(held.keys()):
+                    if held.get(k, False):
+                        held[k] = False
+                        first_acq[k] = None
+                continue
             key0 = (eid, 0)
             if key0 not in last_ts or ts > last_ts[key0]:
                 last_ts[key0] = ts
-            # release all holders of same id
-            # iterate over copy of keys to avoid mutation during iteration
             for k in list(held.keys()):
                 if k[0] == eid and held.get(k, False):
                     held[k] = False
                     first_acq[k] = None
-            # also handle if (eid,0) itself was held, it is cleared above
             continue
 
         key = (eid, tid)
