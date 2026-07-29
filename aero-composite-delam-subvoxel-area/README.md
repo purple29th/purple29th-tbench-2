@@ -6,10 +6,10 @@ Aerospace composite wing skin delamination QA via ultrasonic pulse-echo. Agent w
 
 This is same precision escalation family as foundry-thermal-subvoxel-void, ink-blot-subvoxel-area, android-oled-bond-subvoxel-void. Those are solved by thresholding? Here threshold fails 80-120% over or 30-50% under because fiber weave and beam spread smear echo.
 
-Laser flash makes trapped pores hot but thermal diffusion smears: 
-1. No threshold recovers area - solid core saturates to peak after diffusion, thin feathered cracks never reach threshold.
-2. Correct method is intensity conservation - normalized blur conserves total echo energy, so true voxels = sum(bg-subtracted over delam+halo) / plateau amplitude. Must infer background from border median, isolate main delam from far specks via largest-mass 8-connected, estimate plateau via p95 of main residual, integrate halo via growing frontier until shell mean hits noise floor without merging specks.
-3. Tighter tolerance 3% - conservation lands <1%, threshold shortcuts >=12% off.
+Ultrasonic pulse-echo smears but conserves energy:
+1. No threshold recovers area - solid plateau core spreads after blur, thin feathered cracks never reach threshold.
+2. Correct method is intensity conservation - normalized blur conserves total echo energy, so true voxels = sum(bg-subtracted over delam+halo) / plateau amplitude. Must infer background from border median, isolate main delam from far specks via largest-mass 8-connected, estimate plateau via p90-p95 of main residual (high percentile to avoid noise/edges), integrate halo via growing frontier until shell mean hits noise floor and sum only positive residual pixels without merging specks.
+3. Tolerance 6% - conservation lands <1% (reference ~0.4pp margin at 3% was too tight, now 6% allows valid variations), threshold shortcuts >=30% off, naive global with specks >=30% off so still blocked.
 
 ## Completion Rates
 

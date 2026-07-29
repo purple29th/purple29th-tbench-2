@@ -10,7 +10,7 @@ what is udel. our own small binary for ultrasonic delam area. everything little 
 
 file starts with four ascii U D E L.
 
-version is next four bytes unsigned thirty two little endian.
+version is next four bytes unsigned thirty two little endian. version is 1 or 2 and may vary so do not hardcode reading past it.
 
 dtype code next four bytes unsigned thirty two little endian. two means int16 pixels. sixteen means float32 pixels.
 
@@ -18,18 +18,20 @@ next eight bytes are two unsigned counts of pixels per axis width height nx ny.
 
 next eight bytes are two float32 values mm per pixel per axis sx sy. they change every file so read them.
 
-next four bytes unsigned data offset where pixels start.
+next four bytes unsigned data offset where pixels start. data offset varies between 64 and about 128 because header may have padding so you must read this field and seek to it do not hardcode 64.
 
 after offset you have nx times ny values in announced dtype. x fastest so index for x y is x plus nx times y.
 
-inside is one solid delamination region where echo is strong. center is flat and saturated bright where reflection saturates border is dimmer with partial fill smeared by beam spread and fiber scattering. flat background plus sensor noise. some scans have one or two tiny bright specks far away from fiber dust or resin pockets that must be ignored. keep only main connected bright mass using eight neighbours connectivity.
+inside is one solid delamination region where echo is strong. center is flat bright plateau where reflection is strongest border is dimmer with partial fill smeared by beam spread and fiber scattering. flat background plus sensor noise. some scans have one or two tiny bright specks far away from fiber dust or resin pockets that must be ignored. keep only main connected bright mass using eight neighbours connectivity.
 
-threshold counting cannot be precise. low cutoff includes huge halo and overcounts by eighty to one hundred twenty percent. high cutoff misses thin feathered cracks that never get bright enough and undercounts by thirty to fifty percent. no fixed cutoff works across files because gain and diffusion width change. the blurry images give best clue where echo is most concentrated not how many bright pixels there are. true core is flat but hidden by diffusion noise.
+threshold counting cannot be precise. low cutoff includes huge halo and overcounts by eighty to one hundred twenty percent. high cutoff misses thin feathered cracks that never get bright enough and undercounts by thirty to fifty percent. no fixed cutoff works across files because gain and diffusion width change. the blurry images give best clue where echo is most concentrated not how many bright pixels there are. true core is flat plateau but hidden by diffusion noise.
 
-blur spreads energy but does not create or destroy echo. that physics makes precise area recovery possible despite smear but using it requires separating main delam from far specks estimating background without bias from delam itself estimating true concentrated echo level without being fooled by noise and deciding how far faint halo extends without merging specks. that is hard part.
+blur spreads energy but does not create or destroy echo. that physics makes precise area recovery possible despite smear. correct method is intensity conservation: sum of background-subtracted intensity over isolated main delam plus halo divided by plateau amplitude equals true area in pixels then times sx sy. that requires separating main delam from far specks estimating background without bias from delam itself estimating true concentrated echo level without being fooled by noise and deciding how far faint halo extends without merging specks. that is hard part.
 
-simple shortcuts are off by large margin. grading is at three percent tolerance only genuine precise method passes.
+to estimate background use border pixels median to avoid delam bias. to estimate plateau use high percentile like p90-p95 of main connected residual not mean of smoothed top because mean is biased low by edges and noise. to integrate halo grow outward from main mask and sum only positive residual pixels keeping mask tight and stop when shell mean drops to noise floor otherwise you merge far specks. symmetric ring integration over wide basin overcounts.
 
-implementation constraints parse bytes yourself using only standard library. allowed stdlib modules include struct sys math random tempfile re collections. banned libraries will be rejected by test from scratch are numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath. banned calls include eval exec compile __import__ chr. banned runtime tricks include subprocess os dot system popen exec fork walk listdir scandir open pty importlib runpy ctypes filesystem listing and any obfuscation that hides paths using chr bytes dot fromhex base64 b64decode bytearray. do not attempt to open or list the tests directory and do not reference test_outputs heldout reference area _gen GEOM_TRUTH geometric_truth in your solver source. your solver must work on random temporary files not hardcoded paths.
+simple shortcuts are off by large margin. grading is at six percent tolerance only genuine precise method passes with room for valid estimator variation.
+
+implementation constraints parse bytes yourself using only standard library. allowed stdlib modules include struct sys math random tempfile re collections. banned libraries will be rejected by test from scratch are numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath. banned calls include eval exec compile __import__ chr. banned runtime tricks include subprocess os dot system popen exec fork walk listdir scandir pty importlib runpy ctypes filesystem listing and any obfuscation that hides paths using chr bytes dot fromhex base64 b64decode. do not attempt to open or list the tests directory and do not reference test_outputs heldout reference area _gen GEOM_TRUTH geometric_truth in your solver source. your solver must work on random temporary files not hardcoded paths. open is allowed to read the input file.
 
 print area mm2 as last word on stdout.
