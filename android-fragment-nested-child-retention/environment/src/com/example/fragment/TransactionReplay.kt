@@ -6,7 +6,6 @@ object TransactionReplay {
         fragmentStates: MutableMap<String, FragmentState>,
         ops: List<TransactionOp>
     ) {
-        // BUG: ignores child fragment validation and hide/show lifecycle
         for (op in ops) {
             when (op) {
                 is TransactionOp.Add -> {
@@ -19,7 +18,6 @@ object TransactionReplay {
                     container.add(op.childFragment)
                     val childState = fragmentStates.getOrPut(op.childFragment.name) { FragmentState(op.childFragment) }
                     childState.parent = op.parentFragment
-                    // BUG: parent may not exist after rotate if not backstacked
                     fragmentStates[op.parentFragment]?.children?.add(op.childFragment.name)
                 }
                 is TransactionOp.Replace -> {
@@ -41,9 +39,7 @@ object TransactionReplay {
         }
     }
 
-    // Old signature used by buggy FragmentManager.rotate()
     fun replayInto(containers: MutableMap<String, Container>, ops: List<TransactionOp>) {
-        // This overload is intentionally buggy for rotate path
         for (op in ops) {
             when (op) {
                 is TransactionOp.Add -> {

@@ -1,0 +1,3 @@
+container=main fragments=[Home]
+fragment=Home parent=NONE hidden=false lifecycle=RESUMED viewModel={vmKey=vmVal} savedState={sKey=sVal} children=[]
+backstack=[]

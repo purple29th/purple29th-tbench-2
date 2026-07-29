@@ -1,0 +1,11 @@
+BEGIN t1
+ADD t1 main Home
+COMMIT t1
+VM_PUT Home vmKey vmVal
+SAVE Home sKey sVal
+BEGIN t2
+REPLACE t2 main Other
+ADD_TO_BACK_STACK t2 bs
+COMMIT t2
+POP NONE
+QUERY
