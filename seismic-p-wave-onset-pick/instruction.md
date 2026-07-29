@@ -1,10 +1,10 @@
 hey I am doing hammer seismic crew this summer and I just started logging traces myself. we have one geophone vertical channel per shot and my lead asked me to build quick tooling to pick P arrival but I am stuck with S being bigger.
 
-we dump each trace via my tiny custom binary SEIS little endian I wrote from kotlin ByteBuffer FileOutputStream. sorry its not standard segy I just needed something small for field laptop.
+we dump each trace via my tiny custom binary SEIS little endian I wrote from kotlin ByteBuffer FileOutputStream. its not standard segy, just a small format that works on my field laptop.
 
 your job is write /app/solve.py that reads path as first arg. I will run python3 /app/solve.py /path/to/trace.seis and I need last token of stdout to be integer sample index where P wave first starts. that is what I actually need for my crew to compute hammer timing.
 
-you can try sample at /app/data/trace.seis locally. I have other hidden files you never saw with different lengths dt baseline P S amps spike noise and S P gap so dont hardcode my sample please.
+you can try sample at /app/data/trace.seis locally. I have other hidden files you never saw with different lengths dt baseline P S amps spike noise and S P gap so dont hardcode my sample.
 
 SEIS format is super simple I made.
 
@@ -28,11 +28,11 @@ what finally worked for me: I had to estimate background from early quiet window
 
 sample trace.seis has P around few hundred. grading tolerance is +- max 5 samples so small error ok.
 
-please parse binary yourself using only struct. banned are numpy scipy obspy pandas torch tensorflow sklearn skimage cv2 PIL pillow networkx igraph imageio glob pathlib shutil io os. also banned tricks like subprocess os system popen exec and dunder builtins dict subclasses mro and importlib runpy ctypes eval exec compile and getattr setattr hasattr globals locals vars dir chr ord base64 etc. do not open tests directory or heldout files.
+parse binary yourself using only struct. banned are numpy scipy obspy pandas torch tensorflow sklearn skimage cv2 PIL pillow networkx igraph imageio glob pathlib shutil io os. also banned tricks like subprocess os system popen exec and dunder builtins dict subclasses mro and importlib runpy ctypes eval exec compile and getattr setattr hasattr globals locals vars dir chr ord base64 etc. do not open tests directory or heldout files.
 
 at end print integer index as last token. I compare last int against truth.
 
 files are few thousand samples 1000 to 4000 so use loop not recursion.
 
-thanks so much this will actually help my crew.
+this will help my crew get timing right.
 
