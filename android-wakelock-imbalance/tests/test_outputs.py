@@ -1,11 +1,11 @@
 """Verify /app/solve.py reports total leaked duration ms for WKLK trace.
-Hardened v0.13: foundry-inspired difficulty.
+Hardened v0.14: foundry-inspired difficulty + thread 0 system force-release.
 
 - No ground_truth.json, expected computed directly from wklk via oracle _compute_true
 - Bans base64/binascii/codecs and encoded path bypass, enforces strict open(argv) dataflow
 - Banned modules include os, pathlib, io, etc like foundry
-- Adds discriminators: per-pair last vs global, final vs first, duplicate updates last, cross-thread heavy, stable order matters
-- Larger traces 15k-25k events, 1000-1300 ids, 16 threads, 30% same-ts, 20% negative, 3-6 cross-thread
+- Adds discriminators: per-pair last vs global, final vs first, duplicate updates last, cross-thread heavy, stable order, thread 0 global force-release
+- Larger traces 20k-50k events, 1500-2500 ids, 24 threads including thread 0, 40% same-ts, 30% negative, 8-12 cross-thread, plus system thread 0 force-releases
 """
 
 import ast
@@ -30,6 +30,8 @@ HELDOUTS = [
     "/tests/data/heldout_5.wklk",
     "/tests/data/heldout_6.wklk",
     "/tests/data/heldout_7.wklk",
+    "/tests/data/heldout_8.wklk",
+    "/tests/data/heldout_9.wklk",
 ]
 
 BANNED_MODULES = {
@@ -157,6 +159,17 @@ def _compute_true(events):
     first_acq = {}
     last_ts = {}
     for eid, etype, ts, tid in ev:
+        # Thread 0 release is global force-release for that id (Doze force-clear)
+        if tid == 0 and etype == 0:
+            key0 = (eid, 0)
+            if key0 not in last_ts or ts > last_ts[key0]:
+                last_ts[key0] = ts
+            for k in list(held.keys()):
+                if k[0] == eid and held.get(k, False):
+                    held[k] = False
+                    first_acq[k] = None
+            continue
+
         key = (eid, tid)
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
@@ -197,7 +210,7 @@ def run_agent(path):
             [sys.executable, iso, neutral],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=90,
             cwd=td,
             env=env,
         )
@@ -225,7 +238,7 @@ def run_agent_bytes(data_bytes):
             [sys.executable, iso, fpath],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=90,
             cwd=td,
             env=env,
         )
@@ -247,7 +260,10 @@ def _pack_wklk(events, offset=64):
     struct.pack_into("<I", hdr, 8, n)
     struct.pack_into("<I", hdr, 12, offset)
     for i in range(16, offset):
-        hdr[i] = (i * 37 + 11 + (i * i)) % 256
+        if i % 17 == 0 and i + 4 < offset:
+            hdr[i : i + 4] = b"WKLK"
+        else:
+            hdr[i] = (i * 37 + 11 + (i * i)) % 256
     body = bytearray()
     for eid, etype, ts, tid in events:
         body += struct.pack("<iIII", eid, etype, ts, tid)
@@ -524,6 +540,9 @@ def test_from_scratch():
 
 @pytest.mark.parametrize("path", HELDOUTS)
 def test_heldout(path):
+    # skip if file not present (for local dev without all heldouts)
+    if not os.path.exists(path):
+        pytest.skip(f"{path} not present")
     got = run_agent(path)
     expected = ground_truth_leak(path)
     assert got == expected, f"{os.path.basename(path)}: got {got} expected {expected}"
@@ -533,7 +552,7 @@ def test_varied_offset_hardcode_guard():
     events = [(1, 1, 100, 1), (1, 1, 120, 1)]
     expected = _compute_true(events)
     assert expected == 20
-    for offset in [16, 20, 24, 32, 40, 64, 96, 128]:
+    for offset in [16, 20, 24, 32, 40, 64, 96, 128, 192, 256]:
         data = _pack_wklk(events, offset=offset)
         got = run_agent_bytes(data)
         assert got == expected, f"offset {offset} failed: got {got} expected {expected}"
@@ -548,7 +567,7 @@ def test_reacquire_final_interval_semantics():
     ]
     expected = _compute_true(events)
     assert expected == 10
-    for offset in [16, 64, 128]:
+    for offset in [16, 64, 128, 192]:
         data = _pack_wklk(events, offset=offset)
         got = run_agent_bytes(data)
         assert got == expected, (
@@ -573,26 +592,20 @@ def test_cross_thread_and_dedup():
 
 
 def test_per_pair_last_vs_global():
-    """Discriminator like foundry speck heavy: per-pair last observation vs global trace end.
-    If solver uses global max timestamp instead of per-pair last, it overcounts 40-70%.
-    """
+    """Discriminator like foundry speck heavy: per-pair last observation vs global trace end."""
     events = [
         (1, 1, 10, 1),
-        (1, 1, 50, 1),  # dup updates last_ts to 50 for pair (1,1)
-        # other pairs continue far to 10000
+        (1, 1, 50, 1),
         (99, 1, 1000, 2),
         (99, 0, 2000, 2),
         (100, 1, 5000, 3),
         (100, 0, 10000, 3),
     ]
-    # true: pair (1,1) leaks 40 (50-10), others balanced 0, total 40
     expected = _compute_true(events)
     assert expected == 40
-    # naive global: would use global max 10000 -> 9990 for pair (1,1) if using first_acq 10
     naive_global = 10000 - 10
     assert naive_global != expected
     assert naive_global > expected + 1000
-
     data = _pack_wklk(events, offset=32)
     got = run_agent_bytes(data)
     assert got == expected, (
@@ -601,116 +614,75 @@ def test_per_pair_last_vs_global():
 
 
 def test_final_interval_vs_first_ever():
-    """Discriminator: first-ever acquire vs final interval start.
-    Balanced cycle then leak – first-ever overcounts 120-310%.
-    """
     events = [
         (1, 1, 10, 1),
-        (1, 0, 20, 1),  # balanced first cycle
-        (1, 1, 1000, 1),  # final interval start
-        (1, 1, 1050, 1),  # dup updates last_ts
+        (1, 0, 20, 1),
+        (1, 1, 1000, 1),
+        (1, 1, 1050, 1),
     ]
     expected = _compute_true(events)
-    assert expected == 50  # 1050-1000
-    naive_first = 1050 - 10  # 1040 using first-ever
+    assert expected == 50
+    naive_first = 1050 - 10
     assert naive_first != expected
     assert naive_first > expected + 500
-
     data = _pack_wklk(events, offset=64)
     got = run_agent_bytes(data)
     assert got == expected, f"final vs first ever failed: got {got} expected {expected}"
 
 
 def test_duplicate_updates_last_ts():
-    """Duplicate acquire while held must update last_ts per pair even though hold state unchanged.
-    Ignoring duplicate for last_ts undercounts.
-    """
     events = [
         (1, 1, 10, 1),
-        (1, 1, 500, 1),  # dup while held – should update last_ts to 500
+        (1, 1, 500, 1),
     ]
     expected = _compute_true(events)
     assert expected == 490
-    # if duplicate ignored for last_ts, you'd get 0
-    naive_no_last_update = 0
-    assert naive_no_last_update != expected
-
     data = _pack_wklk(events, offset=40)
     got = run_agent_bytes(data)
     assert got == expected, f"duplicate last_ts failed: got {got} expected {expected}"
 
 
 def test_cross_thread_heavy():
-    """Cross-thread releases 3-6 per acquire must be ignored – thread-affinity.
-    Foundry analogue of speck heavy: per-id counting overcounts 60-92%.
-    """
     events = []
     base = 100
-    # true holds: id 1 tid 1 acquire 100, leak to 800 via dup
     events.append((1, 1, base, 1))
     events.append((1, 1, 800, 1))
-    # cross-thread noise: releases from other tids for same id
-    for other_tid in [2, 3, 4, 5, 6, 7]:
+    for other_tid in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
         events.append((1, 0, base + 200, other_tid))
         events.append((1, 0, base + 400, other_tid))
-    # balanced other id
     events.append((2, 1, 150, 2))
     events.append((2, 0, 250, 2))
-    # add same cross noise for id 2 but from other thread – should be ignored
     events.append((2, 0, 200, 3))
-
     expected = _compute_true(events)
-    assert expected == 700  # 800-100 for id1 tid1
-    # per-id naive would think cross-thread releases balanced id1 => 0
-    # actually per-id would balance incorrectly, undercount or overcount
-    # cross-thread heavy discriminator
-
+    assert expected == 700
     data = _pack_wklk(events, offset=96)
     got = run_agent_bytes(data)
     assert got == expected, f"cross-thread heavy failed: got {got} expected {expected}"
 
 
 def test_multi_thread_same_id_independent_holds():
-    """Reviewer-requested visible discriminator: same id held by multiple threads.
-    Each (id, thread) is independent – both leaks must be summed.
-    Single-owner-per-id model would undercount ~3x on heldouts.
-    """
     events = [
         (1, 1, 10, 1),
-        (1, 1, 60, 1),  # dup updates last_ts for (1,1) to 60
+        (1, 1, 60, 1),
         (1, 1, 15, 2),
-        (1, 1, 115, 2),  # dup for (1,2)
+        (1, 1, 115, 2),
         (1, 1, 20, 3),
-        (1, 1, 70, 3),  # third thread
+        (1, 1, 70, 3),
     ]
-    # expected: (1,1)=50, (1,2)=100, (1,3)=50 => total 200
     expected = _compute_true(events)
     assert expected == 200, f"test setup error expected 200 got {expected}"
-    # single-owner naive (per-id with last owner wins) would give 100 or 50, not 200
     data = _pack_wklk(events, offset=40)
     got = run_agent_bytes(data)
     assert got == expected, (
         f"multi-thread same-id failed: got {got} expected {expected}"
     )
 
-    # also with interleaved cross-thread releases that must not affect other threads
     events2 = [
         (5, 1, 10, 1),
-        (5, 1, 100, 1),
+        (5, 1, 90, 1),
         (5, 1, 20, 2),
-        (5, 1, 80, 2),
-        (5, 0, 30, 3),  # dangling for tid3, should not release tid1 or tid2
-        (5, 0, 40, 3),
-        (5, 0, 50, 1),  # release tid1 at 50? Actually file order will be sorted by ts.
-        # Let's design clearly with timestamps:
-    ]
-    # Clearer scenario: two threads both leak same id, cross-thread noise present.
-    events2 = [
-        (5, 1, 10, 1),  # tid1 acquire
-        (5, 1, 90, 1),  # tid1 dup -> leak 80
-        (5, 1, 20, 2),  # tid2 acquire
-        (5, 1, 120, 2),  # tid2 dup -> leak 100, total 180
-        (5, 0, 30, 3),  # tid3 release attempt, dangling
+        (5, 1, 120, 2),
+        (5, 0, 30, 3),
         (5, 0, 40, 4),
     ]
     expected2 = _compute_true(events2)
@@ -723,13 +695,6 @@ def test_multi_thread_same_id_independent_holds():
 
 
 def test_stable_order_matters():
-    """Within same ms, logger preserves write order. File order matters for dedup/release order.
-    If order not preserved (unstable sort), final interval differs.
-    Foundry analogue of halo growth order sensitivity.
-    """
-    # file order: acq10, rel100, acq100, acq150
-    # ts sorted stable: 10,100,100,150 -> acq10 held, rel100 releases, acq100 starts final first=100, acq150 dup updates last=150 => leak 50
-    # if order of same-ts swapped: acq10, acq100, rel100, acq150 -> acq10 held, acq100 dup ignored (last still 100?), rel100 releases, acq150 starts => leak 0
     events_file_order_A = [
         (1, 1, 10, 1),
         (1, 0, 100, 1),
@@ -762,18 +727,85 @@ def test_stable_order_matters():
     )
 
 
+def test_thread_0_global_force_release():
+    """Thread 0 release is global force-release for that id, unlike normal cross-thread no-ops."""
+    # Two threads leak same id, then system thread 0 releases -> both cleared, final leak 0
+    events = [
+        (1, 1, 10, 1),
+        (1, 1, 20, 2),
+        (1, 0, 30, 0),  # global release clears both (1,1) and (1,2)
+    ]
+    expected = _compute_true(events)
+    assert expected == 0
+    # Without handling thread 0 global, naive per-thread would get 10+10=20? Actually 10? Let's compute:
+    # (1,1) acq 10 last 10, (1,2) acq 20 last 20, both still held if ignoring global => 0+0? No, if single acq no later activity age 0, so both 0, total 0. Need better case with later dup.
+    # Better: leak with later observation, then global release
+    events2 = [
+        (1, 1, 10, 1),
+        (1, 1, 100, 1),  # leak 90 for (1,1)
+        (1, 1, 20, 2),
+        (1, 1, 150, 2),  # leak 130 for (1,2) total 220 if not cleared
+        (1, 0, 200, 0),  # global release clears both => 0
+    ]
+    expected2 = _compute_true(events2)
+    assert expected2 == 0
+    # Naive per-thread ignoring global would get 90+130=220
+    naive_ignore_global = 90 + 130
+    assert naive_ignore_global != expected2
+
+    data = _pack_wklk(events2, offset=64)
+    got = run_agent_bytes(data)
+    assert got == expected2, (
+        f"thread 0 global force-release failed: got {got} expected {expected2}"
+    )
+
+    # Second scenario: leak, global release, then re-acquire and leak again
+    events3 = [
+        (5, 1, 10, 1),
+        (5, 1, 50, 1),  # would be 40 if not cleared
+        (5, 0, 60, 0),  # global clears
+        (5, 1, 100, 1),
+        (5, 1, 180, 1),  # final leak 80
+    ]
+    expected3 = _compute_true(events3)
+    assert expected3 == 80
+    data3 = _pack_wklk(events3, offset=40)
+    got3 = run_agent_bytes(data3)
+    assert got3 == expected3, (
+        f"thread 0 re-acquire after global failed: got {got3} expected {expected3}"
+    )
+
+    # Third: global release for one id should not affect other ids
+    events4 = [
+        (1, 1, 10, 1),
+        (1, 1, 100, 1),  # leak 90 for id 1
+        (2, 1, 20, 1),
+        (2, 1, 120, 1),  # leak 100 for id 2
+        (1, 0, 150, 0),  # global release only id 1 => clears id1, id2 still leaks 100
+    ]
+    expected4 = _compute_true(events4)
+    assert expected4 == 100
+    data4 = _pack_wklk(events4, offset=32)
+    got4 = run_agent_bytes(data4)
+    assert got4 == expected4, (
+        f"thread 0 selective id failed: got {got4} expected {expected4}"
+    )
+
+
 def test_randomized_dynamic():
-    """5 random traces with heavy patterns – foundry style randomized extra."""
+    """5 random traces with heavy patterns including thread 0 force-releases."""
     rnd = random.Random(42)
-    offsets = [16, 20, 24, 32, 40, 64, 96, 128]
+    offsets = [16, 20, 24, 32, 40, 64, 96, 128, 192, 256]
     for i in range(5):
         ev = []
-        num_ids = rnd.randint(12, 20)
+        num_ids = rnd.randint(15, 25)
         for id_ in range(1, num_ids + 1):
-            base = rnd.randint(0, 3000)
-            tids = rnd.sample([1, 2, 3, 4, 5, 6, 7, 8], rnd.randint(2, 5))
+            base = rnd.randint(0, 5000)
+            tids = rnd.sample(
+                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], rnd.randint(2, 6)
+            )
             for tid in tids:
-                pat = rnd.choice([0, 1, 2, 3, 4, 5, 6])
+                pat = rnd.choice([0, 1, 2, 3, 4, 5, 6, 7, 9])
                 if pat == 0:
                     a = base + rnd.randint(0, 100)
                     r = a + rnd.randint(10, 100)
@@ -784,7 +816,6 @@ def test_randomized_dynamic():
                     ev.append((id_, 1, a, tid))
                     if rnd.random() < 0.8:
                         ev.append((id_, 1, a + rnd.randint(1, 20), tid))
-                    # dup that updates last
                     if rnd.random() < 0.6:
                         ev.append((id_, 1, a + rnd.randint(100, 500), tid))
                 elif pat == 2:
@@ -795,9 +826,9 @@ def test_randomized_dynamic():
                 elif pat == 3:
                     a = base + rnd.randint(0, 100)
                     ev.append((id_, 1, a, tid))
-                    for _ in range(rnd.randint(3, 6)):
+                    for _ in range(rnd.randint(3, 8)):
                         other = rnd.choice(
-                            [t for t in [1, 2, 3, 4, 5, 6, 7, 8] if t != tid]
+                            [t for t in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] if t != tid]
                         )
                         ev.append((id_, 0, a + rnd.randint(20, 200), other))
                 elif pat == 4:
@@ -821,14 +852,23 @@ def test_randomized_dynamic():
                     ev.append((id_, 1, a2, tid))
                     ev.append((id_, 0, r2, tid))
                 else:
-                    # early leak with far global
                     a = base + rnd.randint(0, 50)
                     ev.append((id_, 1, a, tid))
                     ev.append((id_, 1, a + rnd.randint(30, 80), tid))
-        # add dangling
-        for _ in range(rnd.randint(10, 25)):
+                # add system force-release trap 20% of time
+                if rnd.random() < 0.20:
+                    # force-release this id from system thread 0 after some time
+                    force_t = base + rnd.randint(300, 600)
+                    ev.append((id_, 0, force_t, 0))
+                    # re-acquire after force-release 50% chance
+                    if rnd.random() < 0.5:
+                        reacq = force_t + rnd.randint(20, 100)
+                        ev.append((id_, 1, reacq, tid))
+                        if rnd.random() < 0.6:
+                            ev.append((id_, 1, reacq + rnd.randint(50, 200), tid))
+        for _ in range(rnd.randint(15, 30)):
             ev.append(
-                (rnd.randint(1000, 5000), 0, rnd.randint(0, 3000), rnd.randint(1, 8))
+                (rnd.randint(1000, 5000), 0, rnd.randint(0, 5000), rnd.randint(0, 12))
             )
         expected = _compute_true(ev)
         offset = rnd.choice(offsets)
@@ -842,9 +882,9 @@ def test_randomized_dynamic():
 def test_timestamp_order_required():
     rnd = random.Random(123)
     ev = []
-    for i in range(50):
+    for i in range(80):
         ev.append(
-            (i % 8 + 1, rnd.choice([0, 1]), rnd.randint(0, 500), rnd.randint(1, 6))
+            (i % 8 + 1, rnd.choice([0, 1]), rnd.randint(0, 500), rnd.randint(0, 12))
         )
     rnd.shuffle(ev)
     expected = _compute_true(ev)
@@ -854,6 +894,15 @@ def test_timestamp_order_required():
         first = {}
         last = {}
         for eid, etype, ts, tid in ev2:
+            if tid == 0 and etype == 0:
+                key0 = (eid, 0)
+                if key0 not in last or ts > last[key0]:
+                    last[key0] = ts
+                for k in list(held.keys()):
+                    if k[0] == eid and held.get(k, False):
+                        held[k] = False
+                        first[k] = None
+                continue
             key = (eid, tid)
             if key not in last or ts > last[key]:
                 last[key] = ts
@@ -891,7 +940,6 @@ def test_negative_ids():
         (-5, 1, 800, 1),
     ]
     expected = _compute_true(events)
-    # (-5) leaks: first 10, last 800 => 790, with dup at 20 ignored but updates last to 800
     assert expected == 790
     data = _pack_wklk(events, offset=32)
     got = run_agent_bytes(data)
@@ -920,3 +968,41 @@ def test_same_timestamp_stable_order():
     data2 = _pack_wklk(events2, offset=40)
     got2 = run_agent_bytes(data2)
     assert got2 == expected2
+
+
+def test_thread_0_with_same_timestamp_order():
+    """Within same ms, global release order matters relative to other events."""
+    # file order: acq 10 tid1, global release 100 tid0, acq 100 tid1, acq 150 tid1 => after global release at 100, acq at 100 starts new interval to 150 => leak 50
+    events_A = [
+        (1, 1, 10, 1),
+        (1, 0, 100, 0),
+        (1, 1, 100, 1),
+        (1, 1, 150, 1),
+    ]
+    expected_A = _compute_true(events_A)
+    assert expected_A == 50
+
+    # file order: acq 10 tid1, acq 100 tid1, global release 100 tid0, acq 150 tid1
+    # stable order: 10, then 100 (acq), then 100 (global release) -> global clears, then 150 acq leak 0? Actually acq 150 with no later => 0
+    # So 10->acq, 100 acq dup updates last to 100, then global release clears, then acq 150 leak 0 => total 0
+    events_B = [
+        (1, 1, 10, 1),
+        (1, 1, 100, 1),
+        (1, 0, 100, 0),
+        (1, 1, 150, 1),
+    ]
+    expected_B = _compute_true(events_B)
+    assert expected_B == 0
+    assert expected_A != expected_B
+
+    data_A = _pack_wklk(events_A, offset=40)
+    got_A = run_agent_bytes(data_A)
+    assert got_A == expected_A, (
+        f"thread0 same-ts A failed: got {got_A} expected {expected_A}"
+    )
+
+    data_B = _pack_wklk(events_B, offset=40)
+    got_B = run_agent_bytes(data_B)
+    assert got_B == expected_B, (
+        f"thread0 same-ts B failed: got {got_B} expected {expected_B}"
+    )
