@@ -2,13 +2,11 @@
 
 ## Description
 
-Agent writes stdlib-only Python at /app/solve.py that reads capacitive touch map CDMR (magic CDMR) from display lamination ghost touch QA. Each map has one main ink pool where capacitance high plus thin bleed lines plus far dust blobs. Smear conserves charge, need mass-based 8-neighbour clustering to drop dust, estimate baseline/plateau and integrate halo to get true count of affected touch cells.
+Agent writes stdlib-only Python at /app/solve.py that reads capacitive touch map CDMR (magic CDMR) from display lamination ghost touch QA. Each map has one main ink pool where capacitance high plus thin bleed lines plus far dust blobs. Smear conserves charge, need mass-based 8-neighbour clustering to drop dust, estimate baseline plateau and integrate halo to get true count of affected touch cells. Header data offset varies 64-128 and must be respected.
 
-True count is fractional occupancy integral: interior 1.0, border 0-0.55, bleed lines 0.35-0.70, sum rounded. Equivalent to conserved charge / saturated plateau. Grading tolerance is max(2, 3% of expected). Sample scene.cdmr has true count 249 (tolerance ~7).
+True count is fractional occupancy integral: interior 1.0, border partial, bleed lines partial, sum rounded. Equivalent to conserved charge divided by saturated plateau. Grading tolerance is max(2, 3% of expected). Sample scene.cdmr has true count 249 (tolerance ~7).
 
-This task is UI ghost touch counting, not subvoxel volume mm3 and not luminance area mm2. It uses CDMR capacitive grid with baseline field and int16 payload, goal count integer, not area. Different from OLED void IR volume and battery swell pressure.
-
-Dust handling is enforced: hidden maps include heavy dust cases where total dust charge is 40-80 cells equivalent (up to 50% extra if summed globally) and bright dust up to 1.5x plateau, plus off-center/edge pools (center at 14,48 and 20,55) to defeat center assumption. Naive global sum of positive excess fails 4/8 heldouts.
+Dust handling is enforced: hidden maps include heavy dust where total dust charge is 40-80 cells equivalent and bright dust up to 1.5x plateau, plus dust with larger area than main pool to defeat area selection, plus off-center edge pools and large PSF cases where halo holds significant charge so skipping halo growth fails. Naive global sum fails, area-selection fails, no-halo shortcut fails.
 
 ## Completion Rates
 
