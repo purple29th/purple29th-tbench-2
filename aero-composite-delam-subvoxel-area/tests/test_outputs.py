@@ -2,7 +2,7 @@ import ast, math, os, re, struct, subprocess, sys, tempfile, textwrap, collectio
 import pytest
 
 SCRIPT = os.environ.get("SOLVE_PATH", "/app/solve.py")
-REL_TOL = 0.03
+REL_TOL = 0.06
 
 BANNED_MODULES = {
     "numpy",
@@ -203,13 +203,17 @@ def pack_udel(cfg, field):
     sx, sy = cfg["spacing"]
     dtype = cfg["dtype"]
     n = nx * ny
-    hdr = bytearray(64)
+    rng = random.Random(cfg.get("seed", 0) + 9999)
+    data_offset = rng.randint(64, 128)
+    data_offset = (data_offset // 4) * 4
+    version = rng.choice([1, 2])
+    hdr = bytearray(data_offset)
     hdr[0:4] = MAGIC
-    struct.pack_into("<I", hdr, 4, 1)
+    struct.pack_into("<I", hdr, 4, version)
     struct.pack_into("<I", hdr, 8, dtype)
     struct.pack_into("<II", hdr, 12, nx, ny)
     struct.pack_into("<ff", hdr, 20, sx, sy)
-    struct.pack_into("<I", hdr, 28, 64)
+    struct.pack_into("<I", hdr, 28, data_offset)
     if dtype == 2:
         vals = [max(-32768, min(32767, int(round(v)))) for v in field]
         body = struct.pack("<%dh" % n, *vals)

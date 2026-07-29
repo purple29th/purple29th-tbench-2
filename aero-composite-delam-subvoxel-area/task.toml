@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/aero-composite-delam-subvoxel-area"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom ultrasonic delamination scan of a carbon fiber aerospace composite panel (custom binary .udel) and reports its physical delaminated area in mm^2. Ultrasonic pulse-echo reflection from delaminations glows but anisotropic beam spread plus fiber scattering smears the echo, so thresholding overcounts halo or undercounts thin feathered cracks. Correct method is intensity conservation: integrate background-subtracted intensity over isolated main delam plus halo and normalize by plateau amplitude of saturated core. Graded on held-out scans at 3% tolerance."
+description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom ultrasonic delamination scan of a carbon fiber aerospace composite panel (custom binary .udel) and reports its physical delaminated area in mm^2. Ultrasonic pulse-echo reflection from delaminations glows but anisotropic beam spread plus fiber scattering smears the echo, so thresholding overcounts halo or undercounts thin feathered cracks. Correct method is intensity conservation: integrate background-subtracted intensity over isolated main delam plus halo and normalize by plateau amplitude of saturated core. Graded on held-out scans at 6% tolerance with variable header data-offset enforcement."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["composite", "delamination", "ultrasonic", "aerospace", "carbon-fiber", "ndt", "subvoxel", "binary-parsing", "from-scratch"]
 

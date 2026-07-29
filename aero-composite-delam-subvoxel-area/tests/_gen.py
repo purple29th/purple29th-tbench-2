@@ -138,13 +138,20 @@ def pack_udel(cfg, field):
     sx, sy = cfg["spacing"]
     dtype = cfg["dtype"]
     n = nx * ny
-    hdr = bytearray(64)
+    # vary offset and version to enforce header parsing
+    rng = random.Random(cfg.get("seed", 0) + 9999)
+    data_offset = rng.randint(64, 128)
+    # align to 4 bytes for simplicity
+    data_offset = (data_offset // 4) * 4
+    version = rng.choice([1, 2])
+    hdr = bytearray(data_offset)
     hdr[0:4] = MAGIC
-    struct.pack_into("<I", hdr, 4, 1)
+    struct.pack_into("<I", hdr, 4, version)
     struct.pack_into("<I", hdr, 8, dtype)
     struct.pack_into("<II", hdr, 12, nx, ny)
     struct.pack_into("<ff", hdr, 20, sx, sy)
-    struct.pack_into("<I", hdr, 28, 64)
+    struct.pack_into("<I", hdr, 28, data_offset)
+    # padding between 32 and data_offset stays zero
     if dtype == 2:
         vals = [max(-32768, min(32767, int(round(v)))) for v in field]
         body = struct.pack("<%dh" % n, *vals)
