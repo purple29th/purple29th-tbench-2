@@ -1,0 +1,42 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/seismic-p-wave-onset-pick"
+description = "Seismic P wave onset picking from custom SEIS binary with variable dt and offset. Trace has P arrival plus larger S arrival plus noise spikes. Need robust STA LTA from scratch without numpy scipy obspy."
+authors = [{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
+keywords = ["seismic", "signal-processing", "binary-parsing", "from-scratch", "sta-lta", "onset-picking"]
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_usecase = "parsing_lexing"
+category_subdomain = "scientific_computing"
+reward_type = "binary"
+tags = ["seismic", "binary-parsing", "from-scratch", "signal-processing", "onset-picking"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 180.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+
+[environment.env]
+
+[solution.env]
