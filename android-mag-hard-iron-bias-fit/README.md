@@ -1,28 +1,17 @@
 # Android Magnetometer Hard Iron Bias Fit
 
 ## Summary
-I work on Android factory line. Magnetometer has hard iron bias from speaker magnets and screws. During factory test we rotate phone in figure eight and log raw field values. Ideal values would sit on a sphere centered at zero with radius equal to earth field. Real values are shifted by bias plus noise and outliers. Task is to estimate bias vector and radius.
-
-This is similar to thermal subvoxel void tasks where thresholding fails. Here simple averaging fails.
+Android factory line magnetometer calibration. Each phone has internal magnets from speakers and screws adding a constant offset. During factory test the phone is rotated in a figure eight while logging raw magnetic readings. Without offset all readings would be roughly same distance from zero. With offset the cloud is shifted. Task is to estimate the shift and the earth field magnitude from messy production data.
 
 ## Why This Task Is Hard
-Magnetometer calibration is critical for compass and AR. Factory needs robust estimate despite partial orbit and motor spikes.
+Factory data is not ideal lab data. Coverage is often partial as low as 30 percent because operators stop early. The rig dwells longer at ends of figure eight so density is non uniform, so a density weighted centroid is biased. There are far outliers from motor spikes up to 7 percent, and occasional NaN or Inf when a channel saturates. Noise up to 2.0 uT stdev. Bias random up to 80 uT, radius 25 to 65.
 
-Naive methods fail badly:
-* averaging (max plus min) divided by 2 per axis fails 40 to 70 percent, error 15 to 35 uT on partial orbits
-* using mean of points as bias fails 80 to 120 percent, error 20 to 50 uT
-* plain least squares without outlier handling fails outlier case by 4 to 8 uT
+A correct tool must be robust to all these effects at once. Geometric reasoning is needed rather than a single average.
 
-Only genuine robust sphere fit passes. Partial coverage as low as 40 percent makes mean not equal center. Outliers up to 5 percent far from sphere break simple least squares. Need iterative robust refinement.
+## What The Tool Does
+Input is Nx3 array of raw readings in uT. Output is dict with bx by bz radius as floats, JSON serializable. Bias is constant offset present in every sample, radius is magnitude of earth field in that location.
 
-This is precision escalation of clean sphere fit. Clean case is easy but partial and outlier cases are main discriminators, similar to speck heavy in foundry task.
-
-## Approach
-Sphere equation is (x minus bx) squared plus (y minus by) squared plus (z minus bz) squared equals R squared. Expand to linear form to solve for bias and intermediate variable c equals bias squared minus R squared. Set up matrix A with columns minus 2x, minus 2y, minus 2z, 1 and vector b equals negative sum squares. Solve using lstsq. Then recover radius from bias squared minus c.
-
-For robustness, after first fit compute residuals as distance to center minus radius, use median absolute deviation to find outliers, remove far points and refit. Iterate a few times. This handles up to 5 percent far outliers.
-
-Method works for N 50 to 10000, noise up to 2.0 uT, partial coverage 40 to 100 percent.
+The factory model is raw equals earth vector of fixed length but varying direction plus bias plus noise, plus occasional corrupted rows. So after subtracting true bias, distances to origin should cluster around radius.
 
 ## Files
 * mag_calibration.py is main module agent must create, function estimate_hard_iron_bias
@@ -31,11 +20,13 @@ Method works for N 50 to 10000, noise up to 2.0 uT, partial coverage 40 to 100 p
 * tests/test_outputs.py is evaluation suite
 
 ## Completion Criteria
-Tests pass when bias error below thresholds that vary by scenario: 0.3 uT clean, 0.9 uT noisy, 1.8 to 2.0 uT partial hard, 1.2 uT strong bias, 1.5 uT outlier case, random stress with adaptive tolerance.
+Tests check estimation error against hidden ground truth under many conditions including clean, noisy, partial coverage, strong bias, outliers, partial plus outlier combo, random stress, NaN handling, determinism, JSON serializability, large N performance. Tolerances are tighter for easy cases and looser for harder cases with high noise and low coverage.
 
 ## Anti Cheating
 * No hardcoded bias, must estimate from data
-* Hidden tests use random bias up to 70 uT, random radius 28 to 62, random N 200 to 1500, random noise up to 1.8, coverage 0.4 to 1.0, outlier ratio up to 0.04
+* Hidden tests use random bias up to 80 uT, random radius 28 to 62, random N 200 to 2000, random noise up to 2.0, coverage 0.3 to 1.0, outlier ratio up to 0.07, plus NaN or Inf injection
 * Sample bias 15, negative 20, 8 differs from hidden
 * Only numpy allowed, no scipy, sklearn, torch etc
 * Function must be deterministic
+* Subprocess isolation used for oracle, agent cannot read test files
+* Canary token present

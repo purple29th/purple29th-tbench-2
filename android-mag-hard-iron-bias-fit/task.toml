@@ -2,7 +2,7 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-mag-hard-iron-bias-fit"
-description = "Android magnetometer hard iron bias estimation from figure eight orbit data using linear least squares sphere fitting. Factory calibration task."
+description = "Android factory magnetometer calibration from incomplete figure-eight orbit with non-uniform density, far outliers, and channel saturation. Estimate internal magnetic offset and earth field magnitude from raw Nx3 logs."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["android", "magnetometer", "hardiron", "calibration", "spherefitting", "sensor"]
 format = "terminal_bench_single_turn"
