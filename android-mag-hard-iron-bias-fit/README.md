@@ -35,3 +35,4 @@ This linear method is efficient, works for N=50..5000, and tolerates noise.
 ## Completion Criteria
 Tests pass when bias error < thresholds varying by scenario (0.3 uT clean, 0.8 uT noisy, 1.5 uT partial).
 
+# last verified Wed Jul 29 14:28:10 PDT 2026
