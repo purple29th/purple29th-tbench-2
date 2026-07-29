@@ -1,0 +1,5 @@
+container=main fragments=[Home]
+container=tabs fragments=[Tab1]
+fragment=Home parent=NONE hidden=false detached=false lifecycle=STARTED maxLifecycle=STARTED viewModel={} savedState={} children=[Tab1]
+fragment=Tab1 parent=Home hidden=false detached=false lifecycle=STARTED maxLifecycle=STARTED viewModel={} savedState={} children=[]
+backstack=[]

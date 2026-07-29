@@ -14,6 +14,9 @@ fun parseScenario(text: String): Scenario {
             "REMOVE" -> ops.add(Op.Remove(parts[1], parts[2]))
             "HIDE" -> ops.add(Op.Hide(parts[1], parts[2]))
             "SHOW" -> ops.add(Op.Show(parts[1], parts[2]))
+            "DETACH" -> ops.add(Op.Detach(parts[1], parts[2]))
+            "ATTACH" -> ops.add(Op.Attach(parts[1], parts[2]))
+            "SET_MAX" -> ops.add(Op.SetMax(parts[1], parts[2], parts[3]))
             "SAVE" -> ops.add(Op.Save(parts[1], parts[2], parts[3]))
             "VM_PUT" -> ops.add(Op.VmPut(parts[1], parts[2], parts[3]))
             "ADD_TO_BACK_STACK" -> {

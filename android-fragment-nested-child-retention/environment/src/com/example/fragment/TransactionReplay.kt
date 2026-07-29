@@ -35,6 +35,20 @@ object TransactionReplay {
                 is TransactionOp.Show -> {
                     fragmentStates[op.fragment.name]?.hidden = false
                 }
+                is TransactionOp.Detach -> {
+                    for (c in containers.values) c.remove(op.fragment)
+                    fragmentStates[op.fragment.name]?.detached = true
+                }
+                is TransactionOp.Attach -> {
+                    fragmentStates[op.fragment.name]?.detached = false
+                    val lc = fragmentStates[op.fragment.name]?.lastContainer
+                    if (lc != null) {
+                        containers.getOrPut(lc) { Container(lc) }.add(op.fragment)
+                    }
+                }
+                is TransactionOp.SetMax -> {
+                    fragmentStates[op.fragment.name]?.maxLifecycle = op.maxState
+                }
             }
         }
     }

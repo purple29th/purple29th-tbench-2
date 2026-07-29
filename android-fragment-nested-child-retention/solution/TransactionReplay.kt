@@ -18,21 +18,25 @@ object TransactionReplay {
                     container.add(op.fragment)
                     val state = fragmentStates.getOrPut(op.fragment.name) { FragmentState(op.fragment) }
                     state.parent = null
-                    // Restore VM/SS if available
+                    state.detached = false
                     vmSave[op.fragment.name]?.let { vm -> state.viewModel.putAll(vm) }
                     ssSave[op.fragment.name]?.let { ss -> state.savedState.putAll(ss) }
                     allStates[op.fragment.name]?.let { cap ->
                         state.hidden = cap.hidden
+                        state.detached = cap.detached
                         state.viewModel.clear(); state.viewModel.putAll(cap.viewModel)
                         state.savedState.clear(); state.savedState.putAll(cap.savedState)
                         state.children.clear(); state.children.addAll(cap.children)
+                        state.maxLifecycle = cap.maxLifecycle
                         state.lifecycle = cap.lifecycle
+                        state.lastContainer = cap.lastContainer
                     }
-                    if (state.hidden) state.lifecycle = Lifecycle.STARTED else state.lifecycle = Lifecycle.RESUMED
+                    state.lifecycle = minLifecycle(if (state.hidden) Lifecycle.STARTED else Lifecycle.RESUMED, state.maxLifecycle)
+                    state.lastContainer = op.container
                 }
                 is TransactionOp.AddChild -> {
-                    // Parent must exist in current recreated state
                     val parentState = fragmentStates[op.parentFragment] ?: continue
+                    if (parentState.detached) continue
                     val container = containers.getOrPut(op.childContainer) { Container(op.childContainer) }
                     container.add(op.childFragment)
                     val childState = fragmentStates.getOrPut(op.childFragment.name) { FragmentState(op.childFragment) }
@@ -42,23 +46,28 @@ object TransactionReplay {
                     ssSave[op.childFragment.name]?.let { ss -> childState.savedState.putAll(ss) }
                     allStates[op.childFragment.name]?.let { cap ->
                         childState.hidden = cap.hidden
+                        childState.detached = cap.detached
                         childState.viewModel.clear(); childState.viewModel.putAll(cap.viewModel)
                         childState.savedState.clear(); childState.savedState.putAll(cap.savedState)
                         childState.children.clear(); childState.children.addAll(cap.children)
+                        childState.maxLifecycle = cap.maxLifecycle
                         childState.lifecycle = cap.lifecycle
+                        childState.lastContainer = cap.lastContainer
                     }
+                    childState.lastContainer = op.childContainer
+                    childState.maxLifecycle = minLifecycle(childState.maxLifecycle, parentState.maxLifecycle)
                     childState.lifecycle = when {
-                        childState.hidden -> Lifecycle.STARTED
-                        parentState.hidden -> Lifecycle.STARTED
-                        else -> Lifecycle.RESUMED
+                        childState.detached -> Lifecycle.CREATED
+                        childState.hidden -> minLifecycle(Lifecycle.STARTED, childState.maxLifecycle)
+                        parentState.hidden -> minLifecycle(Lifecycle.STARTED, childState.maxLifecycle)
+                        else -> minLifecycle(Lifecycle.RESUMED, childState.maxLifecycle)
                     }
+                    childState.lifecycle = minLifecycle(childState.lifecycle, parentState.maxLifecycle)
                 }
                 is TransactionOp.Replace -> {
                     val container = containers.getOrPut(op.container) { Container(op.container) }
-                    // Clear previous fragments in this container recursively
                     val prev = container.snapshot().toList()
                     for (pf in prev) {
-                        // remove recursively
                         fun removeRec(name: String) {
                             val st = fragmentStates[name] ?: return
                             for (ch in st.children.toList()) removeRec(ch)
@@ -71,10 +80,11 @@ object TransactionReplay {
                     container.add(op.fragment)
                     val state = fragmentStates.getOrPut(op.fragment.name) { FragmentState(op.fragment) }
                     state.parent = null
+                    state.detached = false
                     vmSave[op.fragment.name]?.let { vm -> state.viewModel.putAll(vm) }
                     ssSave[op.fragment.name]?.let { ss -> state.savedState.putAll(ss) }
-                    state.hidden = false
-                    state.lifecycle = Lifecycle.RESUMED
+                    state.lifecycle = minLifecycle(Lifecycle.RESUMED, state.maxLifecycle)
+                    state.lastContainer = op.container
                 }
                 is TransactionOp.Remove -> {
                     fun removeRec(name: String) {
@@ -88,21 +98,44 @@ object TransactionReplay {
                 }
                 is TransactionOp.Hide -> {
                     fragmentStates[op.fragment.name]?.let {
+                        if (it.detached) return@let
                         it.hidden = true
-                        it.lifecycle = Lifecycle.STARTED
+                        it.lifecycle = minLifecycle(Lifecycle.STARTED, it.maxLifecycle)
                     }
                 }
                 is TransactionOp.Show -> {
                     fragmentStates[op.fragment.name]?.let {
+                        if (it.detached) return@let
                         it.hidden = false
-                        it.lifecycle = Lifecycle.RESUMED
+                        it.lifecycle = minLifecycle(Lifecycle.RESUMED, it.maxLifecycle)
                     }
+                }
+                is TransactionOp.Detach -> {
+                    val st = fragmentStates[op.fragment.name] ?: continue
+                    st.lastContainer = containers.entries.find { e -> e.value.snapshot().any { ff -> ff.name == op.fragment.name } }?.key ?: st.lastContainer
+                    for (c in containers.values) c.removeByName(op.fragment.name)
+                    st.detached = true
+                    st.lifecycle = Lifecycle.CREATED
+                }
+                is TransactionOp.Attach -> {
+                    val st = fragmentStates[op.fragment.name] ?: continue
+                    if (!st.detached) continue
+                    st.detached = false
+                    val lc = st.lastContainer
+                    if (lc != null) {
+                        containers.getOrPut(lc) { Container(lc) }.add(op.fragment)
+                    }
+                    st.lifecycle = minLifecycle(if (st.hidden) Lifecycle.STARTED else Lifecycle.RESUMED, st.maxLifecycle)
+                }
+                is TransactionOp.SetMax -> {
+                    val st = fragmentStates[op.fragment.name] ?: continue
+                    st.maxLifecycle = op.maxState
+                    st.lifecycle = minLifecycle(st.lifecycle, st.maxLifecycle)
                 }
             }
         }
     }
 
-    // Legacy overload for buggy path – kept for compilation compatibility
     fun replayInto(containers: MutableMap<String, Container>, ops: List<TransactionOp>) {
         for (op in ops) {
             when (op) {

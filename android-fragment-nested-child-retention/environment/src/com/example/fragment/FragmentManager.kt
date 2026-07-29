@@ -32,6 +32,19 @@ class FragmentManager {
         openTransactions[txnId]?.addOp(TransactionOp.Show(Fragment(fragment)))
     }
 
+    fun detach(txnId: String, fragment: String) {
+        openTransactions[txnId]?.addOp(TransactionOp.Detach(Fragment(fragment)))
+    }
+
+    fun attach(txnId: String, fragment: String) {
+        openTransactions[txnId]?.addOp(TransactionOp.Attach(Fragment(fragment)))
+    }
+
+    fun setMax(txnId: String, fragment: String, maxState: String) {
+        val lc = try { Lifecycle.valueOf(maxState) } catch (e: Exception) { Lifecycle.RESUMED }
+        openTransactions[txnId]?.addOp(TransactionOp.SetMax(Fragment(fragment), lc))
+    }
+
     fun save(fragment: String, key: String, value: String) {
         fragmentStates.getOrPut(fragment) { FragmentState(Fragment(fragment)) }.savedState[key] = value
     }
@@ -48,14 +61,11 @@ class FragmentManager {
         val txn = openTransactions.remove(txnId) ?: return
         val replaced = mutableMapOf<String, List<Fragment>>()
         for (op in txn.operations()) {
-            when (op) {
-                is TransactionOp.Replace -> {
-                    val container = containers[op.container]
-                    if (container != null) {
-                        replaced[op.container] = container.snapshot()
-                    }
+            if (op is TransactionOp.Replace) {
+                val container = containers[op.container]
+                if (container != null) {
+                    replaced[op.container] = container.snapshot()
                 }
-                else -> {}
             }
         }
         applyOps(txn.operations())
@@ -117,7 +127,9 @@ class FragmentManager {
             builder.append("fragment=").append(name)
                 .append(" parent=").append(parent)
                 .append(" hidden=").append(state.hidden)
+                .append(" detached=").append(state.detached)
                 .append(" lifecycle=").append(state.lifecycle)
+                .append(" maxLifecycle=").append(state.maxLifecycle)
                 .append(" viewModel={").append(vm).append("}")
                 .append(" savedState={").append(ss).append("}")
                 .append(" children=[").append(childs).append("]\n")
@@ -137,7 +149,10 @@ class FragmentManager {
                     val container = containers.getOrPut(op.container) { Container(op.container) }
                     val fragState = fragmentStates.getOrPut(op.fragment.name) { FragmentState(op.fragment) }
                     fragState.parent = null
+                    fragState.detached = false
                     fragState.lifecycle = if (fragState.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
+                    fragState.lifecycle = minLifecycle(fragState.lifecycle, fragState.maxLifecycle)
+                    fragState.lastContainer = op.container
                     container.add(op.fragment)
                 }
                 is TransactionOp.AddChild -> {
@@ -149,6 +164,7 @@ class FragmentManager {
                     if (parentState != null) {
                         parentState.children.add(op.childFragment.name)
                     }
+                    childState.lastContainer = op.childContainer
                     val container = containers.getOrPut(op.childContainer) { Container(op.childContainer) }
                     container.add(op.childFragment)
                 }
@@ -159,6 +175,7 @@ class FragmentManager {
                     val newState = fragmentStates.getOrPut(op.fragment.name) { FragmentState(op.fragment) }
                     newState.parent = null
                     newState.lifecycle = if (newState.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
+                    newState.lastContainer = op.container
                 }
                 is TransactionOp.Remove -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
@@ -178,6 +195,29 @@ class FragmentManager {
                     val state = fragmentStates[op.fragment.name] ?: continue
                     state.hidden = false
                     state.lifecycle = Lifecycle.RESUMED
+                }
+                is TransactionOp.Detach -> {
+                    val state = fragmentStates[op.fragment.name] ?: continue
+                    for (c in containers.values) {
+                        c.remove(op.fragment)
+                    }
+                    state.detached = true
+                    state.lifecycle = Lifecycle.CREATED
+                }
+                is TransactionOp.Attach -> {
+                    val state = fragmentStates[op.fragment.name] ?: continue
+                    state.detached = false
+                    state.lifecycle = minLifecycle(Lifecycle.RESUMED, state.maxLifecycle)
+                    val targetContainer = state.lastContainer
+                    if (targetContainer != null) {
+                        val container = containers.getOrPut(targetContainer) { Container(targetContainer) }
+                        container.add(op.fragment)
+                    }
+                }
+                is TransactionOp.SetMax -> {
+                    val state = fragmentStates[op.fragment.name] ?: continue
+                    state.maxLifecycle = op.maxState
+                    state.lifecycle = minLifecycle(state.lifecycle, state.maxLifecycle)
                 }
             }
         }
@@ -219,6 +259,28 @@ class FragmentManager {
                     fragmentStates[op.fragment.name]?.let {
                         it.hidden = true
                         it.lifecycle = Lifecycle.STARTED
+                    }
+                }
+                is TransactionOp.Detach -> {
+                    fragmentStates[op.fragment.name]?.let {
+                        it.detached = false
+                        it.lifecycle = Lifecycle.RESUMED
+                        it.lastContainer?.let { lc ->
+                            containers.getOrPut(lc) { Container(lc) }.add(op.fragment)
+                        }
+                    }
+                }
+                is TransactionOp.Attach -> {
+                    fragmentStates[op.fragment.name]?.let {
+                        it.detached = true
+                        it.lifecycle = Lifecycle.CREATED
+                        for (c in containers.values) c.remove(op.fragment)
+                    }
+                }
+                is TransactionOp.SetMax -> {
+                    fragmentStates[op.fragment.name]?.let {
+                        it.maxLifecycle = Lifecycle.RESUMED
+                        it.lifecycle = Lifecycle.RESUMED
                     }
                 }
             }
