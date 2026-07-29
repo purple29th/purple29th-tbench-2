@@ -227,12 +227,10 @@ def generate_events_thread_scoped(num_ids, seed, include_reacquire=True, heavy=F
             else:
                 events.append((id_, 0, acq_t + rnd.randint(20, 800), 0))
 
-    # Hidden global all-clear events: (0,0,ts,0) clears ALL ids - Doze entry suspend.
-    # Not described explicitly, must be inferred. Scene gets 1 example to hint, heldouts get 1.
+    # Global all-clear events: (0,0,ts,0) clears ALL ids - Doze entry. Explicit in v0.16 but still hard.
     is_scene = num_ids <= 300
     if is_scene:
-        # scene: one global all-clear early then re-leak to hint behavior, still non-zero total
-        if rnd.random() < 0.5:
+        if rnd.random() < 0.6:
             all_clear_t = rnd.randint(150000, 250000)
             events.append((0, 0, all_clear_t, 0))
             for _ in range(rnd.randint(8, 16)):
@@ -249,7 +247,7 @@ def generate_events_thread_scoped(num_ids, seed, include_reacquire=True, heavy=F
                         (reacq_id, 1, reacq_t + rnd.randint(1000, 5000), reacq_tid)
                     )
     else:
-        if rnd.random() < 0.75:
+        if rnd.random() < 0.4:
             all_clear_t = rnd.randint(200000, 300000)
             events.append((0, 0, all_clear_t, 0))
             for _ in range(rnd.randint(20, 40)):

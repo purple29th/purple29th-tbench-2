@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""Oracle for android-wakelock-imbalance v0.14 hard.
+"""Oracle for android-wakelock-imbalance v0.16 hard.
 
-Foundry-inspired hardening: thread-affine, idempotent acquire, cross-thread noise,
-final interval only, per-pair last observation, stable timestamp order, plus
-thread 0 system force-release (global for that id).
+Thread-affine, idempotent acquire, cross-thread noise, final interval only,
+per-pair last observation, stable timestamp order, plus thread 0 system
+force-release (global per id) and hidden global all-clear id 0 clears ALL.
 
 Leak = sum over (id,thread) still held at end of chronological processing of
-(last_ts_observed_for_that_pair - first_acq_of_final_interval). If just one
-acquire with no later activity for that pair, duration 0. Duplicate while held
-updates last_ts but does not restart interval. Cross-thread release ignored for
-state but counts as observation for its own (id,other_tid) pair. Release with
-thread_id 0 is special: it force-releases all holders of that id across all
-threads (Doze force-clear), unlike normal cross-thread no-ops.
+(last_ts_for_pair - first_acq_of_final_interval). If just single acquire with
+no later activity for that pair, duration 0. Duplicate while held updates last_ts
+but does not restart interval. Cross-thread release ignored for other holders.
+Release tid 0 for given id clears all holders of that id. Release tid 0 id 0
+clears ALL ids (Doze entry).
 """
 
 import struct
