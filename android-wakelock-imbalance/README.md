@@ -8,10 +8,10 @@ This is precision escalation inspired by `foundry-thermal-subvoxel-void` but for
 
 * per-id (ignoring thread) 60-92% over/under
 * file order not timestamp 30-55% over/under
-* global trace end vs per-pair last 42-73% over – analogous to speck heavy including far specks
+* global trace end vs per-pair last 42-73% over - analogous to speck heavy including far specks
 * first-ever acquire vs final interval 120-310% over
 * duplicate idempotency 20-45% over
-* thread 0 global force-release ignored 25-45% over – leaked pairs that were actually cleared by system are counted as still leaking
+* thread 0 global force-release ignored 25-45% over - leaked pairs that were actually cleared by system are counted as still leaking
 * unsigned signed id misgroup 10-25% over
 * hardcoding offset 64 fails 8/9 heldouts
 
@@ -22,8 +22,8 @@ Only genuine method with thread affinity, final interval isolation, per-pair las
 Previous version exposed `/tests/data/ground_truth.json` readable by solver and AST checker only blocked complete literals, allowing "/tes"+"ts/data" concatenation bypass and base64 encoded path.
 
 Fixes in v0.12:
-- Removed ground_truth.json entirely – verifier now computes expected directly by parsing heldout .wklk and running oracle logic `_compute_true` in harness process. No JSON file to steal.
-- BANNED_MODULES now includes base64, binascii, codecs, builtins, zlib, posixpath, ntpath, genericpath – prevents encoded bypass. BANNED_DECODE_ATTRS b64decode etc blocked.
+- Removed ground_truth.json entirely - verifier now computes expected directly by parsing heldout .wklk and running oracle logic `_compute_true` in harness process. No JSON file to steal.
+- BANNED_MODULES now includes base64, binascii, codecs, builtins, zlib, posixpath, ntpath, genericpath - prevents encoded bypass. BANNED_DECODE_ATTRS b64decode etc blocked.
 - AST checker detects base64-encoded strings that decode to banned paths via `_try_b64_decode`.
 - Strict open dataflow: only `open(sys.argv[1])` or variable directly derived from `sys.argv[1]` or unmodified function param allowed. Variables assigned via Call marked tainted and blocked.
 - Limit open calls <=2, block constant paths, concatenated paths, call-constructed paths.
@@ -65,7 +65,7 @@ v0.14 (too easy still 5/5 avocado, 4/5 opus, 5/5 gpt at ec043ac):
 - avocado previously 5/5 too easy at v0.13, expect 0-2/5 after thread 0 wildcard and much larger traces and less explicit recipe (per-pair last vs global is main discriminator like speck heavy, thread 0 is additional)
 - opus previously 4/5, expect 1-3/5 due to thread 0 and stable order with global
 - gpt previously 5/5, expect 1-2/5 due to thread 0 and duplicate last
-- Overall target 20-35% pass rate like foundry's 40% (foundry: opus 40-50%, gpt 40%, avocado 10% combined) – harder than v0.13 due to new semantics
+- Overall target 20-35% pass rate like foundry's 40% (foundry: opus 40-50%, gpt 40%, avocado 10% combined) - harder than v0.13 due to new semantics
 
 ## Model Failure Modes v0.14
 

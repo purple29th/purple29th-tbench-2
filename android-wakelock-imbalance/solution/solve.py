@@ -67,7 +67,7 @@ def solve_one(path):
             last_ts[key] = ts
         if etype == 1:  # acquire
             if held.get(key, False):
-                # idempotent – already held, duplicate log is harmless no-op, but last_ts already updated
+                # idempotent - already held, duplicate log is harmless no-op, but last_ts already updated
                 continue
             held[key] = True
             first_acq[key] = ts
@@ -84,7 +84,7 @@ def solve_one(path):
         if is_held:
             f = first_acq.get(key)
             if f is not None:
-                # per-pair last, not global trace end – if pair stopped early, don't extend to global max
+                # per-pair last, not global trace end - if pair stopped early, don't extend to global max
                 total_leaked += last_ts[key] - f
 
     print(total_leaked)
