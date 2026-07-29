@@ -1,0 +1,12 @@
+BEGIN t1
+ADD t1 main Home
+ADD_TO_BACK_STACK t1 home
+COMMIT t1
+BEGIN t2
+ADD_CHILD t2 Home tabs Tab1
+ADD_TO_BACK_STACK t2 NONE
+COMMIT t2
+VM_PUT Home vmKey vmVal
+SAVE Home savedKey savedVal
+ROTATE
+QUERY
