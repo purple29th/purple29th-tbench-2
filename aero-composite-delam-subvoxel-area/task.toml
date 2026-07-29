@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/aero-composite-delam-subvoxel-area"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom ultrasonic delamination scan of a carbon fiber aerospace composite panel (custom binary .udel) and reports its physical delaminated area in mm^2. Ultrasonic pulse-echo reflection from delaminations glows but anisotropic beam spread plus fiber scattering smears the echo, so thresholding overcounts halo or undercounts thin feathered cracks. Correct method is intensity conservation: integrate background-subtracted intensity over isolated main delam plus halo and normalize by plateau amplitude of saturated core. Graded on held-out scans at 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["composite", "delamination", "ultrasonic", "aerospace", "carbon-fiber", "ndt", "subvoxel", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type="binary"
+tags = ["composite", "delamination", "ultrasonic", "aerospace", "carbon-fiber", "ndt", "subvoxel-area", "intensity-conservation", "from-scratch", "binary-parsing"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
