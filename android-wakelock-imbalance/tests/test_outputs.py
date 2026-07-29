@@ -153,7 +153,7 @@ def _parse_wklk_file(path):
 
 
 def _compute_true(events):
-    # stable sort by timestamp only – Python sort is stable, preserves file order for equal ts
+    # stable sort by timestamp only - Python sort is stable, preserves file order for equal ts
     ev = sorted(events, key=lambda x: x[2])
     held = {}
     first_acq = {}
