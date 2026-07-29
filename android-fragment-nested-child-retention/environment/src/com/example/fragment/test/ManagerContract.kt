@@ -170,6 +170,32 @@ fun main() {
         else expect("rotate drops non-backstacked", "Home should be gone after rotate", snap)
     }
 
+    run("viewModel cleared on remove") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.putViewModel("Home", "vmKey", "vmVal")
+        m.begin("t2"); m.remove("t2", "Home"); m.commit("t2")
+        m.begin("t3"); m.add("t3", "main", "Home"); m.commit("t3")
+        val snap = m.snapshot()
+        val hasEmptyVm = snap.contains("fragment=Home") && !snap.contains("vmKey=vmVal")
+        if (hasEmptyVm) results.add("viewModel cleared on remove" to "PASS")
+        else expect("viewModel cleared on remove", "Home should have empty viewModel after remove and re-add", snap)
+    }
+
+    run("viewModel cleared on parent remove") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.putViewModel("Tab1", "vmKey", "vmVal")
+        m.begin("t3"); m.remove("t3", "Home"); m.commit("t3")
+        m.begin("t4"); m.add("t4", "main", "Home"); m.commit("t4")
+        m.begin("t5"); m.addChild("t5", "Home", "tabs", "Tab1"); m.commit("t5")
+        val snap = m.snapshot()
+        val hasEmptyVm = snap.contains("fragment=Tab1") && !snap.contains("vmKey=vmVal")
+        if (hasEmptyVm) results.add("viewModel cleared on parent remove" to "PASS")
+        else expect("viewModel cleared on parent remove", "Tab1 should have empty viewModel after parent remove", snap)
+    }
+
     var allPass = true
     for ((name, status) in results) {
         if (status.startsWith("PASS")) println("PASS  $name")

@@ -47,6 +47,9 @@ CASE_NAMES = [
     "rotate_drops_non_backstacked",
     "nested_three_levels",
     "hide_parent_downgrades_child",
+    "vm_cleared_on_remove",
+    "vm_cleared_on_parent_remove",
+    "vm_retained_on_replace_restore",
 ]
 
 

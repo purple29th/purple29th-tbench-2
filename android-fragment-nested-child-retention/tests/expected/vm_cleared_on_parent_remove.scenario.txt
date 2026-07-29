@@ -1,0 +1,17 @@
+BEGIN t1
+ADD t1 main Home
+COMMIT t1
+BEGIN t2
+ADD_CHILD t2 Home tabs Tab1
+COMMIT t2
+VM_PUT Tab1 vmKey vmVal
+BEGIN t3
+REMOVE t3 Home
+COMMIT t3
+BEGIN t4
+ADD t4 main Home
+COMMIT t4
+BEGIN t5
+ADD_CHILD t5 Home tabs Tab1
+COMMIT t5
+QUERY
