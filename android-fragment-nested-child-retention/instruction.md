@@ -1,100 +1,75 @@
 # Setting
 
-This repo is a small Kotlin project that simulates an Android-style fragment manager with **nested child fragments**. You have root containers (like `main`, `sidebar`) that host fragments. A fragment can itself host child fragments in its own child containers (e.g. fragment `Home` hosts `childA` in container `homeTabs`). On top of that, fragments have a `hidden` state, a lifecycle, a `viewModel` store that must survive configuration changes, and a `savedState` bundle.
-
-Some contract tests are failing; your job is to fix the implementation so it matches the intended Android behavior.
+This repo is a small Kotlin project that simulates AndroidX-style fragments but with nested children: root containers like `main` hold fragments, a fragment can host child fragments in child containers like `Home` -> `homeTabs` -> `Tab1`, and so on. Each fragment has hidden, lifecycle (RESUMED/STARTED), a viewModel map that survives rotation, and a savedState map. Some contract tests are failing; fix the implementation so it matches the intended behavior. Leave the app Main and parser alone, fix only the fragment package.
 
 # Input operations (stdin)
 
-The program reads one operation per line from `/app/scenario.txt`:
+Driver reads `/app/scenario.txt` one operation per line:
 
-- `BEGIN <txn_id>` — start recording a new transaction.
-- `ADD <txn_id> <container> <fragment>` — add a root fragment into a container.
-- `ADD_CHILD <txn_id> <parent_fragment> <child_container> <child_fragment>` — add a child fragment under a parent. Parent must already exist.
-- `REPLACE <txn_id> <container> <fragment>` — replace the contents of a container with the given fragment.
-- `REMOVE <txn_id> <fragment>` — remove a specific fragment and all its descendants, clearing their ViewModels.
-- `HIDE <txn_id> <fragment>` — hide a fragment.
-- `SHOW <txn_id> <fragment>` — show a hidden fragment.
-- `SAVE <fragment> <key> <value>` — immediate: write into fragment's `savedState`.
-- `VM_PUT <fragment> <key> <value>` — immediate: write into fragment's `viewModel`.
-- `ADD_TO_BACK_STACK <txn_id> <name_or_NONE>` — mark transaction as back-stack entry (`NONE` = unnamed `anon`).
-- `COMMIT <txn_id>` — apply transaction; if marked, record on back stack.
-- `POP <name_or_NONE>` — pop back-stack entries.
-- `ROTATE` — simulate configuration change.
-- `QUERY` — record a snapshot.
+- `BEGIN <txn_id>` start a transaction
+- `ADD <txn_id> <container> <fragment>` add root fragment
+- `ADD_CHILD <txn_id> <parent_fragment> <child_container> <child_fragment>` add child under parent, parent must exist else ignore
+- `REPLACE <txn_id> <container> <fragment>` replace container contents
+- `REMOVE <txn_id> <fragment>` remove fragment and all its descendants, clear their ViewModels
+- `HIDE <txn_id> <fragment>` hide, downgrades to STARTED and propagates to children
+- `SHOW <txn_id> <fragment>` show, upgrades to RESUMED unless parent is hidden
+- `SAVE <fragment> <key> <value>` immediate savedState write, survives rotation and pop restore
+- `VM_PUT <fragment> <key> <value>` immediate viewModel write, survives ROTATE, cleared on REMOVE and when fragment is popped off (re-adding later must be empty), retained when restored via pop of a REPLACE
+- `ADD_TO_BACK_STACK <txn_id> <name_or_NONE>` mark, NONE = anon
+- `COMMIT <txn_id>` apply; if marked record on back stack capturing replaced fragments with full child subtree, hidden state, viewModel/savedState, and container mapping
+- `POP <name_or_NONE>` pop entries
+- `ROTATE` simulate config change, clear live containers and fragment registry, snapshot current back stack and replay it via TransactionReplay. Non-backstacked transactions are lost. ViewModel/savedState for recreated fragments must be retained from pre-rotate stores. Child whose parent was never backstacked must not reappear.
+- `QUERY` snapshot
 
 # Output format
 
-At end of input, print one block per `QUERY`, in order they were issued. Blocks are separated by a blank line.
+At end print one block per QUERY in order, blocks separated by blank line.
 
-Each block contains:
-
-1. One line per container, sorted by container name. Containers that have ever been used are still printed even if they become empty after REMOVE or REPLACE, with `fragments=[]`:
+1. container lines sorted by name, containers ever used are still printed even if empty after REMOVE/REPLACE:
 ```
-container=<name> fragments=[<frag1>, <frag2>, ...]
+container=<name> fragments=[frag1, frag2]
 ```
 
-2. One line per fragment currently alive, sorted by fragment name:
+2. fragment lines sorted by name:
 ```
-fragment=<name> parent=<parent_or_NONE> hidden=<true|false> lifecycle=<STATE> viewModel={k1=v1, k2=v2} savedState={k1=v1} children=[<child1>, <child2>]
+fragment=<name> parent=<parent_or_NONE> hidden=<true|false> lifecycle=<STATE> viewModel={k=v} savedState={k=v} children=[c1, c2]
 ```
+- parent NONE for root
+- lifecycle RESUMED if shown and parent not hidden, else STARTED, hidden fragments at most STARTED
+- viewModel/savedState sorted by key, {} when empty, cleared on remove/parent remove (re-add must be empty)
+- children sorted direct child names
 
-- `parent` is `NONE` for root fragments
-- `lifecycle` is one of `RESUMED`, `STARTED`, `CREATED` (hidden fragments must be at most `STARTED`, shown fragments `RESUMED` unless parent is hidden)
-- `viewModel` and `savedState` maps are sorted by key, printed as `{k=v, ...}` or `{}` if empty
-- `children` sorted list of direct child fragment names
-- When a fragment is removed or popped, its ViewModel is cleared and it no longer appears
-
-3. Final line:
-```
-backstack=[<entry1>, <entry2>, ...]
-```
-Use `anon` for unnamed entries.
+3. `backstack=[e1, e2]` anon for unnamed, order committed.
 
 # Pop semantics
 
-- `POP NONE` pops the most recent entry.
-- `POP <name>` pops down to and including the most recent entry with that name when searching from the top of the stack. If the requested name is not on the back stack, it is a no-op.
-- Popping must restore replaced fragments along with their entire child subtrees and their savedState/viewModel/hidden state that was captured at commit time.
-- Removing a parent fragment must recursively remove all descendants from all containers and from the fragment registry.
-
-# Rotation semantics
-
-- `ROTATE` clears live container state, then rebuilds it from the saved back stack only.
-- Transactions that were not added to the back stack are not preserved across rotation.
-- ViewModel and savedState for fragments that are recreated via back-stack replay must be retained.
-- Child fragments whose parent was never back-stacked must not reappear.
+POP NONE pops most recent. POP <name> pops down to and including most recent entry with that name searching from top, case-sensitive. If name not found it is a no-op, must not drain stack. Popping restores replaced fragments with entire child subtree and their captured viewModel/savedState/hidden/container mapping.
 
 # Contract tests
 
-Expected behavior is captured by:
+Expected behavior is in:
 
 ```
 /app/src/com/example/fragment/test/ManagerContract.kt
 ```
 
-Run them with:
+Run:
 
 ```
 bash /app/src/run-contract.sh
 ```
 
-Make all contract tests pass.
+Make all pass.
 
 # Build / run
-
-Run the program with:
 
 ```
 bash /app/src/run.sh
 ```
-
 Reads `/app/scenario.txt`, writes `/app/output.txt`.
 
 # Where to start
 
 - `/app/src/com/example/fragment/FragmentManager.kt`
 - `/app/src/com/example/fragment/TransactionReplay.kt`
-- `/app/src/com/example/fragment/Container.kt`
-- `/app/src/com/example/fragment/Fragment.kt`
 - `/app/src/com/example/fragment/BackStackEntry.kt`
