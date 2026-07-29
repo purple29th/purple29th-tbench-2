@@ -19,7 +19,7 @@ fun main() {
         expect("simple add",
             """
             container=main fragments=[Home]
-            fragment=Home parent=NONE hidden=false lifecycle=RESUMED viewModel={} savedState={} children=[]
+            fragment=Home parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} children=[]
             backstack=[]
             """.trimIndent(),
             snap)
@@ -29,7 +29,6 @@ fun main() {
         val m = FragmentManager()
         m.begin("t1"); m.addChild("t1", "Ghost", "tab", "Child"); m.commit("t1")
         val snap = m.snapshot()
-        // Child should NOT be added if parent missing
         assert(!snap.contains("Child")) { "Child added without parent" }
         results.add("add child requires parent" to "PASS")
     }
@@ -43,105 +42,100 @@ fun main() {
             """
             container=homeTabs fragments=[Tab1]
             container=main fragments=[Home]
-            fragment=Home parent=NONE hidden=false lifecycle=RESUMED viewModel={} savedState={} children=[Tab1]
-            fragment=Tab1 parent=Home hidden=false lifecycle=RESUMED viewModel={} savedState={} children=[]
+            fragment=Home parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} children=[Tab1]
+            fragment=Tab1 parent=Home hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} children=[]
             backstack=[anon]
             """.trimIndent(),
             snap)
     }
 
-    run("remove parent cascades to children") {
+    run("remove parent cascades") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.addChild("t2", "Home", "homeTabs", "Tab1"); m.commit("t2")
         m.begin("t3"); m.addChild("t3", "Tab1", "tabContainer", "Inner"); m.commit("t3")
         m.begin("t4"); m.remove("t4", "Home"); m.commit("t4")
         val snap = m.snapshot()
-        // All should be gone
         val hasFragments = snap.contains("fragment=")
         if (hasFragments) {
-            expect("remove parent cascades to children", "no fragments expected", snap)
+            expect("remove parent cascades", "no fragments expected", snap)
         } else {
-            results.add("remove parent cascades to children" to "PASS")
+            results.add("remove parent cascades" to "PASS")
         }
     }
 
-    run("hide downgrades lifecycle to STARTED") {
+    run("hide downgrades") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.hide("t2", "Home"); m.commit("t2")
         val snap = m.snapshot()
-        expect("hide downgrades lifecycle",
+        expect("hide downgrades",
             """
             container=main fragments=[Home]
-            fragment=Home parent=NONE hidden=true lifecycle=STARTED viewModel={} savedState={} children=[]
+            fragment=Home parent=NONE hidden=true detached=false lifecycle=STARTED maxLifecycle=RESUMED viewModel={} savedState={} children=[]
             backstack=[]
             """.trimIndent(),
             snap)
     }
 
-    run("show upgrades lifecycle to RESUMED") {
+    run("show upgrades") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.hide("t2", "Home"); m.commit("t2")
         m.begin("t3"); m.show("t3", "Home"); m.commit("t3")
         val snap = m.snapshot()
-        expect("show upgrades lifecycle",
+        expect("show upgrades",
             """
             container=main fragments=[Home]
-            fragment=Home parent=NONE hidden=false lifecycle=RESUMED viewModel={} savedState={} children=[]
+            fragment=Home parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} children=[]
             backstack=[]
             """.trimIndent(),
             snap)
     }
 
-    run("replace captures child tree for restore") {
+    run("replace captures child tree") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.addChild("t2", "Home", "homeTabs", "Tab1"); m.commit("t2")
         m.begin("t3"); m.replace("t3", "main", "Profile"); m.addToBackStack("t3", "profile"); m.commit("t3")
-        // Now pop, Home should be restored with Tab1 child
         m.pop(null)
         val snap = m.snapshot()
         val hasHome = snap.contains("fragment=Home")
         val hasTab = snap.contains("fragment=Tab1") && snap.contains("parent=Home")
-        if (hasHome && hasTab) results.add("replace captures child tree for restore" to "PASS")
-        else expect("replace captures child tree for restore", "Home with Tab1 child expected", snap)
+        if (hasHome && hasTab) results.add("replace captures child tree" to "PASS")
+        else expect("replace captures child tree", "Home with Tab1 child expected", snap)
     }
 
-    run("pop named uses indexOfLast") {
+    run("pop named uses last") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.replace("t2", "main", "A"); m.addToBackStack("t2", "dup"); m.commit("t2")
         m.begin("t3"); m.replace("t3", "main", "B"); m.addToBackStack("t3", "other"); m.commit("t3")
         m.begin("t4"); m.replace("t4", "main", "C"); m.addToBackStack("t4", "dup"); m.commit("t4")
-        // backstack = [dup, other, dup]  (first dup at bottom)
-        // POP dup should pop only top-most dup, leaving [dup, other]
         m.pop("dup")
         val snap = m.snapshot()
-        // should have B fragment and backstack [dup, other]
         val hasB = snap.contains("fragments=[B]")
         val hasBackstack = snap.contains("backstack=[dup, other]")
-        if (hasB && hasBackstack) results.add("pop named uses indexOfLast" to "PASS")
-        else expect("pop named uses indexOfLast", "fragments=[B] and backstack=[dup, other] expected", snap)
+        if (hasB && hasBackstack) results.add("pop named uses last" to "PASS")
+        else expect("pop named uses last", "fragments=[B] and backstack=[dup, other] expected", snap)
     }
 
-    run("pop missing name is no-op") {
+    run("pop missing is noop") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.replace("t2", "main", "Profile"); m.addToBackStack("t2", "profile"); m.commit("t2")
         m.pop("ghost")
         val snap = m.snapshot()
-        expect("pop missing name is no-op",
+        expect("pop missing is noop",
             """
             container=main fragments=[Profile]
-            fragment=Profile parent=NONE hidden=false lifecycle=RESUMED viewModel={} savedState={} children=[]
+            fragment=Profile parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} children=[]
             backstack=[profile]
             """.trimIndent(),
             snap)
     }
 
-    run("rotate retains viewModel and child hierarchy") {
+    run("rotate retains vm child") {
         val m = FragmentManager()
         m.begin("t1"); m.add("t1", "main", "Home"); m.addToBackStack("t1", "home"); m.commit("t1")
         m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.addToBackStack("t2", null); m.commit("t2")
@@ -152,22 +146,20 @@ fun main() {
         val hasVm = snap.contains("vmKey=vmVal")
         val hasSaved = snap.contains("savedKey=savedVal")
         val hasChild = snap.contains("fragment=Tab1") && snap.contains("parent=Home")
-        val hasContainer = snap.contains("container=main") && snap.contains("Home")
-        if (hasVm && hasSaved && hasChild && hasContainer) results.add("rotate retains viewModel and child hierarchy" to "PASS")
-        else expect("rotate retains viewModel and child hierarchy", "vm, savedState and child expected", snap)
+        if (hasVm && hasSaved && hasChild) results.add("rotate retains vm child" to "PASS")
+        else expect("rotate retains vm child", "vm savedState child expected", snap)
     }
 
-    run("rotate drops non-backstacked") {
+    run("rotate drops non bs") {
         val m = FragmentManager()
-        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1") // not backstacked
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
         m.begin("t2"); m.add("t2", "main", "Profile"); m.addToBackStack("t2", null); m.commit("t2")
         m.rotate()
         val snap = m.snapshot()
-        // Home should be gone, only Profile
         val noHomeFrag = !snap.contains("fragment=Home")
         val hasProfile = snap.contains("Profile")
-        if (noHomeFrag && hasProfile) results.add("rotate drops non-backstacked" to "PASS")
-        else expect("rotate drops non-backstacked", "Home should be gone after rotate", snap)
+        if (noHomeFrag && hasProfile) results.add("rotate drops non bs" to "PASS")
+        else expect("rotate drops non bs", "Home should be gone", snap)
     }
 
     run("viewModel cleared on remove") {
@@ -179,7 +171,7 @@ fun main() {
         val snap = m.snapshot()
         val hasEmptyVm = snap.contains("fragment=Home") && !snap.contains("vmKey=vmVal")
         if (hasEmptyVm) results.add("viewModel cleared on remove" to "PASS")
-        else expect("viewModel cleared on remove", "Home should have empty viewModel after remove and re-add", snap)
+        else expect("viewModel cleared on remove", "empty vm expected", snap)
     }
 
     run("viewModel cleared on parent remove") {
@@ -193,7 +185,71 @@ fun main() {
         val snap = m.snapshot()
         val hasEmptyVm = snap.contains("fragment=Tab1") && !snap.contains("vmKey=vmVal")
         if (hasEmptyVm) results.add("viewModel cleared on parent remove" to "PASS")
-        else expect("viewModel cleared on parent remove", "Tab1 should have empty viewModel after parent remove", snap)
+        else expect("viewModel cleared on parent remove", "empty vm expected", snap)
+    }
+
+    run("set max cascades") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.begin("t3"); m.addChild("t3", "Tab1", "inner", "Inner"); m.commit("t3")
+        m.begin("t4"); m.setMax("t4", "Home", "STARTED"); m.commit("t4")
+        val snap = m.snapshot()
+        val homeStarted = snap.contains("fragment=Home") && snap.contains("lifecycle=STARTED") && snap.contains("maxLifecycle=STARTED")
+        val tabCap = snap.contains("fragment=Tab1") && snap.contains("maxLifecycle=STARTED")
+        if (homeStarted && tabCap) results.add("set max cascades" to "PASS")
+        else expect("set max cascades", "max should cascade to children", snap)
+    }
+
+    run("set max blocks resumed") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.setMax("t2", "Home", "STARTED"); m.commit("t2")
+        m.begin("t3"); m.addChild("t3", "Home", "tabs", "Tab1"); m.commit("t3")
+        val snap = m.snapshot()
+        val tabNotResumed = snap.contains("fragment=Tab1") && snap.contains("lifecycle=STARTED")
+        if (tabNotResumed) results.add("set max blocks resumed" to "PASS")
+        else expect("set max blocks resumed", "child should be STARTED when parent max STARTED", snap)
+    }
+
+    run("detach retains vm") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.putViewModel("Home", "k", "v")
+        m.save("Home", "s", "sv")
+        m.begin("t2"); m.detach("t2", "Home"); m.commit("t2")
+        val snap = m.snapshot()
+        val detached = snap.contains("detached=true") && snap.contains("lifecycle=CREATED") && snap.contains("k=v")
+        val noContainer = snap.contains("container=main fragments=[]")
+        if (detached && noContainer) results.add("detach retains vm" to "PASS")
+        else expect("detach retains vm", "detached CREATED with vm retained and empty container", snap)
+    }
+
+    run("detach attach restores") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.putViewModel("Home", "k", "v")
+        m.begin("t3"); m.detach("t3", "Home"); m.commit("t3")
+        m.begin("t4"); m.attach("t4", "Home"); m.commit("t4")
+        val snap = m.snapshot()
+        val hasHome = snap.contains("fragment=Home") && snap.contains("detached=false") && snap.contains("k=v")
+        val hasTab = snap.contains("fragment=Tab1")
+        val hasContainer = snap.contains("container=main fragments=[Home]")
+        if (hasHome && hasTab && hasContainer) results.add("detach attach restores" to "PASS")
+        else expect("detach attach restores", "home restored with child and vm", snap)
+    }
+
+    run("hide with max") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.setMax("t2", "Home", "STARTED"); m.commit("t2")
+        m.begin("t3"); m.hide("t3", "Home"); m.commit("t3")
+        m.begin("t4"); m.show("t4", "Home"); m.commit("t4")
+        val snap = m.snapshot()
+        val ok = snap.contains("fragment=Home") && snap.contains("lifecycle=STARTED") && snap.contains("maxLifecycle=STARTED")
+        if (ok) results.add("hide with max" to "PASS")
+        else expect("hide with max", "should stay STARTED due to max", snap)
     }
 
     var allPass = true

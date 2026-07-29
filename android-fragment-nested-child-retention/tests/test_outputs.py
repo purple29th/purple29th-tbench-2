@@ -50,6 +50,14 @@ CASE_NAMES = [
     "vm_cleared_on_remove",
     "vm_cleared_on_parent_remove",
     "vm_retained_on_replace_restore",
+    "set_max_cascades",
+    "set_max_blocks_resumed",
+    "detach_retains_vm",
+    "detach_attach_restores",
+    "detach_child_cascade",
+    "hide_with_max",
+    "replace_with_max_and_child",
+    "rotate_with_detach",
 ]
 
 

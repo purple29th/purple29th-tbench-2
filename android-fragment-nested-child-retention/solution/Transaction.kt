@@ -7,6 +7,9 @@ sealed class TransactionOp {
     data class Remove(val fragment: Fragment) : TransactionOp()
     data class Hide(val fragment: Fragment) : TransactionOp()
     data class Show(val fragment: Fragment) : TransactionOp()
+    data class Detach(val fragment: Fragment) : TransactionOp()
+    data class Attach(val fragment: Fragment) : TransactionOp()
+    data class SetMax(val fragment: Fragment, val maxState: Lifecycle) : TransactionOp()
 }
 
 class Transaction(val id: String) {

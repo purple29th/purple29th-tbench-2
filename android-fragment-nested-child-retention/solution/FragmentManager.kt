@@ -33,6 +33,19 @@ class FragmentManager {
         openTransactions[txnId]?.addOp(TransactionOp.Show(Fragment(fragment)))
     }
 
+    fun detach(txnId: String, fragment: String) {
+        openTransactions[txnId]?.addOp(TransactionOp.Detach(Fragment(fragment)))
+    }
+
+    fun attach(txnId: String, fragment: String) {
+        openTransactions[txnId]?.addOp(TransactionOp.Attach(Fragment(fragment)))
+    }
+
+    fun setMax(txnId: String, fragment: String, maxState: String) {
+        val lc = try { Lifecycle.valueOf(maxState) } catch (e: Exception) { Lifecycle.RESUMED }
+        openTransactions[txnId]?.addOp(TransactionOp.SetMax(Fragment(fragment), lc))
+    }
+
     fun save(fragment: String, key: String, value: String) {
         fragmentStates.getOrPut(fragment) { FragmentState(Fragment(fragment)) }.savedState[key] = value
     }
@@ -52,6 +65,8 @@ class FragmentManager {
         val allCaptured = mutableMapOf<String, CapturedFragmentState>()
         val containerMap = mutableMapOf<String, String>()
         val hiddenSnap = mutableMapOf<String, Boolean>()
+        val maxSnap = mutableMapOf<String, Lifecycle>()
+        val detachedSnap = mutableMapOf<String, Boolean>()
 
         for (op in txn.operations()) {
             when (op) {
@@ -67,13 +82,20 @@ class FragmentManager {
                         }
                     }
                 }
-                is TransactionOp.Hide, is TransactionOp.Show -> {
+                is TransactionOp.Hide, is TransactionOp.Show, is TransactionOp.Detach, is TransactionOp.Attach, is TransactionOp.SetMax -> {
                     val fragName = when (op) {
                         is TransactionOp.Hide -> op.fragment.name
                         is TransactionOp.Show -> op.fragment.name
+                        is TransactionOp.Detach -> op.fragment.name
+                        is TransactionOp.Attach -> op.fragment.name
+                        is TransactionOp.SetMax -> op.fragment.name
                         else -> ""
                     }
-                    fragmentStates[fragName]?.let { hiddenSnap[fragName] = it.hidden }
+                    fragmentStates[fragName]?.let {
+                        hiddenSnap[fragName] = it.hidden
+                        maxSnap[fragName] = it.maxLifecycle
+                        detachedSnap[fragName] = it.detached
+                    }
                 }
                 else -> {}
             }
@@ -90,6 +112,8 @@ class FragmentManager {
                     mapOf("global" to allCaptured.toMap()),
                     allCaptured.toMap(),
                     hiddenSnap.toMap(),
+                    maxSnap.toMap(),
+                    detachedSnap.toMap(),
                     containerMap.toMap(),
                     allCaptured.toMap()
                 )
@@ -104,33 +128,28 @@ class FragmentManager {
             return
         }
         val index = backStack.indexOfLast { it.name == name }
-        if (index < 0) return // no-op
+        if (index < 0) return
         while (backStack.size > index) {
             reverseEntry(backStack.removeAt(backStack.size - 1))
         }
     }
 
     fun rotate() {
-        // Save viewModel and savedState for all current fragments before clearing
         val vmSave = fragmentStates.mapValues { it.value.viewModel.toMap() }
         val ssSave = fragmentStates.mapValues { it.value.savedState.toMap() }
 
-        // Capture backstack
         val saved = backStack.toList()
 
-        // Clear live containers and fragment states but NOT vmSave/ssSave maps
         for (c in containers.values) c.clear()
         fragmentStates.clear()
 
         backStack.clear()
 
         for (entry in saved) {
-            // replay with retention
             TransactionReplay.replayInto(containers, fragmentStates, entry.ops, entry.allStates, entry.containerMap, vmSave, ssSave)
             backStack.add(entry)
         }
 
-        // Restore viewModel/savedState for recreated fragments from saved maps if not already restored from allStates
         for ((fragName, vm) in vmSave) {
             if (fragmentStates.containsKey(fragName)) {
                 val current = fragmentStates[fragName]!!
@@ -153,7 +172,6 @@ class FragmentManager {
         val builder = StringBuilder()
         for ((id, container) in containers.toSortedMap()) {
             val frags = container.snapshot().map { it.name }.sorted()
-            // Always print containers that have ever been used or currently have fragments
             if (frags.isEmpty() && !allContainersEverUsed.contains(id)) continue
             if (allContainersEverUsed.contains(id) || frags.isNotEmpty()) {
                 builder.append("container=").append(id).append(" fragments=[").append(frags.joinToString(", ")).append("]\n")
@@ -167,7 +185,9 @@ class FragmentManager {
             builder.append("fragment=").append(name)
                 .append(" parent=").append(parent)
                 .append(" hidden=").append(state.hidden)
+                .append(" detached=").append(state.detached)
                 .append(" lifecycle=").append(state.lifecycle)
+                .append(" maxLifecycle=").append(state.maxLifecycle)
                 .append(" viewModel={").append(vm).append("}")
                 .append(" savedState={").append(ss).append("}")
                 .append(" children=[").append(childs).append("]\n")
@@ -177,14 +197,15 @@ class FragmentManager {
         return builder.toString()
     }
 
-    // ---- helpers ----
-
     private fun captureState(name: String): CapturedFragmentState? {
         val s = fragmentStates[name] ?: return null
         return CapturedFragmentState(
             parent = s.parent,
             hidden = s.hidden,
+            detached = s.detached,
             lifecycle = s.lifecycle,
+            maxLifecycle = s.maxLifecycle,
+            lastContainer = s.lastContainer,
             viewModel = s.viewModel.toMap(),
             savedState = s.savedState.toMap(),
             children = s.children.toSet()
@@ -195,7 +216,6 @@ class FragmentManager {
         if (out.containsKey(name)) return
         val cap = captureState(name) ?: return
         out[name] = cap
-        // Find container for this fragment
         findContainerOf(name)?.let { containerMap[name] = it }
         for (child in cap.children) {
             captureRecursive(child, out, containerMap)
@@ -211,19 +231,47 @@ class FragmentManager {
 
     private fun removeRecursive(fragmentName: String) {
         val state = fragmentStates[fragmentName] ?: return
-        // First remove children recursively
         for (child in state.children.toList()) {
             removeRecursive(child)
         }
-        // Remove from containers
-        for (c in containers.values) {
-            c.removeByName(fragmentName)
-        }
-        // Remove from parent's children set
+        for (c in containers.values) c.removeByName(fragmentName)
         state.parent?.let { parentName ->
             fragmentStates[parentName]?.children?.remove(fragmentName)
         }
         fragmentStates.remove(fragmentName)
+    }
+
+    private fun downgradeChildrenToStarted(parentName: String) {
+        val parentState = fragmentStates[parentName] ?: return
+        for (childName in parentState.children) {
+            val childState = fragmentStates[childName] ?: continue
+            if (lifecycleOrder(childState.lifecycle) > lifecycleOrder(Lifecycle.STARTED)) {
+                childState.lifecycle = minLifecycle(Lifecycle.STARTED, childState.maxLifecycle)
+            }
+            if (lifecycleOrder(childState.maxLifecycle) > lifecycleOrder(parentState.maxLifecycle)) {
+                childState.maxLifecycle = parentState.maxLifecycle
+                childState.lifecycle = minLifecycle(childState.lifecycle, childState.maxLifecycle)
+            }
+            downgradeChildrenToStarted(childName)
+        }
+    }
+
+    private fun upgradeChildrenIfPossible(parentName: String) {
+        val parentState = fragmentStates[parentName] ?: return
+        if (parentState.hidden) return
+        if (parentState.detached) return
+        if (lifecycleOrder(parentState.lifecycle) < lifecycleOrder(Lifecycle.RESUMED)) return
+        for (childName in parentState.children) {
+            val childState = fragmentStates[childName] ?: continue
+            if (childState.detached) continue
+            if (childState.hidden) continue
+            val desired = minLifecycle(Lifecycle.RESUMED, childState.maxLifecycle)
+            if (lifecycleOrder(childState.lifecycle) < lifecycleOrder(desired)) {
+                childState.lifecycle = minLifecycle(desired, parentState.maxLifecycle)
+                childState.lifecycle = minLifecycle(childState.lifecycle, childState.maxLifecycle)
+                upgradeChildrenIfPossible(childName)
+            }
+        }
     }
 
     private fun applyOps(ops: List<TransactionOp>) {
@@ -236,30 +284,37 @@ class FragmentManager {
                         FragmentState(op.fragment)
                     }
                     fragState.parent = null
+                    fragState.detached = false
                     fragState.lifecycle = if (fragState.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
-                    // Adjust lifecycle if parent hidden? root has no parent
+                    fragState.lifecycle = minLifecycle(fragState.lifecycle, fragState.maxLifecycle)
+                    fragState.lastContainer = op.container
                     container.add(op.fragment)
                 }
                 is TransactionOp.AddChild -> {
                     val parentState = fragmentStates[op.parentFragment]
-                    if (parentState == null) continue // parent must exist
+                    if (parentState == null) continue
+                    if (parentState.detached) continue
                     allContainersEverUsed.add(op.childContainer)
                     val childState = fragmentStates.getOrPut(op.childFragment.name) {
                         FragmentState(op.childFragment)
                     }
-                    // If child already had a different parent, clean old parent link
                     childState.parent?.let { oldParent ->
                         if (oldParent != op.parentFragment) {
                             fragmentStates[oldParent]?.children?.remove(op.childFragment.name)
                         }
                     }
                     childState.parent = op.parentFragment
-                    // lifecycle respects parent hidden and own hidden
+                    childState.detached = false
+                    childState.lastContainer = op.childContainer
                     childState.lifecycle = when {
                         childState.hidden -> Lifecycle.STARTED
+                        childState.detached -> Lifecycle.CREATED
                         parentState.hidden -> Lifecycle.STARTED
                         else -> Lifecycle.RESUMED
                     }
+                    childState.lifecycle = minLifecycle(childState.lifecycle, childState.maxLifecycle)
+                    childState.lifecycle = minLifecycle(childState.lifecycle, parentState.maxLifecycle)
+                    childState.maxLifecycle = minLifecycle(childState.maxLifecycle, parentState.maxLifecycle)
                     parentState.children.add(op.childFragment.name)
                     val container = containers.getOrPut(op.childContainer) { Container(op.childContainer) }
                     container.add(op.childFragment)
@@ -268,7 +323,6 @@ class FragmentManager {
                     allContainersEverUsed.add(op.container)
                     val container = containers.getOrPut(op.container) { Container(op.container) }
                     val previous = container.snapshot()
-                    // Remove previous fragments recursively
                     for (prevFrag in previous) {
                         removeRecursive(prevFrag.name)
                     }
@@ -277,7 +331,10 @@ class FragmentManager {
                         FragmentState(op.fragment)
                     }
                     newState.parent = null
+                    newState.detached = false
                     newState.lifecycle = if (newState.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
+                    newState.lifecycle = minLifecycle(newState.lifecycle, newState.maxLifecycle)
+                    newState.lastContainer = op.container
                     container.add(op.fragment)
                 }
                 is TransactionOp.Remove -> {
@@ -285,46 +342,87 @@ class FragmentManager {
                 }
                 is TransactionOp.Hide -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
+                    if (state.detached) continue
                     state.hidden = true
-                    state.lifecycle = Lifecycle.STARTED
-                    // Downgrade children
+                    state.lifecycle = minLifecycle(Lifecycle.STARTED, state.maxLifecycle)
                     downgradeChildrenToStarted(op.fragment.name)
                 }
                 is TransactionOp.Show -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
+                    if (state.detached) continue
                     state.hidden = false
-                    state.lifecycle = Lifecycle.RESUMED
-                    // If parent hidden, keep STARTED
+                    state.lifecycle = minLifecycle(Lifecycle.RESUMED, state.maxLifecycle)
                     if (state.parent != null && fragmentStates[state.parent]?.hidden == true) {
-                        state.lifecycle = Lifecycle.STARTED
+                        state.lifecycle = minLifecycle(Lifecycle.STARTED, state.maxLifecycle)
+                    } else if (state.parent != null) {
+                        val parentMax = fragmentStates[state.parent]?.maxLifecycle ?: Lifecycle.RESUMED
+                        state.lifecycle = minLifecycle(state.lifecycle, parentMax)
                     }
-                    // Try to upgrade children if they are not hidden themselves
                     upgradeChildrenIfPossible(op.fragment.name)
                 }
-            }
-        }
-    }
-
-    private fun downgradeChildrenToStarted(parentName: String) {
-        val parentState = fragmentStates[parentName] ?: return
-        for (childName in parentState.children) {
-            val childState = fragmentStates[childName] ?: continue
-            if (childState.lifecycle == Lifecycle.RESUMED) {
-                childState.lifecycle = Lifecycle.STARTED
-            }
-            downgradeChildrenToStarted(childName)
-        }
-    }
-
-    private fun upgradeChildrenIfPossible(parentName: String) {
-        val parentState = fragmentStates[parentName] ?: return
-        if (parentState.hidden) return
-        if (parentState.lifecycle != Lifecycle.RESUMED) return
-        for (childName in parentState.children) {
-            val childState = fragmentStates[childName] ?: continue
-            if (!childState.hidden && childState.lifecycle == Lifecycle.STARTED) {
-                childState.lifecycle = Lifecycle.RESUMED
-                upgradeChildrenIfPossible(childName)
+                is TransactionOp.Detach -> {
+                    val state = fragmentStates[op.fragment.name] ?: continue
+                    state.lastContainer = findContainerOf(op.fragment.name) ?: state.lastContainer
+                    for (c in containers.values) c.removeByName(op.fragment.name)
+                    state.detached = true
+                    state.lifecycle = Lifecycle.CREATED
+                    for (childName in state.children.toList()) {
+                        val child = fragmentStates[childName] ?: continue
+                        for (cc in containers.values) cc.removeByName(childName)
+                        child.detached = true
+                        child.lifecycle = Lifecycle.CREATED
+                    }
+                }
+                is TransactionOp.Attach -> {
+                    val state = fragmentStates[op.fragment.name] ?: continue
+                    if (!state.detached) continue
+                    state.detached = false
+                    val targetContainer = state.lastContainer
+                    if (targetContainer != null) {
+                        allContainersEverUsed.add(targetContainer)
+                        val container = containers.getOrPut(targetContainer) { Container(targetContainer) }
+                        container.add(op.fragment)
+                    }
+                    state.lifecycle = minLifecycle(if (state.hidden) Lifecycle.STARTED else Lifecycle.RESUMED, state.maxLifecycle)
+                    for (childName in state.children) {
+                        val child = fragmentStates[childName] ?: continue
+                        if (!child.detached) continue
+                        child.detached = false
+                        val childContainer = child.lastContainer
+                        if (childContainer != null) {
+                            val cc = containers.getOrPut(childContainer) { Container(childContainer) }
+                            cc.add(Fragment(childName))
+                        }
+                        child.lifecycle = minLifecycle(if (child.hidden) Lifecycle.STARTED else Lifecycle.RESUMED, child.maxLifecycle)
+                        child.lifecycle = minLifecycle(child.lifecycle, state.maxLifecycle)
+                    }
+                }
+                is TransactionOp.SetMax -> {
+                    val state = fragmentStates[op.fragment.name] ?: continue
+                    state.maxLifecycle = op.maxState
+                    state.lifecycle = minLifecycle(state.lifecycle, state.maxLifecycle)
+                    for (childName in state.children) {
+                        val child = fragmentStates[childName] ?: continue
+                        if (lifecycleOrder(child.maxLifecycle) > lifecycleOrder(state.maxLifecycle)) {
+                            child.maxLifecycle = state.maxLifecycle
+                            child.lifecycle = minLifecycle(child.lifecycle, child.maxLifecycle)
+                            // propagate further
+                            val stack = mutableListOf(childName)
+                            while (stack.isNotEmpty()) {
+                                val cur = stack.removeAt(stack.size - 1)
+                                val curSt = fragmentStates[cur] ?: continue
+                                for (gc in curSt.children) {
+                                    val gcSt = fragmentStates[gc] ?: continue
+                                    if (lifecycleOrder(gcSt.maxLifecycle) > lifecycleOrder(curSt.maxLifecycle)) {
+                                        gcSt.maxLifecycle = curSt.maxLifecycle
+                                        gcSt.lifecycle = minLifecycle(gcSt.lifecycle, gcSt.maxLifecycle)
+                                        stack.add(gc)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -340,38 +438,60 @@ class FragmentManager {
                 }
                 is TransactionOp.Replace -> {
                     val container = containers[op.container] ?: continue
-                    // Remove new fragment recursively
                     removeRecursive(op.fragment.name)
                     container.clear()
                     val prevList = entry.replacedFragments[op.container] ?: emptyList()
-                    // Restore each previous fragment with its full subtree
                     for (frag in prevList) {
                         restoreRecursive(frag.name, entry)
                     }
-                    // Re-add root fragments to this container in original order
                     for (frag in prevList) {
                         container.add(frag)
                     }
                 }
-                is TransactionOp.Remove -> {
-                    // For simplicity we do not restore removed fragments on pop reverse unless they were captured
-                    // Original task's Remove reverse is no-op, but for nested we keep no-op
-                }
+                is TransactionOp.Remove -> {}
                 is TransactionOp.Hide -> {
                     val st = fragmentStates[op.fragment.name] ?: continue
                     st.hidden = entry.hiddenSnapshot[op.fragment.name] ?: false
-                    st.lifecycle = if (st.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
+                    st.lifecycle = if (st.hidden) minLifecycle(Lifecycle.STARTED, st.maxLifecycle) else minLifecycle(Lifecycle.RESUMED, st.maxLifecycle)
                     if (!st.hidden) {
                         upgradeChildrenIfPossible(st.fragment.name)
+                    } else {
+                        downgradeChildrenToStarted(st.fragment.name)
                     }
                 }
                 is TransactionOp.Show -> {
                     val st = fragmentStates[op.fragment.name] ?: continue
                     st.hidden = entry.hiddenSnapshot[op.fragment.name] ?: true
-                    st.lifecycle = if (st.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
+                    st.lifecycle = if (st.hidden) minLifecycle(Lifecycle.STARTED, st.maxLifecycle) else minLifecycle(Lifecycle.RESUMED, st.maxLifecycle)
                     if (st.hidden) {
                         downgradeChildrenToStarted(st.fragment.name)
+                    } else {
+                        upgradeChildrenIfPossible(st.fragment.name)
                     }
+                }
+                is TransactionOp.Detach -> {
+                    val st = fragmentStates[op.fragment.name] ?: continue
+                    st.detached = entry.detachedSnapshot[op.fragment.name] ?: false
+                    if (!st.detached) {
+                        st.lifecycle = minLifecycle(if (st.hidden) Lifecycle.STARTED else Lifecycle.RESUMED, st.maxLifecycle)
+                        val lc = st.lastContainer
+                        if (lc != null) {
+                            containers.getOrPut(lc) { Container(lc) }.add(op.fragment)
+                        }
+                    }
+                }
+                is TransactionOp.Attach -> {
+                    val st = fragmentStates[op.fragment.name] ?: continue
+                    st.detached = entry.detachedSnapshot[op.fragment.name] ?: true
+                    st.lifecycle = if (st.detached) Lifecycle.CREATED else minLifecycle(Lifecycle.RESUMED, st.maxLifecycle)
+                    if (st.detached) {
+                        for (c in containers.values) c.remove(op.fragment)
+                    }
+                }
+                is TransactionOp.SetMax -> {
+                    val st = fragmentStates[op.fragment.name] ?: continue
+                    st.maxLifecycle = entry.maxSnapshot[op.fragment.name] ?: Lifecycle.RESUMED
+                    st.lifecycle = minLifecycle(st.lifecycle, st.maxLifecycle)
                 }
             }
         }
@@ -379,12 +499,14 @@ class FragmentManager {
 
     private fun restoreRecursive(rootName: String, entry: BackStackEntry) {
         val captured = entry.allStates[rootName] ?: entry.replacedRootStates[rootName] ?: return
-        // Create or overwrite state
         val existing = fragmentStates[rootName]
         val state = if (existing != null) existing else FragmentState(Fragment(rootName)).also { fragmentStates[rootName] = it }
         state.parent = captured.parent
         state.hidden = captured.hidden
+        state.detached = captured.detached
         state.lifecycle = captured.lifecycle
+        state.maxLifecycle = captured.maxLifecycle
+        state.lastContainer = captured.lastContainer
         state.viewModel.clear()
         state.viewModel.putAll(captured.viewModel)
         state.savedState.clear()
@@ -392,12 +514,10 @@ class FragmentManager {
         state.children.clear()
         state.children.addAll(captured.children)
 
-        // Restore parent link
         captured.parent?.let { parentName ->
             fragmentStates[parentName]?.children?.add(rootName)
         }
 
-        // Restore container membership
         val containerId = entry.containerMap[rootName]
         if (containerId != null) {
             allContainersEverUsed.add(containerId)
@@ -405,7 +525,6 @@ class FragmentManager {
             container.add(Fragment(rootName))
         }
 
-        // Recursively restore children
         for (childName in captured.children) {
             restoreRecursive(childName, entry)
         }

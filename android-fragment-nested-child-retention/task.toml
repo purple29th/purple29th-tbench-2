@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/android-fragment-nested-child-retention"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Fix a buggy Kotlin Android-style FragmentManager that supports nested child fragments, hide/show lifecycle downgrade, ViewModel retention across rotation, and back-stack restore of replaced child trees."
+description = "Fix a buggy Kotlin Android-style FragmentManager with nested child fragments, child containers, hidden detached flags, lifecycle and maxLifecycle capping that propagates recursively, ViewModel that survives rotation but clears on remove, savedState retention, detach attach with lastContainer memory, and back-stack restore of full child subtree with container mapping across rotation. Precise multi-level state machine escalation of android-fragment-backstack-replay."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["kotlin", "android", "fragment", "child-fragment", "viewmodel", "lifecycle", "back-stack"]
 
