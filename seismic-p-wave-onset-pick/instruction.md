@@ -6,25 +6,25 @@ your job is write /app/solve.py that reads path as first arg. I will run python3
 
 you can try sample at /app/data/trace.seis locally. I have other hidden files you never saw with different lengths dt baseline P S amps spike noise and S P gap so dont hardcode my sample.
 
-SEIS format is super simple I made.
+SEIS format is simple, little endian.
 
-first four bytes ascii SEIS magic I check that
-next four bytes u32 version 1 or 2 may vary I bumped it once so you must read it
-next four bytes u32 data offset varies 64 to around 128 because I have padding you must read it and seek do not hardcode 64 or you will read zeros
-next four bytes u32 n samples total
-next four bytes f32 dt seconds per sample this changes every file cause I change samplerate in field so read it
-next four bytes f32 baseline maybe around 0 but drifts
-next four bytes two u32 reserved header at least 32 bytes plus padding respect data offset
+- bytes 0 to 3: ascii SEIS magic.
+- bytes 4 to 7: u32 version. version is 1 or 2 and may vary.
+- bytes 8 to 11: u32 data offset. offset varies 64 to 128 due to padding. you must read it and seek to it. do not hardcode 64.
+- bytes 12 to 15: u32 n samples total count.
+- bytes 16 to 19: f32 dt seconds per sample. dt changes every file because I change samplerate, so read it.
+- bytes 20 to 23: f32 baseline, around 0 but drifts.
+- bytes 24 to 31: two u32 reserved. header is at least 32 bytes plus padding, so respect data offset.
 
 payload at offset is n int16 little endian amplitude values. index is time.
 
-what is inside: I see one P arrival early where ground first moves small wiggle then later bigger S arrival plus random short spikes from trucks and generators plus flat background plus sensor hiss. P is smaller than S so if you just pick max amplitude you get S wrong. Spike may be brighter than P but only 1 sample so short. S P gap changes. Some of my traces have P super early near sample 80 cause I triggered late.
+what is inside: I see one P arrival early where ground first moves, small wiggle, then later bigger S arrival, plus random short spikes from trucks and generators, plus flat background plus sensor hiss. P is smaller than S so picking max amplitude gets S wrong. Spike may be brighter than P but only 1 sample short. S P gap changes. Some traces have P super early near sample 80 because I triggered late.
 
 how I defined true: first sample where P energy starts rising from background before peak. my generator saves that index as truth.
 
 why my first threshold try failed: I set fixed amplitude threshold and it grabbed S first or grabbed spike and gave huge index. No fixed threshold works across files because gain and dt change and S is always larger.
 
-what finally worked for me: I had to estimate background from early quiet window like first 50 samples not whole trace, get noise via median absolute deviation, then look for energy rise using short term over long term average ratio and require sustained rise not one spike, and I had to use dt to convert my time windows to samples so hardcoding sample counts fails when I change dt from 0.001 to 0.004.
+what finally worked for me: I had to estimate background from early quiet window, not whole trace, get noise level from early samples without bias from P itself, then look for sustained energy rise not single spike, and I had to use dt to convert time windows to samples so hardcoding sample counts fails when dt goes 0.001 to 0.004.
 
 sample trace.seis has P around few hundred. grading tolerance is +- max 5 samples so small error ok.
 
