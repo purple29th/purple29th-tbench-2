@@ -58,6 +58,8 @@ CASE_NAMES = [
     "hide_with_max",
     "replace_with_max_and_child",
     "rotate_with_detach",
+    "rotate_child_of_non_bs_parent_dropped",
+    "show_propagates_to_children",
 ]
 
 

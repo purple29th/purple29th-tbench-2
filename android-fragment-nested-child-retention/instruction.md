@@ -1,57 +1,44 @@
-hey i am on android photos team fixing our mini fragment manager for nested tabs. we have root containers like main and child containers like homeTabs inside fragment Home that holds Tab1 etc. child can have its own child so nesting goes deep. each fragment has hidden flag detached flag lifecycle that is one of INITIALIZED CREATED VIEW_CREATED STARTED RESUMED and maxLifecycle that caps it, plus viewModel map that survives rotation but is cleared on remove and parent remove and readd must be empty, and savedState map that survives rotation and pop restore, and children set.
+# Fix the nested FragmentManager
 
-we ship a kotlin app that reads scenario dot txt one operation per line and writes output dot txt. some contract tests fail so you need to fix the implementation.
+You are fixing a mini Android-style FragmentManager for nested tab fragments.
+The program reads `/app/scenario.txt` (one operation per line) and writes `/app/output.txt`.
+Some contract tests fail — read the contract and fix the implementation. Do not change the output format.
 
-operations are
+## Model
+Root containers (e.g. main) hold root fragments; child containers (e.g. homeTabs) hold child fragments nested under a parent. Nesting can be arbitrarily deep.
+Each fragment has: parent (NONE for root), hidden (bool), detached (bool), lifecycle in {INITIALIZED, CREATED, VIEW_CREATED, STARTED, RESUMED}, maxLifecycle (caps lifecycle to min(lifecycle, maxLifecycle)), viewModel map (survives ROTATE; cleared on REMOVE and on parent REMOVE; retained when restored via POP of a REPLACE), savedState map (survives ROTATE and POP restore), children set.
 
-BEGIN txn id starts a transaction
+## Operations
+- BEGIN txn — start a transaction.
+- ADD txn container fragment — add root fragment into container.
+- ADD_CHILD txn parent childContainer child — add child under parent; ignore if parent missing or detached.
+- REPLACE txn container fragment — replace container contents, removing previous fragments and all descendants and clearing their viewModels.
+- REMOVE txn fragment — remove fragment and all descendants from containers/registry; clear their viewModels.
+- HIDE txn fragment — hidden=true; lifecycle -> min(STARTED, max); propagate downgrade and max cap to all descendants.
+- SHOW txn fragment — hidden=false; lifecycle -> min(RESUMED, max, parentMax); if parent hidden or detached stay STARTED; propagate upgrade to children that are not hidden or detached.
+- DETACH txn fragment — remove fragment and its children from containers; keep state; detached=true, lifecycle=CREATED; remember lastContainer for each.
+- ATTACH txn fragment — only if detached; re-add to lastContainer and children to theirs; lifecycle = min(hidden?STARTED:RESUMED, max, parentMax).
+- SET_MAX txn fragment state — set maxLifecycle; cap own lifecycle; cascade to descendants capping their max to min(theirMax, parentMax) and lifecycle to min(lifecycle, newMax).
+- SAVE fragment key value — immediate savedState write.
+- VM_PUT fragment key value — immediate viewModel write.
+- ADD_TO_BACK_STACK txn name|NONE — mark transaction as a backstack entry (NONE = anon).
+- COMMIT txn — apply ops in order; if marked, record on backstack capturing replaced fragments full child subtree (all fields + container mapping + hidden/max/detached snapshots).
+- POP name|NONE — NONE pops most recent; name pops down to and including the most recent entry with that name (search from top, case-sensitive); no-op if not found (must not drain). Restores replaced subtrees with captured state and container mapping.
+- ROTATE — clear live containers and registry; keep backstack; replay only backstacked entries. Recreated fragments retain pre-rotate viewModel and savedState. A fragment whose parent was never backstacked must not reappear, so a child added under a non-backstacked parent is dropped on rotate. Non-backstacked root fragments are also dropped.
+- QUERY — record a snapshot.
 
-ADD txn id container fragment adds root fragment into container
+## Output format
+One block per QUERY, in order, blocks separated by a blank line. Each block:
+- container lines, sorted by container name; containers ever used are printed even if empty, e.g. `container=main fragments=[Home]`
+- fragment lines, sorted by name, e.g. `fragment=Home parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} children=[]`
+  (parent NONE for root; bools lowercase; lifecycle and maxLifecycle one of INITIALIZED, CREATED, VIEW_CREATED, STARTED, RESUMED; viewModel and savedState sorted by key as key=value comma-separated; children sorted direct child names; when fragment is removed or popped its viewModel is cleared)
+- final line `backstack=[<entries comma-separated, anon for unnamed>]`
 
-ADD_CHILD txn id parent fragment child container child fragment adds child under parent parent must exist and not detached else ignore
+## Where to start
+- `/app/src/com/example/fragment/FragmentManager.kt`
+- `/app/src/com/example/fragment/TransactionReplay.kt`
+- `/app/src/com/example/fragment/BackStackEntry.kt`
+- `/app/src/com/example/fragment/Container.kt`
+- `/app/src/com/example/fragment/Fragment.kt`
 
-REPLACE txn id container fragment replaces container contents removing previous fragments and all their descendants and clearing their viewmodels
-
-REMOVE txn id fragment removes fragment and all its descendants from all containers and registry and clears viewmodels
-
-HIDE txn id fragment hides fragment hidden true lifecycle drops to STARTED capped by max and that downgrade propagates to all descendants and their max is also capped by parent max
-
-SHOW txn id fragment shows fragment hidden false lifecycle goes to RESUMED capped by max and parent max unless parent hidden or detached then stays STARTED and upgrade propagates to children that are not hidden detached
-
-DETACH txn id fragment detaches fragment removes it and its children from containers but keeps their state registry with detached true lifecycle CREATED viewmodel and savedstate retained and lastContainer remembered
-
-ATTACH txn id fragment re attaches previously detached fragment only if it was detached adds it back to its lastContainer and its children back to their last containers lifecycle becomes STARTED if hidden else RESUMED capped by max and parent max
-
-SET_MAX txn id fragment state sets maxLifecycle to that state and caps own lifecycle to min of current and max and also cascades to all descendants capping their maxLifecycle to min of their max and parent max and their lifecycle to min of lifecycle and new max
-
-SAVE fragment key value immediate savedState write survives rotation and pop restore
-
-VM_PUT fragment key value immediate viewModel write survives ROTATE but cleared on REMOVE and parent REMOVE and readd must be empty but retained when restored via pop of REPLACE
-
-ADD_TO_BACK_STACK txn id name or NONE marks transaction as backstack entry NONE means anon
-
-COMMIT txn id applies ops in order and if marked records on backstack capturing replaced fragments with full child subtree hidden detached lifecycle max lastContainer viewmodel savedstate children and container mapping and hidden snapshot max snapshot detached snapshot
-
-POP name or NONE pops backstack POP NONE pops most recent POP name pops down to and including most recent entry with that name searching from top case sensitive if name not found it is no op must not drain stack popping restores replaced fragments with entire child subtree and captured state including container mapping
-
-ROTATE simulates config change clears live containers and fragment registry but keeps backstack list snapshot and replays entries via TransactionReplay replayInto must correctly recreate root and child fragments only from backstacked entries non backstacked lost viewmodel savedstate for recreated must be retained from pre rotate stores child whose parent was never backstacked must not reappear
-
-QUERY records snapshot
-
-output format at end print one block per QUERY in order blocks separated by blank line each block has
-
-container lines sorted by container name containers ever used are still printed even if empty after REMOVE REPLACE DETACH with fragments equals empty list sorted e g container equals main fragments equals open bracket Home close bracket
-
-fragment lines sorted by name e g fragment equals Home parent equals NONE hidden equals false detached equals false lifecycle equals RESUMED maxLifecycle equals RESUMED viewModel equals open curly close curly savedState equals open curly close curly children equals open bracket close bracket
-
-parent NONE for root hidden detached bool lower case lifecycle and maxLifecycle one of those five viewModel savedState maps sorted by key as key equals value comma separated children sorted direct child names
-
-final line backstack equals open bracket entries comma separated anon for unnamed close bracket
-
-contract tests are at app src com example fragment test ManagerContractKt run bash app src run contract dot sh
-
-make all pass pay attention to tricky interactions like set max capping children and replacing and detaching etc but there is no list of bugs you must figure out by reading contract
-
-build run bash app src run dot sh reads app scenario dot txt writes app output dot txt
-
-where to start app src com example fragment FragmentManagerKt and TransactionReplayKt and ContainerKt and FragmentKt and BackStackEntryKt
+Contract tests: `bash /app/src/run-contract.sh`. Build/run: `bash /app/src/run.sh` reads `/app/scenario.txt` writes `/app/output.txt`.
