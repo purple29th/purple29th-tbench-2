@@ -252,6 +252,35 @@ fun main() {
         else expect("hide with max", "should stay STARTED due to max", snap)
     }
 
+    run("rotate child of non bs parent dropped") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.begin("t3"); m.add("t3", "main", "Other"); m.addToBackStack("t3", "bs"); m.commit("t3")
+        m.rotate()
+        val snap = m.snapshot()
+        val hasOther = snap.contains("fragment=Other")
+        val noHome = !snap.contains("fragment=Home")
+        val noTab = !snap.contains("fragment=Tab1")
+        if (hasOther && noHome && noTab) results.add("rotate child of non bs parent dropped" to "PASS")
+        else expect("rotate child of non bs parent dropped", "Other only, Home and Tab1 should be dropped", snap)
+    }
+
+    run("show propagates to children") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.begin("t3"); m.addChild("t3", "Tab1", "inner", "Inner"); m.commit("t3")
+        m.begin("t4"); m.hide("t4", "Home"); m.commit("t4")
+        m.begin("t5"); m.show("t5", "Home"); m.commit("t5")
+        val snap = m.snapshot()
+        val homeResumed = snap.contains("fragment=Home") && snap.contains("hidden=false") && snap.contains("lifecycle=RESUMED")
+        val tabResumed = snap.contains("fragment=Tab1 parent=Home") && snap.contains("lifecycle=RESUMED")
+        val innerResumed = snap.contains("fragment=Inner parent=Tab1") && snap.contains("lifecycle=RESUMED")
+        if (homeResumed && tabResumed && innerResumed) results.add("show propagates to children" to "PASS")
+        else expect("show propagates to children", "show should propagate RESUMED to children", snap)
+    }
+
     var allPass = true
     for ((name, status) in results) {
         if (status.startsWith("PASS")) println("PASS  $name")
