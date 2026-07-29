@@ -670,6 +670,58 @@ def test_cross_thread_heavy():
     assert got == expected, f"cross-thread heavy failed: got {got} expected {expected}"
 
 
+def test_multi_thread_same_id_independent_holds():
+    """Reviewer-requested visible discriminator: same id held by multiple threads.
+    Each (id, thread) is independent – both leaks must be summed.
+    Single-owner-per-id model would undercount ~3x on heldouts.
+    """
+    events = [
+        (1, 1, 10, 1),
+        (1, 1, 60, 1),  # dup updates last_ts for (1,1) to 60
+        (1, 1, 15, 2),
+        (1, 1, 115, 2),  # dup for (1,2)
+        (1, 1, 20, 3),
+        (1, 1, 70, 3),  # third thread
+    ]
+    # expected: (1,1)=50, (1,2)=100, (1,3)=50 => total 200
+    expected = _compute_true(events)
+    assert expected == 200, f"test setup error expected 200 got {expected}"
+    # single-owner naive (per-id with last owner wins) would give 100 or 50, not 200
+    data = _pack_wklk(events, offset=40)
+    got = run_agent_bytes(data)
+    assert got == expected, (
+        f"multi-thread same-id failed: got {got} expected {expected}"
+    )
+
+    # also with interleaved cross-thread releases that must not affect other threads
+    events2 = [
+        (5, 1, 10, 1),
+        (5, 1, 100, 1),
+        (5, 1, 20, 2),
+        (5, 1, 80, 2),
+        (5, 0, 30, 3),  # dangling for tid3, should not release tid1 or tid2
+        (5, 0, 40, 3),
+        (5, 0, 50, 1),  # release tid1 at 50? Actually file order will be sorted by ts.
+        # Let's design clearly with timestamps:
+    ]
+    # Clearer scenario: two threads both leak same id, cross-thread noise present.
+    events2 = [
+        (5, 1, 10, 1),  # tid1 acquire
+        (5, 1, 90, 1),  # tid1 dup -> leak 80
+        (5, 1, 20, 2),  # tid2 acquire
+        (5, 1, 120, 2),  # tid2 dup -> leak 100, total 180
+        (5, 0, 30, 3),  # tid3 release attempt, dangling
+        (5, 0, 40, 4),
+    ]
+    expected2 = _compute_true(events2)
+    assert expected2 == 180
+    data2 = _pack_wklk(events2, offset=32)
+    got2 = run_agent_bytes(data2)
+    assert got2 == expected2, (
+        f"multi-thread same-id with cross noise failed: got {got2} expected {expected2}"
+    )
+
+
 def test_stable_order_matters():
     """Within same ms, logger preserves write order. File order matters for dedup/release order.
     If order not preserved (unstable sort), final interval differs.
