@@ -114,7 +114,8 @@ done
 
 # Test locally on sample data if present
 if [ -f "data/sample_orbit.csv" ]; then
+    mkdir -p /tmp/codimango/results
     mkdir -p results
-    /opt/homebrew/bin/python3.11 mag_calibration.py --input data/sample_orbit.csv --output results/bias.json || python3 mag_calibration.py --input data/sample_orbit.csv --output results/bias.json || true
-    cat results/bias.json 2>/dev/null || true
+    python3 mag_calibration.py --input data/sample_orbit.csv --output results/bias.json || python3 mag_calibration.py --input data/sample_orbit.csv --output /tmp/codimango/results/bias.json || true
+    cat results/bias.json 2>/dev/null || cat /tmp/codimango/results/bias.json 2>/dev/null || true
 fi

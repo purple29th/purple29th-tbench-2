@@ -1,30 +1,33 @@
 schema_version = "1.1"
 
 [task]
-name = "purple29th/android-mag-hard-iron-bias-fit"
+name = "codimango/android-mag-hard-iron-bias-fit"
 description = "Android magnetometer hard-iron bias estimation from figure-8 orbit data using linear least-squares sphere fitting. Factory calibration task."
-authors = ["purple29th"]
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["android", "magnetometer", "hard-iron", "calibration", "sphere-fitting", "sensor"]
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
 
 [metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "mobile_android"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["android", "magnetometer", "hard-iron", "calibration", "sphere-fitting", "sensor", "factory-calibration", "least-squares"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 180.0
 
 [verifier]
-# Isolate grading from the agent: run the verifier in a fresh container so the
-# agent's code can't read the oracle under /tests at verify time. Opt-in —
-# uncomment to enable (also requires a verifier env def under tests/).
-# environment_mode = "separate"
 timeout_sec = 600.0
-# Run the grader as a non-root user so in-process agent code (Flow B) can't read
-# root-owned oracle files. Off by default because this template's test.sh uses
-# apt-get (needs root); enable it when your verifier imports/runs agent code
-# in-process and does not itself need root.
-# user = "nobody"
 
 [agent]
-timeout_sec = 600.0
+timeout_sec = 1800.0
 
 [environment]
-build_timeout_sec = 600.0
+build_timeout_sec = 900.0
 cpus = 1
 memory_mb = 2048
 storage_mb = 10240
