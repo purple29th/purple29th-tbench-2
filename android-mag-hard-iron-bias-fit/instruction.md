@@ -17,3 +17,4 @@ Only use numpy and standard library. Do not import scipy, sklearn, torch etc. Fu
 Logs are modest size but require O of n log n style processing if you sort by residual. You can be iterative. For robustness, after first fit compute residuals as distance to center minus radius, use median absolute deviation to find outliers, remove far points and refit. Iterate a few times. This handles up to 5 percent far outliers.
 
 Thanks a lot for helping with this factory calibration tool.
+
