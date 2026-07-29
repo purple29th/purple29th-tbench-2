@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Oracle for android-wakelock-imbalance v0.13 hard.
+"""Oracle for android-wakelock-imbalance v0.14 hard.
 
 Foundry-inspired hardening: thread-affine, idempotent acquire, cross-thread noise,
-final interval only, per-pair last observation, stable timestamp order.
+final interval only, per-pair last observation, stable timestamp order, plus
+thread 0 system force-release (global for that id).
 
 Leak = sum over (id,thread) still held at end of chronological processing of
 (last_ts_observed_for_that_pair - first_acq_of_final_interval). If just one
-acquire with no later observation for that pair, duration 0. Duplicate while held
+acquire with no later activity for that pair, duration 0. Duplicate while held
 updates last_ts but does not restart interval. Cross-thread release ignored for
-state but counts as observation for its own (id,other_tid) pair.
+state but counts as observation for its own (id,other_tid) pair. Release with
+thread_id 0 is special: it force-releases all holders of that id across all
+threads (Doze force-clear), unlike normal cross-thread no-ops.
 """
 
 import struct
@@ -44,6 +47,20 @@ def solve_one(path):
     last_ts = {}  # (id,tid) -> max ts seen for that pair (any event type)
 
     for eid, etype, ts, tid, _orig in events_sorted:
+        # Thread 0 release is global force-release for that id
+        if tid == 0 and etype == 0:
+            key0 = (eid, 0)
+            if key0 not in last_ts or ts > last_ts[key0]:
+                last_ts[key0] = ts
+            # release all holders of same id
+            # iterate over copy of keys to avoid mutation during iteration
+            for k in list(held.keys()):
+                if k[0] == eid and held.get(k, False):
+                    held[k] = False
+                    first_acq[k] = None
+            # also handle if (eid,0) itself was held, it is cleared above
+            continue
+
         key = (eid, tid)
         # per-pair last observation: any event for this exact (id,thread) pair, even dup/dangling, counts
         if key not in last_ts or ts > last_ts[key]:
