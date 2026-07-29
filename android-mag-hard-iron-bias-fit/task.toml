@@ -2,9 +2,9 @@ schema_version = "1.1"
 
 [task]
 name = "codimango/android-mag-hard-iron-bias-fit"
-description = "Android magnetometer hard-iron bias estimation from figure-8 orbit data using linear least-squares sphere fitting. Factory calibration task."
+description = "Android magnetometer hard iron bias estimation from figure eight orbit data using linear least squares sphere fitting. Factory calibration task."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["android", "magnetometer", "hard-iron", "calibration", "sphere-fitting", "sensor"]
+keywords = ["android", "magnetometer", "hardiron", "calibration", "spherefitting", "sensor"]
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
 
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "mobile_android"
 category_usecase = "data_analysis"
 reward_type = "binary"
-tags = ["android", "magnetometer", "hard-iron", "calibration", "sphere-fitting", "sensor", "factory-calibration", "least-squares"]
+tags = ["android", "magnetometer", "hardiron", "calibration", "spherefitting", "sensor", "factorycalibration", "leastsquares"]
 expert_time_estimate_min = 60.0
 junior_time_estimate_min = 180.0
 
