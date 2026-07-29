@@ -2,7 +2,7 @@ schema_version="1.1"
 
 [task]
 name="codimango/android-display-mura-ink-pool"
-description="Android display ghost touch count: parse custom CDMR binary with capacitive grid from lamination QA, count truly ink affected touch cells. Main pool plus bleed lines plus far dust, smear conserves charge, need mass based 8 neighbour clustering to drop dust, estimate baseline plateau and integrate halo to get true count. Different from OLED void volume which is IR mm3 and DMIP luminance mm2 and mobile config exposure imbalance closure."
+description="Android display ghost touch count: parse custom CDMR binary with capacitive grid from lamination QA, count truly ink affected touch cells. Main pool plus bleed lines plus far dust with varying size brightness and area, smear conserves charge, need mass based 8 neighbour clustering to drop dust, estimate baseline plateau and integrate halo to get true count. Header data offset varies and must be respected, dust may have larger area than main so area selection fails, halo holds significant charge."
 authors=[{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
 keywords=["android","ghost-touch","capacitive-grid","binary-parsing","from-scratch","count","touch"]
 format="terminal_bench_single_turn"
