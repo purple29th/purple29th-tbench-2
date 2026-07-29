@@ -4,9 +4,9 @@
 
 Agent writes stdlib-only Python at `/app/solve.py` that reads a seismic trace in custom SEIS binary (magic SEIS) and reports the P wave onset sample index. Each trace has one early P arrival plus a later larger S arrival plus short spike noise and variable dt and variable data offset. The script takes the trace path as first arg and prints the onset index as last token.
 
-True onset is where P energy first rises. S is 1.8-2.8x larger than P, so picking max amplitude grabs S and fails. Spike noise is up to 2x S but only 1-2 samples wide, so simple threshold grabs spikes. STA window 0.05 sec and LTA 0.25 sec must be converted to samples using dt read from header, so hardcoding sample counts fails when dt varies 0.001 vs 0.004. P near edge cases break background estimation if using whole trace median.
+True onset is where P energy first rises from background. S is larger than P so max amplitude picks S and fails. Spike noise is up to 2x S but only 1 to 2 samples wide, so simple threshold picks spikes. Time windows must be converted to samples using dt read from header, so hardcoding sample counts fails when dt varies 0.001 vs 0.004. P near edge near 80 breaks background estimation if using whole trace median.
 
-Correct method is STA LTA: estimate background from early quiet window median and noise sigma via MAD, compute rolling mean absolute residual for short and long windows scaled by dt, ratio STA/LTA rises at P, require sustained rise above threshold and amplitude above noise, backtrack to where signal first exceeds 2 sigma.
+Correct method is energy ratio: estimate background from early quiet window without bias, estimate noise level robustly, compute rolling energy for short and long windows scaled by dt, look for sustained rise that stays above noise, then backtrack to first rise. Must handle larger S and short spikes.
 
 ## Completion Rates
 
