@@ -1,79 +1,19 @@
-I work on the Android factory line calibrating magnetometers. Every phone has small magnets inside from speakers and screws that add a constant offset to the magnetometer. We call it hard iron bias. During factory test we rotate the phone in a figure eight and log raw magnetic field values. If there were no bias those values would sit on a sphere centered at zero with radius equal to earth field strength, about 35 to 60 uT. With bias the sphere is shifted. So each reading is true point on sphere plus bias plus noise.
+I work on the Android factory line calibrating magnetometers. Every phone has small magnets inside from speakers and screws that add a constant offset. We call it hard iron bias. During factory test we rotate the phone in a figure eight and log raw magnetic field values. If there were no bias those values would sit on a sphere centered at zero with radius equal to earth field strength, about 35 to 60 uT. With bias the sphere is shifted. So each reading is true point on sphere plus bias plus noise.
 
-I need a tool that can estimate the bias vector and the sphere radius from orbit data.
+I need you to build a small tool for me. Please create a file at /app/mag_calibration.py. Inside that file create a function named estimate_hard_iron_bias. It should take one argument which is a numpy array of shape N by 3. Each row is mx my mz in uT. N is at least 50 and can be up to 10000. The function should return a dict with four keys. bx is bias on X axis, by is bias on Y, bz is bias on Z, radius is estimated earth field strength. All values must be float and radius must be greater than zero. Make the dict JSON serializable so not numpy scalars.
 
-Create a Python module mag_calibration.py in the repository root at /app/mag_calibration.py with this function:
+The data you will get is messy. It can have Gaussian noise up to std 2.0 uT. It can have non uniform angular coverage, partial orbit as low as 40 percent of sphere. It can also have up to 5 percent outliers that are far from sphere due to motor spikes. Radius is unknown but expected in range 25 to 65 uT. Bias components are in range negative 80 to 80 uT.
 
-```python
-import numpy as np
+In ideal case points satisfy sphere equation where distance from center equals radius. So (x minus bx) squared plus (y minus by) squared plus (z minus bz) squared equals R squared. With noise this is not exact. You need to find bias and radius that best fit. Think about how that sphere equation can be turned into something linear in unknowns. You may use numpy linalg lstsq or similar. Do not use scipy or sklearn, only numpy and standard library. Do not hardcode bias or radius. Must be estimated from data. Return floats.
 
-def estimate_hard_iron_bias(mag_xyz):
-    """
-    Estimate hard iron bias from magnetometer orbit data.
+Be robust. I tried simple things and they failed badly when coverage is partial or noise is high. Averaging max plus min divided by 2 per axis was off by 15 to 35 uT on partial orbits because min and max do not capture center when coverage is missing. That method fails 40 to 70 percent of cases. Using mean of all points as bias was off by 20 to 50 uT, fails 80 to 120 percent. Using first point distance as radius fails 50 to 90 percent. Hardcoding sample bias 15 negative 20 8 fails all hidden data which use random bias up to 80 uT. Plain least squares without outlier handling fails outlier case by 4 to 8 uT.
 
-    Args:
-        mag_xyz: np.ndarray of shape (N, 3), dtype float, columns [mx, my, mz] in uT.
-                 N >= 50.
+So only a genuine precise method that does robust sphere fit, handles partial coverage and outliers, will pass. That is the hard part. Similar to foundry thermal void where thresholding fails and you need conservation, here averaging fails and you need proper geometric fit. This is a precision escalation of clean sphere fit. Clean case is easy but partial and outlier cases are main discriminators, similar to speck heavy in foundry task.
 
-    Returns:
-        dict with keys:
-            "bx": float bias on X axis (uT)
-            "by": float bias on Y axis (uT)
-            "bz": float bias on Z axis (uT)
-            "radius": float estimated geomagnetic field strength (uT), greater than 0
-    """
-```
+You can test locally on sample file at data/sample_orbit.csv which has 500 points, bias about 15 negative 20 8, radius about 45, noise std 0.5. The test system generates its own hidden data and directly calls your function, so do not rely on file paths inside the function. Hidden data use random bias up to 70, random radius 28 to 62, random N 200 to 1500, random noise up to 1.8, coverage 0.4 to 1.0, outlier ratio up to 0.04. Sample bias differs from hidden.
 
-Requirements.
+Only use numpy and standard library. Do not import scipy, sklearn, torch etc. Function must be deterministic. Handle degenerate inputs gracefully but you may assume valid data has at least 50 points and not all coplanar. Outliers up to 5 percent may be present.
 
-1. Function must work for N from 50 to 10000 points.
-2. Input may contain Gaussian noise up to std 2.0 uT and may have non uniform angular coverage, partial orbit as low as 40 percent of sphere. It may also contain up to 5 percent outliers that are far from sphere due to motor spikes.
-3. Radius R is unknown but expected in range 25 to 65 uT. Bias components are in range negative 80 to 80 uT.
-4. You must implement a numerically stable method. In ideal case points satisfy sphere equation where distance from center equals radius. That is (x minus bx) squared plus (y minus by) squared plus (z minus bz) squared equals R squared. With noise this is not exact. You need to find bias and radius that best fit the data. Think about how that sphere equation can be turned into something linear in unknowns. You may use numpy linalg lstsq or similar. Do not use scipy or sklearn, only numpy and standard library.
-5. Return floats not numpy scalars to keep JSON serializable.
-6. Do not hardcode bias or radius. Must be estimated from data.
-7. Be robust. Simple averaging of min and max per axis fails badly when coverage is partial or noise is high. Using the mean of all points as bias also fails because mean of partial orbit is not the sphere center.
+Logs are modest size but require O of n log n style processing if you sort by residual. You can be iterative. For robustness, after first fit compute residuals as distance to center minus radius, use median absolute deviation to find outliers, remove far points and refit. Iterate a few times. This handles up to 5 percent far outliers.
 
-Example usage
-
-```python
-import numpy as np
-from mag_calibration import estimate_hard_iron_bias
-
-data = np.loadtxt("data/sample_orbit.csv", delimiter=",", skiprows=1)
-result = estimate_hard_iron_bias(data)
-print(result)
-```
-
-You can test locally on sample file at data/sample_orbit.csv which has 500 points, bias about 15, negative 20, 8, radius about 45 uT, noise std 0.5 uT. Evaluation harness generates its own hidden datasets and directly calls your function, so do not rely on file paths inside estimate_hard_iron_bias.
-
-Constraints
-
-* Only use numpy and standard library. Do not import scipy, sklearn, torch etc.
-* Function must be deterministic.
-* Handle degenerate inputs gracefully but you may assume valid data has at least 50 points and not all coplanar. Outliers up to 5 percent may be present.
-
-Evaluation
-
-We test on
-
-* Clean orbit: 300 points, no noise, bias error must be less than 0.3 uT, radius error less than 0.3 uT
-* Noisy orbit: 500 points, noise std 1.2 uT, bias error less than 0.9 uT per axis, radius error less than 0.9 uT
-* Partial orbit: 200 points covering about 40 to 60 percent of sphere, bias error less than 1.8 uT, radius error less than 1.8 uT
-* Strong bias case: bias magnitude greater than 50 uT, bias error less than 1.2 uT
-* Outlier case: 400 points with 5 percent far outliers, bias error less than 1.5 uT, radius error less than 1.5 uT, simple least squares without outlier handling fails this by 4 to 8 uT
-* Random stress: varying R in 30 to 60 and random bias, 6 cases
-
-All tests import mag_calibration.py and call estimate_hard_iron_bias.
-
-Simple shortcuts are off by a large margin. In our measurements on sample plus 3 heldouts exact grading:
-
-* averaging (max plus min) divided by 2 per axis for bias fails 40 to 70 percent error 15 to 35 uT on partial orbits because min and max do not capture center when coverage is missing
-* using mean of points as bias fails 80 to 120 percent error 20 to 50 uT for same reason
-* using first point distance as radius fails 50 to 90 percent
-* hardcoding sample bias 15, negative 20, 8 fails all hidden tests which use random bias up to 80 uT
-* plain least squares without outlier handling fails outlier case by 4 to 8 uT
-
-No fixed shortcut passes within tolerance. Only a genuine precise method that does robust sphere fit, handles partial coverage and outliers, will pass. That is the hard part. Similar to foundry thermal void where thresholding fails and you need conservation, here averaging fails and you need proper geometric fit.
-
-Print bias as JSON if run as script is optional for debugging.
+Thanks a lot for helping with this factory calibration tool.
