@@ -142,7 +142,7 @@ def generate_events_thread_scoped(num_ids, seed, include_reacquire=True, heavy=F
             elif pattern == 3:
                 acq_t = base + rnd.randint(10, 1200)
                 events.append((id_, 1, acq_t, tid))
-                cnt = rnd.randint(8, 12) if heavy else rnd.randint(3, 6)
+                cnt = rnd.randint(10, 16) if heavy else rnd.randint(4, 8)
                 for _ in range(cnt):
                     other_tid = rnd.choice([t for t in all_tids if t != tid])
                     rel_t = acq_t + rnd.randint(20, 2000)
@@ -271,11 +271,11 @@ def generate_events_thread_scoped(num_ids, seed, include_reacquire=True, heavy=F
         tid_choice = 0 if rnd.random() < 0.2 else rnd.choice(all_tids + [0])
         events.append((dang_id, 0, rnd.randint(0, 600000), tid_choice))
 
-    # same-ts collisions 40%
+    # same-ts collisions 50%
     if len(events) > 10:
         events.sort(key=lambda x: x[2])
         for i in range(1, len(events)):
-            if rnd.random() < 0.40:
+            if rnd.random() < 0.50:
                 prev_ts = events[i - 1][2]
                 eid, etype, _, tid = events[i]
                 events[i] = (eid, etype, prev_ts, tid)
