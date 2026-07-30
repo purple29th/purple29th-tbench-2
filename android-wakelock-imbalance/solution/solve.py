@@ -1,15 +1,6 @@
 #!/usr/bin/env python3
-"""Oracle for android-wakelock-imbalance v0.18 hard - even ref-counted, odd binary, plus thread0 per-id and all-clear.
-Leak = sum over (id,thread) still held at end of chronological processing of
-(last_ts_for_pair - first_acq_of_final_interval). If just single acquire with
-no later activity for that pair, duration 0. Duplicate while held updates last_ts
-but for odd does not restart interval, for even increments refcount. Cross-thread
-release ignored for other holders. Release tid 0 for given id clears all holders
-of that id. Release tid 0 id 0 clears ALL ids (Doze entry). Even ids ref-counted.
-"""
-import struct
-import sys
-
+"""Oracle v0.19 - even ref-counted, odd binary, negative inverted, plus thread0 per-id and all-clear."""
+import struct, sys
 def parse(path):
     d = open(path, "rb").read()
     if len(d) < 16 or d[:4] != b"WKLK":
@@ -27,7 +18,6 @@ def parse(path):
         events.append((eid, etype, ts, tid, idx))
         idx += 1
     return events
-
 def solve_one(path):
     events = parse(path)
     events_sorted = sorted(events, key=lambda x: (x[2], x[4]))
@@ -56,11 +46,17 @@ def solve_one(path):
                     first_acq[k] = None
                     held_count[k] = 0
             continue
+        actual_type = etype
+        if eid < 0:
+            if etype == 0:
+                actual_type = 1
+            elif etype == 1:
+                actual_type = 0
         key = (eid, tid)
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
         is_even = (abs(eid) % 2 == 0)
-        if etype == 1:
+        if actual_type == 1:
             if is_even:
                 cnt = held_count.get(key, 0) + 1
                 held_count[key] = cnt
@@ -89,14 +85,13 @@ def solve_one(path):
                 held[key] = False
                 first_acq[key] = None
                 held_count[key] = 0
-    total_leaked = 0
+    total = 0
     for k, is_held in held.items():
         if is_held:
             f = first_acq.get(k)
             if f is not None:
-                total_leaked += last_ts[k] - f
-    print(total_leaked)
-
+                total += last_ts[k] - f
+    print(total)
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(0)

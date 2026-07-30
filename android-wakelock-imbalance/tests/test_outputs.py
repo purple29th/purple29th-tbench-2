@@ -153,8 +153,7 @@ def _parse_wklk_file(path):
 
 
 def _compute_true(events):
-    # stable sort by timestamp only - Python sort is stable, preserves file order for equal ts
-    # v0.18: even ids ref-counted, odd binary, plus global all-clear
+    # v0.19: even ref-counted, odd binary, negative inverted, plus global all-clear
     ev = sorted(events, key=lambda x: x[2])
     held = {}
     held_count = {}
@@ -181,11 +180,17 @@ def _compute_true(events):
                     first_acq[k] = None
                     held_count[k] = 0
             continue
+        actual_type = etype
+        if eid < 0:
+            if etype == 0:
+                actual_type = 1
+            elif etype == 1:
+                actual_type = 0
         key = (eid, tid)
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
-        is_even = abs(eid) % 2 == 0
-        if etype == 1:
+        is_even = (abs(eid) % 2 == 0)
+        if actual_type == 1:
             if is_even:
                 cnt = held_count.get(key, 0) + 1
                 held_count[key] = cnt
@@ -221,6 +226,7 @@ def _compute_true(events):
             if f is not None:
                 total += last_ts[k] - f
     return total
+
 
 
 def ground_truth_leak(path):
