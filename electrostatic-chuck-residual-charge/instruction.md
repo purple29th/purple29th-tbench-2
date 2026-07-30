@@ -1,4 +1,4 @@
-Hi team, I need help with our electrostatic chuck in the fab. This chuck holds wafers using electric force. After we release the wafer, some charge stays trapped in the ceramic and slowly leaks as current. If too much charge remains, the next wafer sticks and we get misplacement. I log the current that drains after dechuck and I need the true total charge that left the chuck.
+I work in the fab on electrostatic chucks that hold wafers for etch. After we release the wafer, some charge stays trapped in the ceramic and slowly leaks as current. If too much charge remains, the next wafer sticks and we get misplacement. I log the current that drains after dechuck and I need the true total charge that left the chuck.
 
 Please create a file at /app/solve.py. When we run python at /app/solve.py plus a scan file path, your program should print the true residual charge in microcoulombs as the last word. We grade within three percent.
 
