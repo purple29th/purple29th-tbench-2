@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Oracle v0.19 - even ref-counted, odd binary, negative inverted, plus thread0 per-id and all-clear."""
+"""Oracle v0.21 - even ref-counted, odd binary, plus thread0 per-id and all-clear id0."""
 import struct, sys
 def parse(path):
     d = open(path, "rb").read()
@@ -46,17 +46,11 @@ def solve_one(path):
                     first_acq[k] = None
                     held_count[k] = 0
             continue
-        actual_type = etype
-        if eid < 0:
-            if etype == 0:
-                actual_type = 1
-            elif etype == 1:
-                actual_type = 0
         key = (eid, tid)
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
         is_even = (abs(eid) % 2 == 0)
-        if actual_type == 1:
+        if etype == 1:
             if is_even:
                 cnt = held_count.get(key, 0) + 1
                 held_count[key] = cnt
