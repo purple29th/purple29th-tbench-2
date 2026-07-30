@@ -33,13 +33,13 @@ Method works for varied dimensions, gains, drift.
 * Oracle 5/5 100 percent - reference solution passes all heldouts within 3 percent via charge conservation plus mass based clustering
 * Naive threshold counting fails 60-90% over or 30-55% under
 * Count based clustering fails wide shake case because wide shake has more samples but less charge
-* Expected difficulty: avocado 0/5 to 2/5, gpt 1/5, opus 2/5 - similar to LRA stiction charge which has 0/5 avocado. Harder than simple volume tasks due to 1D time series drift and mass clustering
-* Both int16 and float32? Actually LRA format is int16 only, but data_offset varied 32,40,64,96,128 to enforce no hardcode 64
+* Expected difficulty: avocado 0/5 to 2/5, gpt 1/5, opus 2/5 - harder than simple threshold tasks due to 1D time series drift and mass clustering
+* Format is int16 deci-mA payload, data_offset varied 32,40,64,96,128 to enforce no hardcode 64
 
 ## Anti Cheating
-* No numpy, scipy, imaging libs - from scratch only
+* No numpy, scipy, imaging libs - from scratch only, whitelist: struct, sys, math, random, tempfile, re, collections
 * No hardcoded sample charge, must work on any random temp file path
-* Do not open or list /tests
-* From scratch guard bans os, io, pathlib etc
-* Secure verifier generates heldouts at runtime in temp dir and runs solver in isolated sandbox with audit hook blocking /tests, heldout, _gen etc
-* Banned import check via AST
+* Do not open or list /tests and do not mention test outputs, heldout, reference volume, _gen, geometric truth
+* From-scratch guard uses AST whitelist and detects concatenated forbidden paths including "/te"+"sts" patterns
+* Verifier runs solver in isolated temp dir with sys.addaudithook blocking open/listdir/stat of /tests, heldout, _gen, ground_truth, reference volume etc even when paths are built dynamically via bytes or concatenation
+* Banned dynamic primitives: eval, exec, chr, bytes, bytearray, fromhex, b64decode etc and reflection calls

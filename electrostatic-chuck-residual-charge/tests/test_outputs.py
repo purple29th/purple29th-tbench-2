@@ -1,8 +1,17 @@
 """Verify /app/solve.py reports true charge uC for ESCA trace.
 Ground truth is integral true charge from generator stored in ground_truth.json.
+Uses audit hook sandbox to prevent solver from reading /tests.
 """
 
-import ast, os, re, shutil, struct, subprocess, sys, tempfile, json
+import ast
+import os
+import re
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+import json
 import pytest
 
 SCRIPT = "/app/solve.py"
@@ -14,56 +23,48 @@ HELDOUTS = [
     "/tests/data/heldout_4.esca",
 ]
 
-BANNED_MODULES = {
-    "numpy",
-    "scipy",
-    "skimage",
-    "cv2",
-    "PIL",
-    "Pillow",
-    "networkx",
-    "igraph",
-    "imageio",
-    "pandas",
-    "torch",
-    "tensorflow",
-    "subprocess",
-    "importlib",
-    "runpy",
-    "ctypes",
-    "socket",
-    "multiprocessing",
-    "glob",
-    "pathlib",
-    "shutil",
-    "io",
-    "pty",
-}
-BANNED_MODULES_STRICT = BANNED_MODULES | {"os"}
+# Whitelist per instruction.md: only these may be imported
+ALLOWED_MODULES = {"struct", "sys", "math", "random", "tempfile", "re", "collections"}
+
+# Banned calls - dynamic / obfuscation primitives
 BANNED_CALLS = {
     "eval",
     "exec",
     "compile",
     "__import__",
-    "getattr",
-    "setattr",
-    "hasattr",
-    "globals",
-    "locals",
-    "vars",
-    "dir",
     "chr",
     "ord",
     "breakpoint",
+    # obfuscation helpers
+    "bytes",
+    "bytearray",
 }
+
+# Obfuscation via attribute: fromhex, b64decode, etc
+BANNED_ATTRS = {
+    "fromhex",
+    "b64decode",
+    "b64encode",
+    "b16decode",
+    "b32decode",
+    "decodebytes",
+    "decodestring",
+}
+
+# Forbidden path tokens - must match instruction wording, not bare "reference"
+# Instruction says: Do not open or list /tests directory and do not mention
+# test outputs, heldout, reference volume, _gen, geometric truth
 BANNED_TOKENS_FOR_PATH = [
     "/tests",
     "test_outputs",
     "heldout",
     "_gen",
-    "reference",
     "ground_truth",
+    "reference volume",
+    "reference_volume",
+    "geometric truth",
 ]
+
 BANNED_OS_ATTRS = {
     "system",
     "popen",
@@ -79,11 +80,72 @@ BANNED_OS_ATTRS = {
 }
 ALLOWED_DUNDER_ATTRS = {"__name__", "__main__"}
 
+# Runner code that installs audit hook before executing solver
+RUNNER_TEMPLATE = r"""
+import sys
+
+FORBIDDEN = ["/tests", "test_outputs", "heldout", "_gen", "ground_truth", "reference volume", "geometric truth", "reference_volume"]
+
+def _is_blocked(p):
+    try:
+        s = str(p).lower()
+    except:
+        return False
+    for pat in FORBIDDEN:
+        if pat.lower() in s:
+            return True
+    return False
+
+def audit_hook(event, args):
+    # Block file opens to forbidden locations
+    if event in ("open", "io.open"):
+        if args:
+            if _is_blocked(args[0]):
+                raise RuntimeError(f"blocked open {args[0]}")
+    elif event.startswith("os."):
+        # Block dangerous process operations unconditionally
+        if event in ("os.system", "os.popen", "os.execv", "os.execve", "os.execl",
+                     "os.execlp", "os.execle", "os.execvp", "os.execvpe",
+                     "os.spawnl", "os.spawnle", "os.spawnlp", "os.spawnlpe",
+                     "os.spawnv", "os.spawnve", "os.spawnvp", "os.spawnvpe",
+                     "os.fork", "os.forkpty", "os.posix_spawn", "os.posix_spawnp"):
+            raise RuntimeError(f"blocked {event}")
+        if event == "os.open":
+            if args and _is_blocked(args[0]):
+                raise RuntimeError(f"blocked {event} {args[0]}")
+        if event in ("os.listdir", "os.scandir", "os.walk",
+                     "os.stat", "os.lstat", "os.path.exists",
+                     "os.path.isdir", "os.path.isfile", "os.path.islink", "os.path.getsize"):
+            if args and _is_blocked(args[0]):
+                raise RuntimeError(f"blocked {event} {args[0]}")
+    elif event.startswith("subprocess."):
+        raise RuntimeError(f"blocked {event}")
+    elif event in ("socket.getaddrinfo", "socket.gethostbyname", "socket.connect"):
+        raise RuntimeError(f"blocked {event}")
+
+sys.addaudithook(audit_hook)
+
+if len(sys.argv) < 3:
+    print("runner usage: runner.py <solver> <input>", file=sys.stderr)
+    sys.exit(1)
+
+solver_path = sys.argv[1]
+input_path = sys.argv[2]
+sys.argv = [solver_path, input_path]
+
+with open(solver_path, "r", encoding="utf-8", errors="ignore") as fh:
+    code_text = fh.read()
+
+# Execute solver as __main__
+import builtins as _builtins
+_globals = {"__name__": "__main__", "__file__": solver_path, "__builtins__": _builtins}
+exec(compile(code_text, solver_path, "exec"), _globals)
+"""
+
 
 def ground_truth_charge(path):
     for base in [
         "/tests/data/ground_truth.json",
-        "/tests/data/ground_truth_lrae.json",
         "tests/data/ground_truth.json",
     ]:
         if os.path.exists(base):
@@ -91,14 +153,9 @@ def ground_truth_charge(path):
             fname = os.path.basename(path)
             if fname in gt:
                 return float(gt[fname])
-            # Also try without extension
             base_no_ext = os.path.splitext(fname)[0]
             if base_no_ext in gt:
                 return float(gt[base_no_ext])
-            # Try with .lrae extension variant
-            alt = base_no_ext + ".lrae"
-            if alt in gt:
-                return float(gt[alt])
     return 0.0
 
 
@@ -109,10 +166,14 @@ def run_agent(path):
         shutil.copyfile(path, neutral)
         iso = os.path.join(td, "solve.py")
         shutil.copyfile(SCRIPT, iso)
+        runner = os.path.join(td, "_runner.py")
+        with open(runner, "w", encoding="utf-8") as rf:
+            rf.write(RUNNER_TEMPLATE)
         env = os.environ.copy()
-        env["PYTHONPATH"] = td
+        # Do NOT expose /tests via PYTHONPATH
+        env.pop("PYTHONPATH", None)
         proc = subprocess.run(
-            [sys.executable, iso, neutral],
+            [sys.executable, runner, iso, neutral],
             capture_output=True,
             text=True,
             timeout=60,
@@ -132,6 +193,51 @@ def run_agent(path):
 
 def test_script_exists():
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
+
+
+def _static_string_value(node):
+    """Try to evaluate a node as a static string via concatenation of constants."""
+    if isinstance(node, ast.Constant):
+        v = node.value
+        if isinstance(v, str):
+            return v
+        if isinstance(v, (bytes, bytearray)):
+            try:
+                return v.decode("utf-8", errors="ignore")
+            except:
+                return None
+        return None
+    if isinstance(node, ast.JoinedStr):
+        parts = []
+        for val in node.values:
+            if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                parts.append(val.value)
+            elif isinstance(val, ast.FormattedValue):
+                inner = _static_string_value(val.value)
+                if inner is None:
+                    return None
+                parts.append(inner)
+            else:
+                sv = _static_string_value(val)
+                if sv is None:
+                    return None
+                parts.append(sv)
+        return "".join(parts)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _static_string_value(node.left)
+        right = _static_string_value(node.right)
+        if left is not None and right is not None:
+            return left + right
+        return None
+    return None
+
+
+def _iter_combined_strings(tree):
+    """Yield all static string values including those built via concatenation."""
+    for node in ast.walk(tree):
+        sv = _static_string_value(node)
+        if sv is not None and sv != "":
+            yield sv
 
 
 def _iter_string_literals(tree):
@@ -154,18 +260,19 @@ def _iter_string_literals(tree):
 def test_from_scratch():
     src = open(SCRIPT, "r", encoding="utf-8", errors="ignore").read()
     tree = ast.parse(src, filename=SCRIPT)
+    # Enforce whitelist of imports per instruction.md
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
                 mod_root = a.name.split(".")[0]
-                assert mod_root not in BANNED_MODULES_STRICT, (
-                    f"banned module import: {a.name}"
+                assert mod_root in ALLOWED_MODULES, (
+                    f"banned module import: {a.name} (allowed: {sorted(ALLOWED_MODULES)})"
                 )
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
             mod_root = mod.split(".")[0]
-            assert mod_root not in BANNED_MODULES_STRICT, (
-                f"banned module import from: {mod}"
+            assert mod_root in ALLOWED_MODULES, (
+                f"banned module import from: {mod} (allowed: {sorted(ALLOWED_MODULES)})"
             )
         elif isinstance(node, ast.Call):
             fn = node.func
@@ -175,6 +282,22 @@ def test_from_scratch():
                 else (fn.attr if isinstance(fn, ast.Attribute) else "")
             )
             assert name not in BANNED_CALLS, f"dynamic call not allowed ({name})"
+            # Block obfuscation via bytes([...]).decode etc
+            if isinstance(fn, ast.Attribute):
+                assert fn.attr not in BANNED_ATTRS, (
+                    f"obfuscation call not allowed ({fn.attr})"
+                )
+            # Detect getattr/setattr/hasattr tricks that bypass checks
+            if name in {
+                "getattr",
+                "setattr",
+                "hasattr",
+                "globals",
+                "locals",
+                "vars",
+                "dir",
+            }:
+                assert False, f"reflection call not allowed ({name})"
         elif isinstance(node, ast.Attribute):
             attr = node.attr
             if (
@@ -190,14 +313,27 @@ def test_from_scratch():
                     "__code__",
                     "__globals__",
                     "__builtins__",
+                    "__class__",
                 }:
                     assert False, f"dunder not allowed ({attr})"
             if isinstance(node.value, ast.Name) and node.value.id == "os":
                 assert attr not in BANNED_OS_ATTRS, f"banned os.{attr} usage"
-    for lit in _iter_string_literals(tree):
+            # Ban direct use of obfuscation patterns
+            if attr in BANNED_ATTRS:
+                assert False, f"obfuscation attr not allowed ({attr})"
+
+    # Check all static strings, including those built via + concatenation, for forbidden paths
+    all_strings = set(_iter_string_literals(tree)) | set(_iter_combined_strings(tree))
+    for lit in all_strings:
         low = lit.lower()
+        # Skip very short strings to reduce false positives, but still catch /tests
+        # For the specific phrase "reference volume" we need longer match
         for banned in BANNED_TOKENS_FOR_PATH:
-            assert banned.lower() not in low, f"forbidden path {banned!r} in {lit!r}"
+            if banned.lower() in low:
+                # Special-case: allow bare word "reference" in comments/docstrings like
+                # "sliding-median reference" unless it is part of "reference volume"
+                # Our list no longer contains bare "reference", so this is safe.
+                assert False, f"forbidden token {banned!r} in string {lit!r}"
 
 
 @pytest.mark.parametrize("path", HELDOUTS)
@@ -212,7 +348,6 @@ def test_heldout(path):
 def test_hard_offset_guard():
     """Hardcoded offset 64 fails on 32/40/96/128"""
     for off in [32, 40, 96, 128]:
-        # minimal file with 10 samples, should be parseable
         hdr = bytearray(off)
         hdr[0:4] = b"ESCA"
         struct.pack_into("<I", hdr, 4, 1)
@@ -226,8 +361,56 @@ def test_hard_offset_guard():
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "x.esca")
             open(p, "wb").write(data)
-            # run agent, should not crash, should respect offset
             try:
                 got = run_agent(p)
             except Exception as e:
                 pytest.fail(f"offset {off} crashed: {e}")
+
+
+def test_leak_guard_blocks_concatenation():
+    """Ensure audit hook blocks dynamic construction of forbidden paths."""
+    # Simulate a malicious solver that concatenates "/te"+"sts/..." and tries to open
+    malicious = """
+import struct, sys
+p = "/te" + "sts/data/ground_truth.json"
+try:
+    open(p).read()
+    print("leaked")
+except Exception as e:
+    # Should be blocked by audit hook -> RuntimeError
+    # For this test, we emit 0 if blocked
+    print(f"blocked:{e}")
+    print(0.0)
+"""
+    with tempfile.TemporaryDirectory() as td:
+        iso = os.path.join(td, "solve.py")
+        with open(iso, "w") as f:
+            f.write(malicious)
+        runner = os.path.join(td, "_runner.py")
+        with open(runner, "w") as f:
+            f.write(RUNNER_TEMPLATE)
+        neutral = os.path.join(td, "scan.esca")
+        # copy a real esca for neutral
+        shutil.copyfile(
+            HELDOUTS[0]
+            if os.path.exists(HELDOUTS[0])
+            else "/home/purple29th/purple29th-tbench-2/electrostatic-chuck-residual-charge/tests/data/scene.esca",
+            neutral,
+        )
+        proc = subprocess.run(
+            [sys.executable, runner, iso, neutral],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=td,
+        )
+        # The malicious open should be blocked, so we should NOT see "leaked"
+        assert "leaked" not in proc.stdout.lower(), (
+            f"leak not blocked: {proc.stdout} {proc.stderr}"
+        )
+        # It should have raised or printed blocked
+        assert (
+            proc.returncode == 0
+            or "blocked" in proc.stdout.lower()
+            or "blocked" in proc.stderr.lower()
+        ), f"expected block: {proc.stdout} {proc.stderr}"
