@@ -154,9 +154,10 @@ def _parse_wklk_file(path):
 
 def _compute_true(events):
     # stable sort by timestamp only - Python sort is stable, preserves file order for equal ts
-    # v0.15: hidden global all-clear (0,0,ts,0) clears ALL ids, not described explicitly
+    # v0.18: even ids ref-counted, odd binary, plus global all-clear
     ev = sorted(events, key=lambda x: x[2])
     held = {}
+    held_count = {}
     first_acq = {}
     last_ts = {}
     for eid, etype, ts, tid in ev:
@@ -169,6 +170,7 @@ def _compute_true(events):
                     if held.get(kk, False):
                         held[kk] = False
                         first_acq[kk] = None
+                        held_count[kk] = 0
                 continue
             key0 = (eid, 0)
             if key0 not in last_ts or ts > last_ts[key0]:
@@ -177,21 +179,41 @@ def _compute_true(events):
                 if k[0] == eid and held.get(k, False):
                     held[k] = False
                     first_acq[k] = None
+                    held_count[k] = 0
             continue
-
         key = (eid, tid)
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
+        is_even = abs(eid) % 2 == 0
         if etype == 1:
-            if held.get(key, False):
-                continue
-            held[key] = True
-            first_acq[key] = ts
+            if is_even:
+                cnt = held_count.get(key, 0) + 1
+                held_count[key] = cnt
+                if cnt == 1:
+                    held[key] = True
+                    first_acq[key] = ts
+            else:
+                if held.get(key, False):
+                    continue
+                held[key] = True
+                first_acq[key] = ts
+                held_count[key] = 1
         else:
-            if not held.get(key, False):
-                continue
-            held[key] = False
-            first_acq[key] = None
+            if is_even:
+                cnt = held_count.get(key, 0)
+                if cnt == 0:
+                    continue
+                cnt -= 1
+                held_count[key] = cnt
+                if cnt == 0:
+                    held[key] = False
+                    first_acq[key] = None
+            else:
+                if not held.get(key, False):
+                    continue
+                held[key] = False
+                first_acq[key] = None
+                held_count[key] = 0
     total = 0
     for k, is_held in held.items():
         if is_held:
@@ -1079,3 +1101,67 @@ def test_global_all_clear_same_ts_order():
     data = _pack_wklk(events, offset=40)
     got = run_agent_bytes(data)
     assert got == expected
+
+
+def test_even_refcount_vs_odd_binary():
+    """Even ids ref-counted, odd binary idempotent — discriminates simple idempotent solvers."""
+    # Odd id 1: acquire, acquire dup, release -> cleared, leak 0
+    events_odd = [
+        (1, 1, 10, 1),
+        (1, 1, 20, 1),
+        (1, 0, 30, 1),
+    ]
+    expected_odd = _compute_true(events_odd)
+    assert expected_odd == 0, f"odd should be binary cleared, got {expected_odd}"
+    data_odd = _pack_wklk(events_odd, offset=32)
+    got_odd = run_agent_bytes(data_odd)
+    assert got_odd == expected_odd, (
+        f"odd binary failed: got {got_odd} expected {expected_odd}"
+    )
+
+    # Even id 2: acquire, acquire dup, release -> still held count 1, leak from 10 to 30? Actually last is 30, first 10 => 20
+    events_even = [
+        (2, 1, 10, 1),
+        (2, 1, 20, 1),
+        (2, 0, 30, 1),
+    ]
+    expected_even = _compute_true(events_even)
+    assert expected_even == 20, (
+        f"even should be refcounted still held 20, got {expected_even}"
+    )
+    data_even = _pack_wklk(events_even, offset=32)
+    got_even = run_agent_bytes(data_even)
+    assert got_even == expected_even, (
+        f"even refcount failed: got {got_even} expected {expected_even}"
+    )
+
+    # Even needs two releases to clear
+    events_even2 = [
+        (2, 1, 10, 1),
+        (2, 1, 20, 1),
+        (2, 0, 30, 1),
+        (2, 0, 40, 1),
+    ]
+    expected_even2 = _compute_true(events_even2)
+    assert expected_even2 == 0, (
+        f"even double release should clear, got {expected_even2}"
+    )
+    data_even2 = _pack_wklk(events_even2, offset=32)
+    got_even2 = run_agent_bytes(data_even2)
+    assert got_even2 == expected_even2
+
+    # Mixed: even leak with odd interleaved
+    events_mixed = [
+        (2, 1, 10, 1),
+        (2, 1, 15, 1),
+        (1, 1, 12, 1),
+        (1, 1, 18, 1),
+        (2, 0, 20, 1),
+        (1, 0, 25, 1),
+    ]
+    expected_mixed = _compute_true(events_mixed)
+    # odd cleared, even still held count 1 with last 20 first 10 => 10
+    assert expected_mixed == 10
+    data_mixed = _pack_wklk(events_mixed, offset=40)
+    got_mixed = run_agent_bytes(data_mixed)
+    assert got_mixed == expected_mixed

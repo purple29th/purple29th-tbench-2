@@ -19,11 +19,12 @@ Dump contains messy real patterns from concurrent logger: duplicate acquire logs
 
 Kernel behavior:
 
-* Each hold bound to (id, thread) pair. Acquire is idempotent per pair, release when that pair not held is no op.
-* Normal cross thread release attempts are evaluated only against releasing thread own (id, thread) state and are no ops if that thread does not hold it.
-* System thread 0 is exception: a release event with thread id 0 for a given wakelock id releases all holders of that id across all threads (Doze force clear for that id).
+* Each hold bound to (id, thread) pair.
+* Some ids are ref-counted (multiple acquires need multiple releases), others are binary idempotent. Even ids (abs value even) are ref-counted, odd ids are binary idempotent where holding stays 1 not incremented and duplicate acquire while held is no op but does update its last observation time.
+* Normal cross thread release attempts are evaluated only against releasing thread own (id, thread) state and are no ops if that thread does not hold it. For ref-counted even ids, release decrements count, only when count reaches zero is hold cleared.
+* System thread 0 is exception: a release event with thread id 0 for a given wakelock id releases all holders of that id across all threads regardless of refcount (Doze force clear for that id).
 * Additionally, a release event with thread id 0 and id 0 is a Doze entry that clears all wakelocks across all ids, not just id 0.
-* Acquires from thread 0 are normal independent holds for (id,0) only.
+* Acquires from thread 0 are normal independent holds for (id,0) only, and follow same even/odd refcount rule.
 
 Why naive counting fails:
 

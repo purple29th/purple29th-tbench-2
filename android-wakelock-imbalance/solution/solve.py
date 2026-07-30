@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
-"""Oracle for android-wakelock-imbalance v0.16 hard.
-
-Thread-affine, idempotent acquire, cross-thread noise, final interval only,
-per-pair last observation, stable timestamp order, plus thread 0 system
-force-release (global per id) and hidden global all-clear id 0 clears ALL.
-
+"""Oracle for android-wakelock-imbalance v0.18 hard - even ref-counted, odd binary, plus thread0 per-id and all-clear.
 Leak = sum over (id,thread) still held at end of chronological processing of
 (last_ts_for_pair - first_acq_of_final_interval). If just single acquire with
 no later activity for that pair, duration 0. Duplicate while held updates last_ts
-but does not restart interval. Cross-thread release ignored for other holders.
-Release tid 0 for given id clears all holders of that id. Release tid 0 id 0
-clears ALL ids (Doze entry).
+but for odd does not restart interval, for even increments refcount. Cross-thread
+release ignored for other holders. Release tid 0 for given id clears all holders
+of that id. Release tid 0 id 0 clears ALL ids (Doze entry). Even ids ref-counted.
 """
-
 import struct
 import sys
-
 
 def parse(path):
     d = open(path, "rb").read()
@@ -23,7 +16,7 @@ def parse(path):
         raise ValueError("bad magic")
     total = struct.unpack_from("<I", d, 8)[0]
     off = struct.unpack_from("<I", d, 12)[0]
-    events = []  # (eid, etype, ts, tid, orig_idx)
+    events = []
     o = off
     idx = 0
     for _ in range(total):
@@ -35,21 +28,16 @@ def parse(path):
         idx += 1
     return events
 
-
 def solve_one(path):
     events = parse(path)
-    # stable timestamp order: sort by ts, then orig file order to preserve logger write order within same ms
     events_sorted = sorted(events, key=lambda x: (x[2], x[4]))
-
-    held = {}  # (id,tid) -> bool
-    first_acq = {}  # (id,tid) -> ts of first acquire of final still-held interval
-    last_ts = {}  # (id,tid) -> max ts seen for that pair (any event type)
-
+    held = {}
+    held_count = {}
+    first_acq = {}
+    last_ts = {}
     for eid, etype, ts, tid, _orig in events_sorted:
-        # Thread 0 release is global force-release for that id, plus hidden id 0 clears ALL
         if tid == 0 and etype == 0:
             if eid == 0:
-                # hidden Doze entry: clears ALL wakelocks across all ids
                 key0 = (0, 0)
                 if key0 not in last_ts or ts > last_ts[key0]:
                     last_ts[key0] = ts
@@ -57,6 +45,7 @@ def solve_one(path):
                     if held.get(k, False):
                         held[k] = False
                         first_acq[k] = None
+                        held_count[k] = 0
                 continue
             key0 = (eid, 0)
             if key0 not in last_ts or ts > last_ts[key0]:
@@ -65,36 +54,48 @@ def solve_one(path):
                 if k[0] == eid and held.get(k, False):
                     held[k] = False
                     first_acq[k] = None
+                    held_count[k] = 0
             continue
-
         key = (eid, tid)
-        # per-pair last observation: any event for this exact (id,thread) pair, even dup/dangling, counts
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
-        if etype == 1:  # acquire
-            if held.get(key, False):
-                # idempotent - already held, duplicate log is harmless no-op, but last_ts already updated
-                continue
-            held[key] = True
-            first_acq[key] = ts
-        else:  # release
-            if not held.get(key, False):
-                # dangling or cross-thread attempt already filtered by key mismatch for cross-thread,
-                # but for same key dangling is noise
-                continue
-            held[key] = False
-            first_acq[key] = None
-
+        is_even = (abs(eid) % 2 == 0)
+        if etype == 1:
+            if is_even:
+                cnt = held_count.get(key, 0) + 1
+                held_count[key] = cnt
+                if cnt == 1:
+                    held[key] = True
+                    first_acq[key] = ts
+            else:
+                if held.get(key, False):
+                    continue
+                held[key] = True
+                first_acq[key] = ts
+                held_count[key] = 1
+        else:
+            if is_even:
+                cnt = held_count.get(key, 0)
+                if cnt == 0:
+                    continue
+                cnt -= 1
+                held_count[key] = cnt
+                if cnt == 0:
+                    held[key] = False
+                    first_acq[key] = None
+            else:
+                if not held.get(key, False):
+                    continue
+                held[key] = False
+                first_acq[key] = None
+                held_count[key] = 0
     total_leaked = 0
-    for key, is_held in held.items():
+    for k, is_held in held.items():
         if is_held:
-            f = first_acq.get(key)
+            f = first_acq.get(k)
             if f is not None:
-                # per-pair last, not global trace end - if pair stopped early, don't extend to global max
-                total_leaked += last_ts[key] - f
-
+                total_leaked += last_ts[k] - f
     print(total_leaked)
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

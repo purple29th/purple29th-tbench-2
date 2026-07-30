@@ -42,15 +42,15 @@ def pack_wklk(events, offset=64):
 
 def compute_true(events):
     # stable sort by timestamp only: Python's sort is stable, preserves file order for equal ts
-    # v0.15 adds hidden global all-clear: (0,0,ts,0) clears ALL ids, not just id 0. Not described in instruction, must be inferred from sample.
+    # v0.18: even ids (abs even) are ref-counted, odd ids binary idempotent, plus global all-clear
     ev = sorted(events, key=lambda x: x[2])
-    held = {}
+    held = {}  # (id,tid) -> bool is held
+    held_count = {}  # for even ref-counted
     first_acq = {}
     last_ts = {}
     for eid, etype, ts, tid in ev:
         if tid == 0 and etype == 0:
             if eid == 0:
-                # special hidden: id 0 release from thread 0 is Doze entry, clears ALL wakelocks
                 key0 = (0, 0)
                 if key0 not in last_ts or ts > last_ts[key0]:
                     last_ts[key0] = ts
@@ -58,8 +58,8 @@ def compute_true(events):
                     if held.get(k, False):
                         held[k] = False
                         first_acq[k] = None
+                        held_count[k] = 0
                 continue
-            # thread 0 release is global force-release for that id
             key0 = (eid, 0)
             if key0 not in last_ts or ts > last_ts[key0]:
                 last_ts[key0] = ts
@@ -67,21 +67,42 @@ def compute_true(events):
                 if k[0] == eid and held.get(k, False):
                     held[k] = False
                     first_acq[k] = None
+                    held_count[k] = 0
             continue
 
         key = (eid, tid)
         if key not in last_ts or ts > last_ts[key]:
             last_ts[key] = ts
+        is_even = (abs(eid) % 2 == 0)
         if etype == 1:
-            if held.get(key, False):
-                continue
-            held[key] = True
-            first_acq[key] = ts
+            if is_even:
+                cnt = held_count.get(key, 0) + 1
+                held_count[key] = cnt
+                if cnt == 1:
+                    held[key] = True
+                    first_acq[key] = ts
+            else:
+                if held.get(key, False):
+                    continue
+                held[key] = True
+                first_acq[key] = ts
+                held_count[key] = 1
         else:
-            if not held.get(key, False):
-                continue
-            held[key] = False
-            first_acq[key] = None
+            if is_even:
+                cnt = held_count.get(key, 0)
+                if cnt == 0:
+                    continue
+                cnt -= 1
+                held_count[key] = cnt
+                if cnt == 0:
+                    held[key] = False
+                    first_acq[key] = None
+            else:
+                if not held.get(key, False):
+                    continue
+                held[key] = False
+                first_acq[key] = None
+                held_count[key] = 0
     total = 0
     for key, is_held in held.items():
         if is_held:
@@ -89,6 +110,7 @@ def compute_true(events):
             if f is not None:
                 total += last_ts[key] - f
     return total
+
 
 
 def generate_events_thread_scoped(num_ids, seed, include_reacquire=True, heavy=False):
