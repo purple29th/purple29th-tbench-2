@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/electrostatic-chuck-residual-charge"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Write from scratch Python script that parses custom ESCA binary with residual current trace from electrostatic chuck dechuck and counts residual charge via conserved total current to get true dechuck charge in microcoulombs for main discharge event despite driver low pass smear and thermal baseline drift and robot vibration blips."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["electrostatic", "chuck", "dechuck", "residualcharge", "binaryparsing", "fromscratch", "charge"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["electrostatic-chuck", "residual-charge", "dechuck", "binary-parsing", "from-scratch", "microcoulomb", "charge-conservation", "mass-based-clustering"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 210.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
