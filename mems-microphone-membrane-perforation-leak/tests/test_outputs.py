@@ -123,13 +123,19 @@ def pack_tiv(cfg, field):
     sx, sy, sz = cfg["spacing"]
     dtype = cfg["dtype"]
     n = nx * ny * nz
-    hdr = bytearray(64)
+    data_offset = cfg.get("data_offset", 64)
+    hdr = bytearray(data_offset)
     hdr[0:4] = MAGIC
     struct.pack_into("<I", hdr, 4, 1)
     struct.pack_into("<I", hdr, 8, dtype)
     struct.pack_into("<III", hdr, 12, nx, ny, nz)
     struct.pack_into("<fff", hdr, 24, sx, sy, sz)
-    struct.pack_into("<I", hdr, 36, 64)
+    struct.pack_into("<I", hdr, 36, data_offset)
+    for i in range(40, data_offset):
+        if i % 19 == 0 and i + 4 < data_offset:
+            hdr[i:i+4] = b"MEMS"
+        else:
+            hdr[i] = (i * 131 + 17 + (i * i)) % 256
     if dtype == 2:
         vals = [max(-32768, min(32767, int(round(v)))) for v in field]
         body = struct.pack("<%dh" % n, *vals)
@@ -146,6 +152,7 @@ def geometric_truth_mm3(cfg, v_true):
 BASE_CONFIGS = {
     "heldout_1": dict(
         dims=(60, 52, 38),
+        data_offset=96,
         spacing=(0.38, 0.38, 0.8),
         dtype=16,
         amp=2800,
@@ -163,6 +170,7 @@ BASE_CONFIGS = {
     ),
     "heldout_2": dict(
         dims=(60, 48, 40),
+        data_offset=128,
         spacing=(0.40, 0.40, 0.75),
         dtype=2,
         amp=3200,
@@ -179,6 +187,7 @@ BASE_CONFIGS = {
     ),
     "heldout_3": dict(
         dims=(58, 54, 38),
+        data_offset=80,
         spacing=(0.44, 0.44, 0.85),
         dtype=16,
         amp=2900,
@@ -196,6 +205,7 @@ BASE_CONFIGS = {
     ),
     "speck_heavy": dict(
         dims=(56, 52, 38),
+        data_offset=112,
         spacing=(0.42, 0.42, 0.9),
         dtype=16,
         amp=3000,
@@ -212,6 +222,7 @@ BASE_CONFIGS = {
     ),
     "randomized": dict(
         dims=(52, 48, 36),
+        data_offset=96,
         spacing=(0.45, 0.45, 0.9),
         dtype=16,
         amp=2800,
