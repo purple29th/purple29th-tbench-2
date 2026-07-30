@@ -1,27 +1,35 @@
-I work on the laser weld factory line inspecting weldments for leaks. After welding we sometimes get keyhole collapse that leaves a long narrow channel along the weld line that can leak fluid and cause field failure. We use X ray to see these pores but the X ray blur spreads the pore signal everywhere, so the channel looks larger and fuzzier than its true size.
+I am a quality engineer for automotive chassis laser welding at a Tier one supplier. We join high strength steel with a six kilowatt laser. In some seams the vapor capillary becomes unstable and collapses into what we call a wormhole. It is a long interconnected hollow that snakes along the fusion line. It can weep fluid in service. We inspect every seam with inline computed tomography.
 
-I need you to build a small tool for me. Please create a file at /app/solve.py. It will be invoked as python at /app/solve.py plus a scan path and the last word it prints will be taken as the porosity volume.
+Our computed tomography is blurry. X ray point spread smears bright void signal into neighbours. So a wormhole looks thick and cloudy instead of crisp. That blur makes volume estimation hard.
 
-You are provided one example scan for local testing at /app/data/scene.weld. You may read this file while developing, but hidden grading uses different scans you have never seen, with different dimensions, spacings, brightness, weld thickness, and voxel pitch, passed as random temporary files. Do not hardcode numbers or paths from the example. Your solver must work on any file path given as the first argument. Hardcoding the sample volume will fail the hidden volume checks.
+Please create a tool that I can run. The tool lives at /app/solve.py. I will call it like python at /app/solve.py followed by a file path. I will take the last token you print as the answer in cubic millimetres.
 
-Format weld is a custom binary for X ray keyhole channel porosity. Everything is little endian:
+I left one sample that you can use while coding at /app/data/scene.weld. Grading will use totally different files you have never seen. Those hidden files have assorted sizes, voxel pitch, brightness, weld orientation, noise level, and are handed to you as random paths in a temporary directory. Do not bake in any number you measure from the sample. Do not bake in any path string from the sample. Your code has to work for any path given.
 
-* Offset 0: magic WELD four ASCII bytes.
-* Offset 4: version uint32.
-* Offset 8: dtype code uint32. 2 means int16 voxels, 16 means float32 voxels.
-* Offset 12: three uint32 values for voxel counts per axis, nx, ny, nz.
-* Offset 24: three float32 values for millimetres per voxel per axis, sx, sy, sz. These change per file and must be read from the header.
-* Offset 36: uint32 data offset where voxel values start.
-* After data offset: nx times ny times nz values in the announced dtype, x fastest, so linear index for x y z is x plus nx times (y plus ny times z).
+The .weld container is my own minimal format. All numbers are little endian.
 
-Each volume contains weld metal with keyhole channel porosity that is long and narrow along weld direction and is the only porosity that counts, plus some round gas pores that are artefacts and must be ignored. You can tell them apart by shape, long narrow versus round. The centre of each channel is flat and bright where X ray sees open void, the border is dimmer with partial fill smeared by X ray blur. There is a flat ambient background plus sensor noise. Some scans also have one or two tiny bright specks far away from gas pores that must be ignored. Keep only the main long narrow keyhole channels using 26 neighbour connectivity plus shape filtering.
+* First four bytes are ASCII WELD.
+* Next four bytes are an unsigned int that holds format version.
+* Next four bytes are an unsigned int that tells voxel type. Value 2 signals signed short int16 voxels. Value 16 signals float32 voxels. Both appear in grading.
+* Next twelve bytes are three unsigned ints that tell voxel count per axis: nx then ny then nz.
+* Next twelve bytes are three float32 that tell millimetre spacing per voxel: sx then sy then sz. You must read them, they differ file to file.
+* Next four bytes are an unsigned int that tells byte offset where the voxel block starts. Do not assume 64, use what header says.
+* From that offset onward lies nx times ny times nz voxel samples stored in announced type, with x changing fastest. For coordinate triple x y z the flat index is x plus nx times quantity y plus ny times z.
 
-Threshold counting cannot be precise. A low cutoff includes a huge halo and overcounts by eighty to one hundred thirty percent. A high cutoff misses thin channel that never gets bright enough and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change. The blurry images give the best clue where signal is most concentrated, not how many bright voxels there are. The true core is flat but hidden by blur noise.
+Inside each block the material is steel with two pore families.
 
-True volume equals pre blur geometric volume of long narrow keyhole channels only, as number of voxels that belong to long channels before blur times voxel spacing. Because blur conserves total signal, you can recover it via total background subtracted signal divided by true plateau intensity. Only long channels count toward this truth, round gas pores and far specks do not.
+The family that matters for leak is wormhole. These are stitch channels that run for many voxels along the weld, so they are strongly elongated in one or two axes.
 
-Simple shortcuts are off by a large margin. Grading is at three percent tolerance, only a genuine precise method passes.
+The family to leave out is gas bubbles. These are compact near spherical artefacts trapped during solidification. They are roughly isotropic. You must drop them by shape. So the test is long versus compact.
 
-Implementation constraints: parse bytes yourself using only the standard library. Allowed stdlib modules include struct, sys, math, random, tempfile, re. The following are banned and will be rejected by test from scratch: numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, os, io, posixpath, ntpath, genericpath, plus any array, imaging, or graph helper library. Banned calls include eval, exec, compile, __import__, chr. Banned runtime tricks include subprocess, os system, os popen, os exec, os fork, os walk, os listdir, os scandir, os open, pty, importlib, runpy, ctypes, filesystem listing, and any obfuscation that hides paths using chr, bytes fromhex, base64, b64decode, bytearray, bytes tricks, or string concatenation that builds forbidden paths. Do not attempt to open or list the /tests directory, and do not reference test outputs, heldout, reference volume, _gen, GEOM TRUTH, or geometric truth in your solver source. Your solver must work on random temporary files, not hardcoded paths.
+A wormhole voxel core is uniformly bright because X ray sees open space. At its skin the value is reduced by partial occupancy plus blur spill. The whole volume sits on a uniform background pedestal with additive sensor speckle. Occasionally one or two isolated bright dots appear far from the weld, just sensor flicker, you must drop those as well using isolation plus 26 neighbour connectivity.
 
-Print the volume in mm3 as the last word on stdout.
+If you try to binarise you will be wrong. A generous low limit sucks in the cloudy halo and inflates volume by near double. A stingy high limit clips the thin necks that never get fully bright and shrinks volume by about a third to half. No single limit works because brightness and smear span change file to file.
+
+You need a physically motivated recovery. Blur does not create or destroy total excess signal, it just moves it. So pre blur geometric measure can be recovered from post blur integrated excess divided by true interior brightness. Only stitch wormhole voxels are in the true measure, gas bubbles and far flicker are excluded.
+
+A rough shortcut will be far off. Grading checks within three percent, so you need a careful estimate of background, a careful estimate of interior plateau, and a careful decision of how far halo to integrate without swallowing the isolated dots or compact bubbles.
+
+Code rules: you must parse raw bytes yourself. You may use only python standard library basic utilities: struct for unpacking, sys for args, math for numerics, random for any jitter if needed, tempfile for scratch if needed, re for text matching. Anything that does heavy lifting is forbidden. Forbidden imports include numeric and vision and graph stacks like numpy scipy skimage cv2 PIL Pillow networkx igraph imageio plus data stacks like pandas torch tensorflow plus system helpers like socket multiprocessing glob pathlib os io posixpath ntpath genericpath. If you import them your submission fails from scratch audit. Forbidden language tricks include eval exec compile __import__ chr for building strings. Forbidden operating system tricks include spawning processes via subprocess, calling os system popen exec fork walk listdir scandir open, using pty importlib runpy ctypes, listing directories. Do not try to hide forbidden accesses via chr codes or via assembling strings from bytes fromhex base64 decoding or bytearray tricks or via concatenation that builds a path. Do not try to open or enumerate the directory /tests and do not mention test_outputs or heldout or _gen or GEOM TRUTH or geometric truth in your solver text. Your solver must function when given any random file path, not a fixed location.
+
+When finished, output the estimated porosity in mm3 as the final whitespace separated token.
