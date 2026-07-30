@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir --retries 3 \
       pytest==8.4.1 \
       pytest-json-ctrf==0.3.5
 RUN mkdir -p /app/data
-COPY data/scene.fmbp /app/data/scene.fmbp
+COPY data/scene.blpr /app/data/scene.blpr

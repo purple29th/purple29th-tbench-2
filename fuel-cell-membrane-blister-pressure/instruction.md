@@ -1,29 +1,29 @@
-I run the fuel cell test stand in our energy lab. We have this Nafion membrane that sometimes forms a tiny blister during hot press. When the blister lets go, the anode pressure spikes for a moment and then tails off slowly because our sensor amp is slow. Meanwhile the whole stack is heating up so the baseline creeps upward and the coolant pump makes little shivers in the trace that look like real events. My boss wants the true burst size in kilopascals for the big pop, not the shivers, so we can grade delam severity.
+I run the fuel cell test rig full time. Our Nafion membrane sometimes puffs up into a tiny blister during hot press and then pops. When it pops the anode side pressure jumps and then rings for a while because our pressure amp is slow. At the same time the stack is getting hotter so the baseline wanders upward and the coolant pump shakes the whole table and makes little wiggles that look like real pops. My lead wants the real size of the big pop in kilopascals, not the wiggles.
 
-Please write a small script at /app/solve.py. We call it like python at /app/solve.py with a file path and we look at the last word you print. That last word should be the real blister pressure in kPa for the main pop.
+Please write a file at /app/solve.py. We run it like python at /app/solve.py with a scan file path, and your last printed word should be the true blister size in kPa.
 
-I left you a sample at /app/data/scene.fmbp you can open locally. The hidden evaluation uses other files with different burst sizes, creep rates, sensor gains, and vibration patterns you never saw. If you hardcode the sample number you will fail hidden.
+I left a sample at /app/data/scene.blpr for local try. Hidden evaluation uses other files with different pop sizes, wander rates, sensor gains, and shiver patterns you never saw. Do not hardcode sample numbers.
 
-The file type I invented is called FMBP. All values are little endian. Here is how I laid it out:
+My file type I call BLPR, all little endian:
 
-It starts with four bytes ascii FMBP.
-Then four bytes version uint32 which is 1.
-Then four bytes total sample count N uint32.
-Then four bytes data offset uint32 where pressure samples begin.
-Then four bytes interval float32 seconds per sample, e.g. 0.0008.
-Then four bytes gain float32 trim factor.
-Then four bytes baseline floor uint32 hint, ignore it, real baseline drifts.
-The header is at least 28 bytes long and may have junk padding between 28 and data offset. Use the data offset field from header, do not assume 64. My hidden files use 32 40 64 96 128.
-After data offset comes N int16 little endian numbers. Each number is pressure times ten, so real pressure equals value divided by ten kPa.
+It starts with four bytes ascii BLPR.
+Then four bytes version uint32 1.
+Then four bytes total samples N uint32.
+Then four bytes data offset uint32 where samples start.
+Then four bytes sample period float32 seconds per sample.
+Then four bytes gain float32.
+Then four bytes baseline hint uint32, you can ignore, real baseline wanders.
+Header is at least 28 bytes and may have junk between 28 and data offset. You must use data offset field, not assume 64. Hidden uses 32 48 72 96 128.
+After data offset comes N float32 little endian pressure values in kPa.
 
-What is inside each trace: a gentle upward creep from heating, plus a little random noise, plus one big pop where pressure shoots up and has long low tails from amplifier smear, plus two to five tiny far spikes from pump shiver, plus one broad low hump from table rumble. That broad hump is wide and has many samples above threshold but its total pressure is small, so if you choose event by how many samples it has you will pick the wrong one. The real blister is the one with big charge mass, not big count.
+Inside each trace there is gentle upward wander from heating plus hiss plus one big pop that shoots high and has long low tails from amp smear, plus a couple tiny far spikes from pump shiver, plus one broad low hump from table rumble. That hump is wide and has many points above threshold but its total pressure is tiny, so choosing event by point count gives wrong answer. The true blister is the one with biggest area mass, not biggest count.
 
-Why a simple cutoff does not work for me: if I set cutoff low I include halo plus broad hump and I get 60 to 90 percent too high, if I set cutoff high I cut off low tails that still carry pressure and I get 30 to 55 percent too low. No single fixed cutoff works because gain and baseline change per membrane and per batch. The smear keeps total pressure. True pressure comes from ideal occupancy before blur, using interval and gain to get kPa. Only main pop counts, broad hump and far spikes do not. So true pressure equals sample count of main pop before blur times plateau times interval times gain over ten for deci conversion. Even though smeared peak looks low and wide, area is preserved, so you can recover via sum of background corrected signal over main plus halo divided by plateau times interval times gain over ten.
+A simple cutoff fails. Low cutoff keeps halo plus hump and reads way too high, roughly 70 to 100 percent high. High cutoff chops low tails that still carry pressure and reads too low, roughly 35 to 60 percent low. No single cutoff works because gain and wander change per lot and per membrane. The smear keeps total pressure. True pressure is integral of ideal occupancy before blur times gain. Only main pop counts, broad hump and far spikes do not. Because smear conserves area, you can recover true size via sum of baseline corrected signal over main plus halo divided by true plateau times interval times gain.
 
 We check within three percent relative, only precise method passes.
 
-Coding rules: parse bytes yourself with struct. You may use struct, sys, math, random, tempfile, re, collections. You may not use numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, shutil, io, os, pty, importlib, runpy, ctypes. No eval, exec, compile, __import__, chr. No tricks like subprocess, os system, os popen, os exec, os walk, os listdir, os scandir, os open, pty, importlib, runpy, or hiding paths via chr, bytes fromhex, base64, b64decode, bytearray, or building paths by concatenation. Do not try to open or list /tests and do not mention test outputs, heldout, reference volume, _gen, geometric truth in your code. Your solver must work on random temp files, not hardcoded paths.
+Coding rules: parse bytes yourself with struct only. Allowed modules struct, sys, math, random, tempfile, re, collections. Banned modules numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, shutil, io, os, pty, importlib, runpy, ctypes. Banned calls eval, exec, compile, __import__, chr. Banned tricks subprocess, os system, os popen, os exec, os walk, os listdir, os scandir, os open, pty, importlib, runpy, plus hiding paths via chr, bytes fromhex, base64, b64decode, bytearray. Do not open or list /tests and do not mention test outputs, heldout, reference volume, _gen, geometric truth in your solver. Work on random temp files, not hardcoded paths.
 
-At the end print pressure kPa as last word float. Traces are a few thousand samples long, recursion will overflow, use iterative loops.
+Print pressure kPa as last word float. Traces are a few thousand samples, recursion will overflow, use iterative.
 
-Thank you for helping the fuel cell team, this blister grading is important for stack yield.
+Thanks for helping the fuel cell team.
