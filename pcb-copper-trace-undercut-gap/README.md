@@ -31,8 +31,19 @@ Method works for varied dimensions, spacings, brightness, blur widths.
 ## Completion Criteria
 Tests pass when volume error less than 3 percent tolerance on heldouts, similar to other precision tasks.
 
+## Model Analysis / Completion Rate
+
+* Oracle 11/11 100 percent - reference solution passes all heldouts within 1 percent via intensity conservation plus shape discrimination
+* Naive threshold counting fails all heldouts by 80 to 130 percent over or 30 to 50 percent under
+* Global conservation without speck removal fails speck heavy case by more than 3 percent because detached solder voids and dust specks contribute extra energy
+* Shape discrimination is required: elongated undercut gaps along trace versus round solder voids that must be ignored. Largest mass component may be round solder void, so largest mass shortcut fails
+* Expected difficulty: avocado 0/5 to 2/5, gpt 1/5, opus 2/5 - similar to foundry thermal void which has 0/5 avocado, 2/5 gpt. Harder than simple sphere tasks due to binary parsing with varied data offset plus shape filter
+* int16 dtype path exercised via heldout 2 to ensure both dtype branches work
+
 ## Anti Cheating
 * No numpy, scipy, imaging libraries - from scratch only
 * No hardcoded sample volume, must work on any random temp file path
 * Do not open or list /tests directory
 * From scratch guard bans os, io, pathlib etc
+* Secure verifier generates heldouts at runtime in temp dir and runs solver in isolated sandbox with audit hook blocking /tests, test outputs, heldout, _gen etc
+* Banned import check via AST in test_from_scratch

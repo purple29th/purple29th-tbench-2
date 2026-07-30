@@ -170,7 +170,7 @@ CONFIGS = {
     "heldout_2": dict(
         dims=(60, 48, 40),
         spacing=(0.40, 0.40, 0.75),
-        dtype=16,
+        dtype=2,
         amp=3200,
         bg=110,
         sig_xy=0.9,
