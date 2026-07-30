@@ -1,5 +1,5 @@
-"""Verify /app/solve.py reports true charge uC for FMBP trace.
-Ground truth is integral true charge from generator stored in ground_truth.json.
+"""Verify /app/solve.py reports true blister pressure kPa for BLPR trace.
+Ground truth is integral true pressure from generator stored in ground_truth_fuel.json.
 """
 
 import ast, os, re, shutil, struct, subprocess, sys, tempfile, json
@@ -8,10 +8,10 @@ import pytest
 SCRIPT = "/app/solve.py"
 REL_TOL = 0.03
 HELDOUTS = [
-    "/tests/data/heldout_1.fmbp",
-    "/tests/data/heldout_2.fmbp",
-    "/tests/data/heldout_3.fmbp",
-    "/tests/data/heldout_4.fmbp",
+    "/tests/data/heldout_1.blpr",
+    "/tests/data/heldout_2.blpr",
+    "/tests/data/heldout_3.blpr",
+    "/tests/data/heldout_4.blpr",
 ]
 
 BANNED_MODULES = {
@@ -82,8 +82,9 @@ ALLOWED_DUNDER_ATTRS = {"__name__", "__main__"}
 
 def ground_truth_charge(path):
     for base in [
+        "/tests/data/ground_truth_fuel.json",
+        "tests/data/ground_truth_fuel.json",
         "/tests/data/ground_truth.json",
-        "/tests/data/ground_truth_lrae.json",
         "tests/data/ground_truth.json",
     ]:
         if os.path.exists(base):
@@ -91,21 +92,16 @@ def ground_truth_charge(path):
             fname = os.path.basename(path)
             if fname in gt:
                 return float(gt[fname])
-            # Also try without extension
             base_no_ext = os.path.splitext(fname)[0]
             if base_no_ext in gt:
                 return float(gt[base_no_ext])
-            # Try with .lrae extension variant
-            alt = base_no_ext + ".lrae"
-            if alt in gt:
-                return float(gt[alt])
     return 0.0
 
 
 def run_agent(path):
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
     with tempfile.TemporaryDirectory() as td:
-        neutral = os.path.join(td, "scan.fmbp")
+        neutral = os.path.join(td, "scan.blpr")
         shutil.copyfile(path, neutral)
         iso = os.path.join(td, "solve.py")
         shutil.copyfile(SCRIPT, iso)
@@ -210,21 +206,20 @@ def test_heldout(path):
 
 
 def test_hard_offset_guard():
-    """Hardcoded offset 64 fails on 32/40/96/128"""
+    """Hardcoded offset 64 fails on 32/40/96/128 - BLPR float32 version"""
     for off in [32, 40, 96, 128]:
-        # minimal file with 10 samples, should be parseable
         hdr = bytearray(off)
-        hdr[0:4] = b"FMBP"
+        hdr[0:4] = b"BLPR"
         struct.pack_into("<I", hdr, 4, 1)
         struct.pack_into("<I", hdr, 8, 10)
         struct.pack_into("<I", hdr, 12, off)
         struct.pack_into("<f", hdr, 16, 0.0008)
         struct.pack_into("<f", hdr, 20, 1.0)
         struct.pack_into("<I", hdr, 24, 100)
-        body = struct.pack("<%dh" % 10, *[1000] * 10)
+        body = struct.pack("<%df" % 10, *[10.0] * 10)
         data = bytes(hdr) + body
         with tempfile.TemporaryDirectory() as td:
-            p = os.path.join(td, "x.fmbp")
+            p = os.path.join(td, "x.blpr")
             open(p, "wb").write(data)
             # run agent, should not crash, should respect offset
             try:
