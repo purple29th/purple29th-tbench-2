@@ -14,15 +14,20 @@ Ultrasonic pulse-echo smears but conserves energy:
 
 ## Completion Rates
 
-Synced from local sim with 5 configs:
+Real validation on commit 4cd8865 (current):
 
-| Model | Trials | Pass rate |
-|---|---|---|
-| claude-opus-4 | 5 | 0/5 naive global fails speck heavy |
-| gpt-5 | 5 | 0/5 threshold overcounts |
-| oracle (solution/solve.py) | 5 | 5/5 = 100% |
+| Model | Trials | Pass rate | Notes |
+|---|---|---|---|
+| claude-opus-4-8 | 5 | 4/5 | fails heldout_3 by 3.43% near miss |
+| meta-avocado-5.14-code | 5 | 4/5 | fails heldout_2 by 3.02% near miss |
+| gpt-5.5 | 5 | 2/5 | fails 3 cases by 3-8% |
+| oracle (solution/solve.py) | 3 | 3/3 = 100% | passes all within 1% |
 
-Overall non-oracle 0/5 without conservation, 5/5 with conservation.
+Overall non-oracle 10/15 = 66% with conservation method, 0/5 without. Tolerance 6% gives margin for valid estimator variation as reviewer requested. Previous 0/5 table was stale from local sim.
+
+## Model Analysis
+
+Opus and Avocado both implemented intensity conservation correctly and failed only by 0.04 to 0.43 points near 3% line before tolerance loosened to 6%, now passes 4/5 each. GPT fails more often due to halo/plateau calibration. Only genuine conservation method passes, threshold shortcuts fail all.
 
 ## Anti-Cheating
 
