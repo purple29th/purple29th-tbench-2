@@ -24,7 +24,7 @@ Method works for varied dimensions, gains, drift.
 
 ## Files
 * /app/solve.py agent must create, prints pressure as last word
-* /app/data/scene.fmbp sample for local dev
+* /app/data/scene.blpr sample for local dev, true about 4.9 to 5.0 kPa, true about 4.9 to 5.0 kPa
 * environment/Dockerfile installs python and pytest
 * tests/test_outputs.py evaluation suite
 

@@ -101,19 +101,81 @@ def ground_truth_charge(path):
 def run_agent(path):
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
     with tempfile.TemporaryDirectory() as td:
-        neutral = os.path.join(td, "scan.blpr")
+        neutral = os.path.join(td, f"scan_{os.urandom(4).hex()}.blpr")
         shutil.copyfile(path, neutral)
         iso = os.path.join(td, "solve.py")
         shutil.copyfile(SCRIPT, iso)
-        env = os.environ.copy()
-        env["PYTHONPATH"] = td
+        # Secure runner with audit hook to block /tests reads, fixes R07 reward hacking
+        secure_runner = f'''
+import sys, os, runpy, tempfile, shutil, re
+BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "_gen", "ground_truth", "reference_volume"]
+def is_blocked(p):
+    s = str(p)
+    for b in BLOCKED_SUBSTRS:
+        if b in s:
+            return True
+    try:
+        rp = os.path.realpath(s)
+        for b in BLOCKED_SUBSTRS:
+            if b in rp:
+                return True
+    except:
+        pass
+    return False
+def audit_hook(event, args):
+    if event == "open":
+        path = args[0] if args else ""
+        if is_blocked(path):
+            raise RuntimeError(f"Blocked file access: {{path}}")
+        try:
+            rp = os.path.realpath(str(path))
+            if rp.startswith("/tests") or "/tests" in rp:
+                raise RuntimeError(f"Blocked realpath access: {{path}} -> {{rp}}")
+        except RuntimeError:
+            raise
+        except:
+            pass
+    elif event in ("os.listdir", "os.scandir", "os.walk"):
+        path = args[0] if args else ""
+        if is_blocked(path):
+            raise RuntimeError(f"Blocked dir listing: {{path}}")
+        try:
+            rp = os.path.realpath(str(path)) if path else ""
+            if rp in ("/", "/tests", "/tests/data") or rp.startswith("/tests"):
+                raise RuntimeError(f"Blocked dir listing realpath: {{path}} -> {{rp}}")
+        except RuntimeError:
+            raise
+        except:
+            pass
+        if str(path) in ("", "/", "/tests", "/tests/data"):
+            raise RuntimeError(f"Blocked listing of sensitive dir: {{path}}")
+    elif event.startswith("os."):
+        banned = {"os.system","os.popen","os.spawnl","os.spawnle","os.spawnlp","os.spawnlpe","os.spawnv","os.spawnve","os.spawnvp","os.spawnvpe","os.exec","os.execl","os.execle","os.execlp","os.execlpe","os.execv","os.execve","os.execvp","os.execvpe","os.posix_spawn","os.posix_spawnp","os.fork","os.forkpty"}
+        if event in banned:
+            raise RuntimeError(f"Blocked {{event}}")
+    elif event.startswith("subprocess."):
+        raise RuntimeError(f"Blocked {{event}}")
+    elif event.startswith("socket."):
+        raise RuntimeError(f"Blocked {{event}}")
+    elif event == "import":
+        mod = args[0] if args else ""
+        base = mod.split(".")[0]
+        banned_imports = {"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","shutil","io","os","pty","importlib","runpy","ctypes"}
+        if base in banned_imports:
+            raise RuntimeError(f"Blocked import {{mod}}")
+
+sys.addaudithook(audit_hook)
+sys.argv = ["{iso}", "{neutral}"]
+runpy.run_path("{iso}", run_name="__main__")
+'''
+        runner_path = os.path.join(td, "_secure_runner.py")
+        open(runner_path, "w").write(secure_runner)
         proc = subprocess.run(
-            [sys.executable, iso, neutral],
+            [sys.executable, runner_path],
             capture_output=True,
             text=True,
             timeout=60,
             cwd=td,
-            env=env,
         )
     assert proc.returncode == 0, (
         f"exit {proc.returncode} on {path}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
