@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/fuel-cell-membrane-blister-pressure"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write from scratch Python script that parses custom FMBP binary with pressure trace from fuel cell membrane blister and counts blister pressure via conserved total pressure to get true blister pressure in kilopascals for main blister event despite sensor low pass smear and thermal baseline drift and pump vibration blips."
+description = "Fuel cell test stand logs pressure after blister pop. File is FMBP binary with Nafion membrane blister pressure burst smeared by amplifier. Need true burst pressure in kPa for main pop using robust background and mass based clustering. Distinct story from chuck charge and PCB void."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["fuelcell", "membrane", "blister", "pressure", "binaryparsing", "fromscratch", "membranefailure"]
 
