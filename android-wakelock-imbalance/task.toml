@@ -2,7 +2,7 @@ schema_version="1.1"
 
 [task]
 name="codimango/android-wakelock-imbalance"
-description="Android wakelock imbalance: parse custom WKLK binary with power manager acquire release events from doze, detect leaked wakelocks where acquire exceeds release and compute total leaked duration ms. Different from bitmap pool leak detector via wakelock power manager framing and free rider handling and cycle handling."
+description="Android power lab wakelock imbalance after Doze: phone power manager dumps WKLK trace with acquire/release events with timestamp and thread id from concurrent logger. Custom little-endian binary with magic WKLK, version, event count, data_offset with garbage padding containing fake WKLK magic. After offset N events each 16 bytes int32 id signed, u32 type 1 acquire 0 release, u32 timestamp ms, u32 thread id. Same id can be held by several threads independently each (id,thread) is independent hold counted separately. Agent must implement from-scratch Python stdlib only to parse binary respecting data_offset, reconstruct chronological order with stable sort for same ms collisions, track per-pair holds with even ids ref-counted vs odd binary idempotent, handle duplicate idempotent logs, dangling releases, cross-thread release no-ops, thread 0 per-id global force-release that clears all holders of that id, and id 0 from thread 0 full system suspend that clears all ids, plus per-pair last observation not global trace end and final interval only with zero age for single acquire and duplicate updates last. Different from bitmap pool leak detector via wakelock power manager framing and thread affinity and final interval and refcount handling."
 authors=[{name="Tosin Daniel Jimoh", email="purple29th@meta.com"}]
 keywords=["android","wakelock","power-manager","binary-parsing","from-scratch","leak"]
 format="terminal_bench_single_turn"
@@ -12,11 +12,11 @@ workstream="swe_public_repo"
 author_name="Tosin Daniel Jimoh"
 author_email="purple29th@meta.com"
 difficulty="hard"
-category="software_engineering"
+category="data-science"
 category_subdomain="mobile_android"
 category_usecase="resource_handling"
 reward_type="binary"
-tags=["android","wakelock-leak","power-manager","binary-parsing","from-scratch","resource-handling","thread-affinity","final-interval","leak-detection"]
+tags=["android","wakelock-leak","power-manager","binary-parsing","from-scratch","resource-handling","thread-affinity","final-interval","leak-detection","time-series","concurrency","doze"]
 expert_time_estimate_min=60.0
 junior_time_estimate_min=200.0
 
