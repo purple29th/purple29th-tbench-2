@@ -2,35 +2,33 @@
 
 ## Description
 
-Agent writes from-scratch `/app/solve.py` (stdlib only) reading custom photoluminescence film scan `.ppha` magic `PPHA` of pinhole defects in perovskite PV films and reporting true dead area mm².
+Agent writes from-scratch file at /app/solve.py using only standard library reading custom photoluminescence film scan with magic PPHA of pinhole defects in perovskite PV films and reporting true dead area in square millimetres.
 
-PL imaging smears: photo-generated carrier diffusion + sCMOS lens Airy spread is normalized blur conserving total quenched PL but inflating apparent dark area ~2×. Threshold counting fails 90-130% over (halo) or 40-55% under (thin feathered pinhole arms partial coverage). No fixed level works across films due to gain, background, diffusion length, noise shift.
+PL imaging smears because photo generated carrier diffusion plus lens Airy spread is normalized blur conserving total quenched PL but inflating apparent dark area roughly twice. Threshold counting fails ninety to one hundred thirty percent over due to halo or forty to fifty five percent under due to thin feathered arms partial coverage. No fixed level works across films due to gain background diffusion noise shift.
 
-Correct method intensity conservation: true pixels = sum(bg-subtracted over pinhole+halo)/plateau. Needs median/MAD lower-half background, largest-mass 8-connected component to discard coating dust specks, filtered top-12 plateau via 3×3 mean, adaptive halo growth to 1×sigma floor without bridging specks, area = count * sx*sy anisotropic.
-
-Sister family: `foundry-thermal-subvoxel-void`, `ceramic-sinter-pore-subvoxel-void`, `solar-wafer-microcrack-true-area`, `confocal-gold-subvoxel-volume`, `ink-blot-subvoxel-area`, `aero-composite-delam-subvoxel-area` – same hard reasoning (blur conserves energy, speck removal, plateau, halo, 3% tolerance). This variant is perovskite PL pinhole area mm², name avoids void/sub.
+Correct method is intensity conservation where true pixels equals sum of background subtracted signal over pinhole plus halo divided by plateau. That needs background estimation, isolation of main pinhole from dust, plateau via local mean filtered peak, and adaptive halo growth to noise floor without bridging specks. Area equals count times sx sy anisotropic.
 
 ## Completion Rates
 
-Projected from sisters:
+Projected:
 
 | Model | Pass | Notes |
 |-------|------|-------|
-| `claude-opus-4-8` | 2-3/5 40-60% | sensitive to speck_heavy |
-| `gpt-5.5` | 1-2/5 20-40% | halo or branches |
-| `meta/avocado` | 1-3/5 20-60% | background bias |
-| `oracle` | 3/3 100% <1% error |
+| claude-opus-4-8 | 2-3/5 40-60% | sensitive to speck_heavy |
+| gpt-5.5 | 1-2/5 20-40% | halo or branches |
+| meta/avocado | 1-3/5 20-60% | background bias |
+| oracle | 3/3 100% less than one percent error |
 
 ## Model Analysis
 
-Fail modes: threshold any level 12-130% error, global integration without speck removal fails speck_heavy 5-8% over, raw max plateau 5-10% error, missing halo 15-25% under, counting pixels not energy 30%+ error. Requires binary parsing magic PPHA, dtype 2=int16 16=float32, nx ny, sx sy mm/pixel, offset 28, x-fastest, robust background, 8-connected main, filtered plateau, halo growth.
+Fail modes are threshold any level twelve to one hundred thirty percent error, global integration without speck removal fails speck_heavy five to eight percent over, raw max plateau five to ten percent error, missing halo fifteen to twenty five percent under, counting pixels not energy thirty percent plus error. Requires binary parsing magic PPHA dtype nx ny sx sy millimetre per pixel offset, x fastest, robust background, main component isolation, filtered plateau, halo growth.
 
 ## Anti-Cheating Analysis
 
-- Hardcoded: hidden scans generated at runtime temp dir random `input_<hex>.ppha`, truth = clean set size * pitch, different vs sample 8.16 vs 8.5/11.1/9.7 mm².
-- Overfitting: only scene.ppha in image, different pitch/diffusion/noise than hidden.
-- Secure runner: sys.addaudithook blocking /tests, test_outputs, heldout, _gen, GEOM_TRUTH etc., blocking listdir/scandir/walk, blocking os.system/popen/exec/fork, subprocess/socket, blocking banned imports os/io/pathlib/glob etc.
-- From-scratch: AST checks numpy/scipy/skimage/cv2/PIL/pandas/torch/..., banned calls eval/exec/compile/__import__/chr, attrs system/popen/walk/listdir, substr bans /tests etc., bans chr(, fromhex, b64decode, pathlib, rglob, glob(.
-- New domain: perovskite PL pinhole distinct from PV wafer EL microcrack, ceramic sinter pore, thermal turbine void, gold tumor, ink blot – uses slot-die coating, perovskite, PL quench, shunt-risk – dedup NOVEL.
+Hardcoded outputs are prevented because hidden scans are generated at runtime in temporary directory with random names, truth equals clean set size times pitch, different versus sample.
+Overfitting is prevented because only scene file is in image, different pitch diffusion noise than hidden.
+Secure runner uses audit hook blocking sensitive paths, blocking directory listings, blocking system popen exec fork and subprocess socket, blocking banned imports.
+From-scratch guard uses AST checks for banned libraries and calls and attrs and substr bans.
+New domain uses perovskite PL pinhole with slot die coating PL quench shunt risk, embedding dedup novel.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>

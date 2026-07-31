@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/rebar-pit-beam-artifact-true-volume"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "From-scratch parser for custom industrial CT rebar pit scan (.rpbv, magic RPBV) of corrosion pits in steel rebar inside concrete. Beam hardening creates a spatially varying background (gradient) plus X-ray scatter blur that conserves total signal but inflates apparent pit volume. Task asks for true pit volume mm3. Pit is elongated along rebar, while powder/bubble artefacts are round and can be heavier than the pit, so largest-mass alone fails. Requires robust local background, shape filtering by aspect ratio to discard round specks, filtered plateau, and halo growth that avoids bridging to nearby specks. 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["rebar", "corrosion-pit", "industrial-CT", "beam-hardening", "gradient-background", "shape-filter", "true-volume", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["rebar", "corrosion", "beam-hardening", "gradient", "shape-filter", "true-volume", "from-scratch", "binary-parsing", "intensity-conservation"]
+expert_time_estimate_min = 90.0
+junior_time_estimate_min = 250.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
