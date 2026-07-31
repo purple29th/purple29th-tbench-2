@@ -17,9 +17,16 @@ def _gauss_kernel1d(sigma, radius):
 
 
 def _blur_2d(vol, nx, ny, sig_xy):
-    # simple separable isotropic-ish but uses sig_xy for both axes with slight anisotropy via same sigma
-    r = max(1, int(math.ceil(3.5 * sig_xy)))
-    k = _gauss_kernel1d(sig_xy, r)
+    # backwards compat: isotropic wrapper around anisotropic version
+    return _blur_2d_aniso(vol, nx, ny, sig_xy, sig_xy)
+
+
+def _blur_2d_aniso(vol, nx, ny, sig_x, sig_y):
+    # separable anisotropic Gaussian; conserves total signal
+    rx = max(1, int(math.ceil(3.5 * sig_x)))
+    ry = max(1, int(math.ceil(3.5 * sig_y)))
+    kx = _gauss_kernel1d(sig_x, rx)
+    ky = _gauss_kernel1d(sig_y, ry)
 
     def idx(x, y):
         return x + nx * y
@@ -30,20 +37,20 @@ def _blur_2d(vol, nx, ny, sig_xy):
         base = y * nx
         for x in range(nx):
             acc = 0.0
-            for t in range(-r, r + 1):
+            for t in range(-rx, rx + 1):
                 xx = x + t
                 if 0 <= xx < nx:
-                    acc += vol[base + xx] * k[t + r]
+                    acc += vol[base + xx] * kx[t + rx]
             a[base + x] = acc
     # y pass
     c = [0.0] * len(vol)
     for x in range(nx):
         for y in range(ny):
             acc = 0.0
-            for t in range(-r, r + 1):
+            for t in range(-ry, ry + 1):
                 yy = y + t
                 if 0 <= yy < ny:
-                    acc += a[idx(x, yy)] * k[t + r]
+                    acc += a[idx(x, yy)] * ky[t + ry]
             c[idx(x, y)] = acc
     return c
 
@@ -94,7 +101,10 @@ def build_field(cfg):
                 if (x - sx0) ** 2 + (y - sy0) ** 2 <= sr * sr:
                     clean[idx(x, y)] = float(amp)
 
-    blurred = _blur_2d(clean, nx, ny, cfg["sig_xy"])
+    if "sig_x" in cfg and "sig_y" in cfg:
+        blurred = _blur_2d_aniso(clean, nx, ny, cfg["sig_x"], cfg["sig_y"])
+    else:
+        blurred = _blur_2d(clean, nx, ny, cfg["sig_xy"])
 
     bg = cfg["bg"]
     ns = cfg["noise"]

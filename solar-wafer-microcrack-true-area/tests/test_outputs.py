@@ -86,8 +86,14 @@ def _gauss_kernel1d(sigma, radius):
 
 
 def _blur_2d(vol, nx, ny, sig_xy):
-    r = max(1, int(math.ceil(3.5 * sig_xy)))
-    k = _gauss_kernel1d(sig_xy, r)
+    return _blur_2d_aniso(vol, nx, ny, sig_xy, sig_xy)
+
+
+def _blur_2d_aniso(vol, nx, ny, sig_x, sig_y):
+    rx = max(1, int(math.ceil(3.5 * sig_x)))
+    ry = max(1, int(math.ceil(3.5 * sig_y)))
+    kx = _gauss_kernel1d(sig_x, rx)
+    ky = _gauss_kernel1d(sig_y, ry)
 
     def idx(x, y):
         return x + nx * y
@@ -97,19 +103,19 @@ def _blur_2d(vol, nx, ny, sig_xy):
         base = y * nx
         for x in range(nx):
             acc = 0.0
-            for t in range(-r, r + 1):
+            for t in range(-rx, rx + 1):
                 xx = x + t
                 if 0 <= xx < nx:
-                    acc += vol[base + xx] * k[t + r]
+                    acc += vol[base + xx] * kx[t + rx]
             a[base + x] = acc
     c = [0.0] * len(vol)
     for x in range(nx):
         for y in range(ny):
             acc = 0.0
-            for t in range(-r, r + 1):
+            for t in range(-ry, ry + 1):
                 yy = y + t
                 if 0 <= yy < ny:
-                    acc += a[idx(x, yy)] * k[t + r]
+                    acc += a[idx(x, yy)] * ky[t + ry]
             c[idx(x, y)] = acc
     return c
 
@@ -157,7 +163,10 @@ def build_field(cfg):
             for x in range(nx):
                 if (x - sx0) ** 2 + (y - sy0) ** 2 <= sr * sr:
                     clean[idx(x, y)] = float(amp)
-    blurred = _blur_2d(clean, nx, ny, cfg["sig_xy"])
+    if "sig_x" in cfg and "sig_y" in cfg:
+        blurred = _blur_2d_aniso(clean, nx, ny, cfg["sig_x"], cfg["sig_y"])
+    else:
+        blurred = _blur_2d(clean, nx, ny, cfg["sig_xy"])
     bg = cfg["bg"]
     ns = cfg["noise"]
     rng = _lcg(cfg["seed"])
@@ -259,6 +268,80 @@ BASE_CONFIGS = {
         ],
         specks=[(92, 10, 4.5), (12, 78, 3.8), (88, 78, 3.2)],
     ),
+    # --- new anisotropic / thin-branch configs that make halo-growth load-bearing ---
+    "aniso_pitch": dict(
+        dims=(102, 88),
+        spacing=(0.10, 0.14),
+        dtype=16,
+        amp=1000,
+        bg=42,
+        sig_xy=2.6,
+        noise=8,
+        seed=202,
+        object=[
+            ("ell", 48, 42, 15.5, 10.0),
+            ("box", 66, 86, 38, 42),
+            ("box", 12, 24, 38, 42),
+            ("box", 44, 50, 18, 38),
+        ],
+        specks=[(92, 10, 2.2), (12, 78, 1.6), (88, 78, 1.3)],
+    ),
+    "aniso_thin_branch": dict(
+        dims=(112, 96),
+        spacing=(0.10, 0.14),
+        dtype=16,
+        amp=700,
+        bg=50,
+        sig_x=3.6,
+        sig_y=3.2,
+        noise=12,
+        seed=500,
+        object=[
+            ("ell", 56, 48, 13.0, 9.0),
+            ("box", 56, 58, 14, 48),
+            ("box", 22, 56, 46, 48),
+            ("box", 56, 58, 52, 84),
+            ("box", 58, 90, 46, 48),
+        ],
+        specks=[(100, 12, 2.0), (12, 86, 1.6)],
+    ),
+    "aniso_lowamp_heavy": dict(
+        dims=(116, 98),
+        spacing=(0.09, 0.15),
+        dtype=16,
+        amp=500,
+        bg=48,
+        sig_x=4.5,
+        sig_y=3.0,
+        noise=18,
+        seed=700,
+        object=[
+            ("ell", 58, 50, 12.0, 8.0),
+            ("box", 58, 60, 16, 50),
+            ("box", 24, 58, 48, 50),
+            ("box", 58, 60, 54, 88),
+            ("box", 60, 92, 48, 50),
+        ],
+        specks=[(102, 12, 2.0), (12, 88, 1.6)],
+    ),
+    "aniso_pitch_opposite": dict(
+        dims=(100, 92),
+        spacing=(0.13, 0.09),
+        dtype=16,
+        amp=900,
+        bg=52,
+        sig_x=2.2,
+        sig_y=3.8,
+        noise=11,
+        seed=820,
+        object=[
+            ("ell", 48, 44, 14.0, 10.0),
+            ("box", 66, 86, 40, 44),
+            ("box", 14, 26, 40, 44),
+            ("box", 44, 50, 18, 40),
+        ],
+        specks=[(88, 10, 2.0), (10, 82, 1.6)],
+    ),
 }
 RANDOM_CONFIG = dict(
     dims=(96, 88),
@@ -282,6 +365,10 @@ ALL_TEST_CONFIGS = [
     ("heldout_2", BASE_CONFIGS["heldout_2"]),
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
+    ("aniso_pitch", BASE_CONFIGS["aniso_pitch"]),
+    ("aniso_thin_branch", BASE_CONFIGS["aniso_thin_branch"]),
+    ("aniso_lowamp_heavy", BASE_CONFIGS["aniso_lowamp_heavy"]),
+    ("aniso_pitch_opposite", BASE_CONFIGS["aniso_pitch_opposite"]),
     ("randomized", RANDOM_CONFIG),
 ]
 
