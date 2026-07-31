@@ -38,4 +38,3 @@ mcp_servers = []
 [verifier.env]
 [environment.env]
 [solution.env]
-# force v1.6 full revalidation - all files touched
