@@ -11,3 +11,4 @@ No numpy, from scratch only with struct sys math random tempfile re collections.
 
 ## Model Analysis
 Oracle 100 percent via charge conservation plus mass clustering. Naive threshold fails 65 to 95 percent high or 25 to 50 low. Count based clustering fails wide vibration bump case.
+# trigger revalidation Thu Jul 30 06:08:34 PM PDT 2026

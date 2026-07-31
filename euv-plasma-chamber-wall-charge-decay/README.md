@@ -11,3 +11,4 @@ No numpy, from scratch only. No hardcoded charge. Audit hook sandbox blocks /tes
 
 ## Model Analysis
 Oracle 100 percent via conservation plus mass clustering. Naive threshold fails 60 to 88 high or 28 to 52 low.
+# trigger revalidation Thu Jul 30 06:08:34 PM PDT 2026
