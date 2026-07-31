@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/cryo-pump-regen-gas-burst-residual-charge"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Write from scratch Python script that parses custom CRGB binary with residual pressure burst trace from cryo pump regen and counts residual gas charge via conserved total mass to get true regen burst charge in microcoulombs despite cold head low pass smear and thermal baseline drift and valve vibration blips."
+
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["cryo", "pump", "regen", "gasburst", "residualcharge", "binaryparsing", "fromscratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["cryo-pump", "regen", "gas-burst", "binary-parsing", "from-scratch", "charge-conservation"]
+expert_time_estimate_min = 70.0
+junior_time_estimate_min = 220.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
