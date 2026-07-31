@@ -3,3 +3,4 @@
 set -euo pipefail
 cp /solution/solve.py /app/solve.py
 python3 /app/solve.py /app/data/scene.ppha
+# v1.6 retrigger

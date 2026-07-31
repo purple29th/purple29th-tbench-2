@@ -453,3 +453,4 @@ def test_global_conservation_shortcut_fails_on_speck_heavy():
     assert abs(got - truth) > REL_TOL * truth, (
         f"naive should fail speck_heavy got {got:.2f} vs {truth:.2f}"
     )
+# end of verifier
