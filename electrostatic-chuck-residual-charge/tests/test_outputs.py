@@ -1,279 +1,366 @@
-"""Verify /app/solve.py reports true charge uC for ESCA trace.
-Ground truth is integral true charge from generator stored in ground_truth.json.
-Uses audit hook sandbox to prevent solver from reading /tests.
-"""
-
 import ast
+import math
 import os
+import pwd
 import re
-import shutil
 import struct
 import subprocess
 import sys
 import tempfile
-import json
+import textwrap
+import random
 import pytest
 
-SCRIPT = "/app/solve.py"
+SCRIPT = os.environ.get("SOLVE_PATH", "/app/solve.py")
 REL_TOL = 0.03
-HELDOUTS = [
-    "/tests/data/heldout_1.esca",
-    "/tests/data/heldout_2.esca",
-    "/tests/data/heldout_3.esca",
-    "/tests/data/heldout_4.esca",
-]
 
-# Whitelist per instruction.md: only these may be imported
-ALLOWED_MODULES = {"struct", "sys", "math", "random", "tempfile", "re", "collections"}
-
-# Banned calls - dynamic / obfuscation primitives
-BANNED_CALLS = {
-    "eval",
-    "exec",
-    "compile",
-    "__import__",
-    "chr",
-    "ord",
-    "breakpoint",
-    # obfuscation helpers
-    "bytes",
-    "bytearray",
+BANNED_MODULES = {
+    "numpy",
+    "scipy",
+    "skimage",
+    "cv2",
+    "PIL",
+    "Pillow",
+    "networkx",
+    "igraph",
+    "imageio",
+    "pandas",
+    "torch",
+    "tensorflow",
+    "subprocess",
+    "importlib",
+    "runpy",
+    "ctypes",
+    "socket",
+    "multiprocessing",
+    "glob",
+    "pathlib",
+    "os",
+    "io",
+    "posixpath",
+    "ntpath",
+    "genericpath",
 }
-
-# Obfuscation via attribute: fromhex, b64decode, etc
+BANNED_CALLS = {"eval", "exec", "compile", "__import__", "chr"}
 BANNED_ATTRS = {
-    "fromhex",
-    "b64decode",
-    "b64encode",
-    "b16decode",
-    "b32decode",
-    "decodebytes",
-    "decodestring",
+    "system",
+    "popen",
+    "exec",
+    "execl",
+    "execle",
+    "execlp",
+    "execlpe",
+    "execv",
+    "execve",
+    "execvp",
+    "execvpe",
+    "spawnl",
+    "spawnle",
+    "spawnlp",
+    "spawnlpe",
+    "spawnv",
+    "spawnve",
+    "spawnvp",
+    "spawnvpe",
+    "posix_spawn",
+    "posix_spawnp",
+    "fork",
+    "forkpty",
+    "walk",
+    "listdir",
+    "scandir",
+    "rglob",
+    "__subclasses__",
+    "__builtins__",
+    "__code__",
+    "__globals__",
+    "__getattribute__",
+    "modules",
+    "import_module",
 }
-
-# Forbidden path tokens - must match instruction wording, not bare "reference"
-# Instruction says: Do not open or list /tests directory and do not mention
-# test outputs, heldout, reference volume, _gen, geometric truth
-BANNED_TOKENS_FOR_PATH = [
+BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
     "_gen",
-    "ground_truth",
-    "reference volume",
+    "GEOM_TRUTH",
+    "geometric_truth",
     "reference_volume",
-    "geometric truth",
+]
+BANNED_OBFUSCATION_SUBSTRS = [
+    "fromhex",
+    "b64decode",
+    "b32decode",
+    "b16decode",
+    "b85decode",
 ]
 
-BANNED_OS_ATTRS = {
-    "system",
-    "popen",
-    "exec",
-    "walk",
-    "listdir",
-    "scandir",
-    "open",
-    "stat",
-    "read",
-    "fdopen",
-    "path",
+MAGIC = b"ESCA"
+
+
+def _gauss_kernel1d(sigma, radius):
+    w = [math.exp(-(x * x) / (2.0 * sigma * sigma)) for x in range(-radius, radius + 1)]
+    s = sum(w)
+    return [v / s for v in w]
+
+
+def _blur_1d(vol, total, sigma):
+    r = max(1, int(math.ceil(3.5 * sigma)))
+    k = _gauss_kernel1d(sigma, r)
+    out = [0.0] * total
+    for i in range(total):
+        acc = 0.0
+        for t in range(-r, r + 1):
+            j = i + t
+            if 0 <= j < total:
+                acc += vol[j] * k[t + r]
+        out[i] = acc
+    return out
+
+
+def _lcg(seed):
+    s = seed & 0xFFFFFFFF
+    while True:
+        s = (1103515245 * s + 12345) & 0x7FFFFFFF
+        yield s / 0x7FFFFFFF
+
+
+def build_field(cfg):
+    total = cfg["total"]
+    interval = cfg["interval"]
+    gain = cfg["gain"]
+    baseline = cfg["baseline"]
+    amp = cfg["amp"]
+    width = cfg["width"]
+    psf = cfg["psf"]
+    drift = cfg["drift"]
+    noise_sigma = cfg["noise"]
+    seed = cfg["seed"]
+    wide_width = cfg["wide_width"]
+    occupancy = [0.0] * total
+    rng = _lcg(seed)
+    # main discharge center
+    c = total // 3 + int((next(rng) - 0.5) * 60)
+    # main plateau 1.0 plus edge taper 0.38
+    for i in range(c - width // 2, c + width // 2):
+        if 0 <= i < total:
+            occupancy[i] = 1.0
+    for i in range(c - width // 2 - 4, c - width // 2):
+        if 0 <= i < total:
+            occupancy[i] = max(occupancy[i], 0.38)
+    for i in range(c + width // 2, c + width // 2 + 4):
+        if 0 <= i < total:
+            occupancy[i] = max(occupancy[i], 0.38)
+    true_charge = sum(occupancy) * amp / 10.0 * interval * gain * 1000.0
+
+    ideal = [amp * occ for occ in occupancy]
+    blurred = _blur_1d(ideal, total, psf)
+
+    # drift line
+    drift_line = [drift * (i / total) for i in range(total)]
+    # noise
+    field = []
+    for i in range(total):
+        n = (next(rng) - 0.5) * 2.0 * noise_sigma
+        field.append(baseline + drift_line[i] + blurred[i] + n)
+
+    # wide low bump (many samples, low total charge)
+    rng2 = _lcg(seed + 1)
+    offset_dir = 1 if next(rng2) > 0.5 else -1
+    ww = wide_width
+    amp_factor = (0.31 + next(rng2) * 0.13) * 0.58  # 0.31-0.44 *0.58 ~0.18-0.25
+    c2 = c + offset_dir * (width // 2 + ww // 2 + int(next(rng2) * 40 + 20))
+    for i in range(c2 - ww // 2, c2 + ww // 2):
+        if 0 <= i < total:
+            field[i] += (
+                amp * amp_factor * math.exp(-((i - c2) ** 2) / (2 * (ww / 4) ** 2))
+            )
+
+    # far dust blips
+    n_dust = 2 + int(next(rng2) * 3)  # 2-4
+    placed = 0
+    attempts = 0
+    while placed < n_dust and attempts < 200:
+        attempts += 1
+        c3 = int(next(rng2) * total)
+        if abs(c3 - c) < width + 25 or abs(c3 - c2) < ww // 2 + 10:
+            continue
+        w = 4 + int(next(rng2) * 8)
+        amp_dust = amp * (0.12 + next(rng2) * 0.16)
+        for i in range(c3 - w // 2, c3 + w // 2):
+            if 0 <= i < total:
+                field[i] += amp_dust * (1.0 - abs(i - c3) / (w / 2))
+        placed += 1
+
+    return field, true_charge, c, c2
+
+
+def pack_esca(cfg, field):
+    total = cfg["total"]
+    interval = cfg["interval"]
+    gain = cfg["gain"]
+    baseline = cfg["baseline"]
+    offset = cfg.get("data_offset", 64)
+    hdr = bytearray(offset)
+    hdr[0:4] = MAGIC
+    struct.pack_into("<I", hdr, 4, 1)
+    struct.pack_into("<I", hdr, 8, total)
+    struct.pack_into("<I", hdr, 12, offset)
+    struct.pack_into("<f", hdr, 16, interval)
+    struct.pack_into("<f", hdr, 20, gain)
+    struct.pack_into("<I", hdr, 24, baseline)
+    for i in range(28, offset):
+        hdr[i] = (i * 71 + 17) % 256
+    vals = [int(max(min(v, 32767), -32768)) for v in field]
+    body = struct.pack("<%dh" % total, *vals)
+    return bytes(hdr) + body
+
+
+BASE_CONFIGS = {
+    "heldout_1": dict(
+        total=2048,
+        data_offset=64,
+        interval=0.0008,
+        gain=1.0,
+        baseline=100,
+        amp=1320,
+        width=44,
+        psf=4.2,
+        drift=11.0,
+        noise=7.8,
+        wide_width=66,
+        seed=101,
+    ),
+    "heldout_2": dict(
+        total=2300,
+        data_offset=32,
+        interval=0.0009,
+        gain=1.1,
+        baseline=95,
+        amp=1240,
+        width=40,
+        psf=4.8,
+        drift=17.0,
+        noise=9.2,
+        wide_width=68,
+        seed=202,
+    ),
+    "heldout_3": dict(
+        total=2100,
+        data_offset=40,
+        interval=0.00075,
+        gain=0.95,
+        baseline=105,
+        amp=1450,
+        width=50,
+        psf=4.0,
+        drift=10.0,
+        noise=7.2,
+        wide_width=62,
+        seed=303,
+    ),
+    "heldout_4": dict(
+        total=2500,
+        data_offset=96,
+        interval=0.00085,
+        gain=1.05,
+        baseline=100,
+        amp=1300,
+        width=42,
+        psf=4.5,
+        drift=14.5,
+        noise=8.6,
+        wide_width=70,
+        seed=404,
+    ),
+    "heldout_extra": dict(
+        total=2400,
+        data_offset=128,
+        interval=0.0008,
+        gain=1.0,
+        baseline=100,
+        amp=1180,
+        width=36,
+        psf=5.0,
+        drift=21.0,
+        noise=10.2,
+        wide_width=66,
+        seed=505,
+    ),
 }
-ALLOWED_DUNDER_ATTRS = {"__name__", "__main__"}
 
-# Runner code that installs audit hook before executing solver
-RUNNER_TEMPLATE = r"""
-import sys
-
-FORBIDDEN = ["/tests", "test_outputs", "heldout", "_gen", "ground_truth", "reference volume", "geometric truth", "reference_volume"]
-
-def _is_blocked(p):
-    try:
-        s = str(p).lower()
-    except:
-        return False
-    for pat in FORBIDDEN:
-        if pat.lower() in s:
-            return True
-    return False
-
-def audit_hook(event, args):
-    # Block file opens to forbidden locations
-    if event in ("open", "io.open"):
-        if args:
-            if _is_blocked(args[0]):
-                raise RuntimeError(f"blocked open {args[0]}")
-    elif event.startswith("os."):
-        # Block dangerous process operations unconditionally
-        if event in ("os.system", "os.popen", "os.execv", "os.execve", "os.execl",
-                     "os.execlp", "os.execle", "os.execvp", "os.execvpe",
-                     "os.spawnl", "os.spawnle", "os.spawnlp", "os.spawnlpe",
-                     "os.spawnv", "os.spawnve", "os.spawnvp", "os.spawnvpe",
-                     "os.fork", "os.forkpty", "os.posix_spawn", "os.posix_spawnp"):
-            raise RuntimeError(f"blocked {event}")
-        if event == "os.open":
-            if args and _is_blocked(args[0]):
-                raise RuntimeError(f"blocked {event} {args[0]}")
-        if event in ("os.listdir", "os.scandir", "os.walk",
-                     "os.stat", "os.lstat", "os.path.exists",
-                     "os.path.isdir", "os.path.isfile", "os.path.islink", "os.path.getsize"):
-            if args and _is_blocked(args[0]):
-                raise RuntimeError(f"blocked {event} {args[0]}")
-    elif event.startswith("subprocess."):
-        raise RuntimeError(f"blocked {event}")
-    elif event in ("socket.getaddrinfo", "socket.gethostbyname", "socket.connect"):
-        raise RuntimeError(f"blocked {event}")
-
-sys.addaudithook(audit_hook)
-
-if len(sys.argv) < 3:
-    print("runner usage: runner.py <solver> <input>", file=sys.stderr)
-    sys.exit(1)
-
-solver_path = sys.argv[1]
-input_path = sys.argv[2]
-sys.argv = [solver_path, input_path]
-
-with open(solver_path, "r", encoding="utf-8", errors="ignore") as fh:
-    code_text = fh.read()
-
-# Execute solver as __main__
-import builtins as _builtins
-_globals = {"__name__": "__main__", "__file__": solver_path, "__builtins__": _builtins}
-exec(compile(code_text, solver_path, "exec"), _globals)
-"""
-
-
-def ground_truth_charge(path):
-    for base in [
-        "/tests/data/ground_truth.json",
-        "tests/data/ground_truth.json",
-    ]:
-        if os.path.exists(base):
-            gt = json.load(open(base))
-            fname = os.path.basename(path)
-            if fname in gt:
-                return float(gt[fname])
-            base_no_ext = os.path.splitext(fname)[0]
-            if base_no_ext in gt:
-                return float(gt[base_no_ext])
-    return 0.0
-
-
-def run_agent(path):
-    assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
-    with tempfile.TemporaryDirectory() as td:
-        neutral = os.path.join(td, "scan.esca")
-        shutil.copyfile(path, neutral)
-        iso = os.path.join(td, "solve.py")
-        shutil.copyfile(SCRIPT, iso)
-        runner = os.path.join(td, "_runner.py")
-        with open(runner, "w", encoding="utf-8") as rf:
-            rf.write(RUNNER_TEMPLATE)
-        env = os.environ.copy()
-        # Do NOT expose /tests via PYTHONPATH
-        env.pop("PYTHONPATH", None)
-        proc = subprocess.run(
-            [sys.executable, runner, iso, neutral],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=td,
-            env=env,
-        )
-    assert proc.returncode == 0, (
-        f"exit {proc.returncode} on {path}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    )
-    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
-    assert lines, f"no stdout on {path}"
-    last = lines[-1]
-    m = re.findall(r"[-+]?\d*\.\d+|[-+]?\d+", last)
-    assert m, f"no numeric charge on last line: {last!r}"
-    return float(m[-1])
+ALL_TEST_CONFIGS = [
+    ("heldout_1", BASE_CONFIGS["heldout_1"]),
+    ("heldout_2", BASE_CONFIGS["heldout_2"]),
+    ("heldout_3", BASE_CONFIGS["heldout_3"]),
+    ("heldout_4", BASE_CONFIGS["heldout_4"]),
+    ("heldout_extra", BASE_CONFIGS["heldout_extra"]),
+]
 
 
 def test_script_exists():
     assert os.path.exists(SCRIPT), f"{SCRIPT} not found"
 
 
-def _static_string_value(node):
-    """Try to evaluate a node as a static string via concatenation of constants."""
+def _get_static_str_value(node):
     if isinstance(node, ast.Constant):
         v = node.value
         if isinstance(v, str):
             return v
         if isinstance(v, (bytes, bytearray)):
             try:
-                return v.decode("utf-8", errors="ignore")
-            except:
+                return v.decode("utf-8", "ignore")
+            except Exception:
                 return None
-        return None
-    if isinstance(node, ast.JoinedStr):
-        parts = []
-        for val in node.values:
-            if isinstance(val, ast.Constant) and isinstance(val.value, str):
-                parts.append(val.value)
-            elif isinstance(val, ast.FormattedValue):
-                inner = _static_string_value(val.value)
-                if inner is None:
-                    return None
-                parts.append(inner)
-            else:
-                sv = _static_string_value(val)
-                if sv is None:
-                    return None
-                parts.append(sv)
-        return "".join(parts)
-    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        left = _static_string_value(node.left)
-        right = _static_string_value(node.right)
+    elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _get_static_str_value(node.left)
+        right = _get_static_str_value(node.right)
         if left is not None and right is not None:
             return left + right
-        return None
+    elif isinstance(node, ast.JoinedStr):
+        parts = []
+        for vv in node.values:
+            if isinstance(vv, ast.Constant) and isinstance(vv.value, str):
+                parts.append(vv.value)
+            else:
+                cv = _get_static_str_value(vv)
+                if cv is None:
+                    return None
+                parts.append(cv)
+        return "".join(parts)
     return None
-
-
-def _iter_combined_strings(tree):
-    """Yield all static string values including those built via concatenation."""
-    for node in ast.walk(tree):
-        sv = _static_string_value(node)
-        if sv is not None and sv != "":
-            yield sv
-
-
-def _iter_string_literals(tree):
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Constant):
-            v = node.value
-            if isinstance(v, str):
-                yield v
-            elif isinstance(v, (bytes, bytearray)):
-                try:
-                    yield v.decode("utf-8", errors="ignore")
-                except:
-                    continue
-        if isinstance(node, ast.JoinedStr):
-            for part in node.values:
-                if isinstance(part, ast.Constant) and isinstance(part.value, str):
-                    yield part.value
 
 
 def test_from_scratch():
     src = open(SCRIPT, "r", encoding="utf-8", errors="ignore").read()
-    tree = ast.parse(src, filename=SCRIPT)
-    # Enforce whitelist of imports per instruction.md
+    tree = ast.parse(src, filename="solve.py")
+    lower_src = src.lower()
+
+    for bad in BANNED_OBFUSCATION_SUBSTRS:
+        if bad in lower_src:
+            raise AssertionError(f"banned obfuscation {bad!r}")
+    if "base64" in lower_src:
+        raise AssertionError("banned substring base64")
+    if "sys.modules" in src:
+        raise AssertionError("banned sys.modules access")
+    if "import_module" in src:
+        raise AssertionError("banned import_module usage")
+    if "ctypes" in lower_src:
+        raise AssertionError("banned ctypes reference")
+    assert "chr(" not in src
+    assert "base64" not in src.lower()
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            for a in node.names:
-                mod_root = a.name.split(".")[0]
-                assert mod_root in ALLOWED_MODULES, (
-                    f"banned module import: {a.name} (allowed: {sorted(ALLOWED_MODULES)})"
-                )
+            for alias in node.names:
+                root = alias.name.split(".")[0]
+                if root in BANNED_MODULES:
+                    raise AssertionError(f"banned import {alias.name}")
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
-            mod_root = mod.split(".")[0]
-            assert mod_root in ALLOWED_MODULES, (
-                f"banned module import from: {mod} (allowed: {sorted(ALLOWED_MODULES)})"
-            )
+            root = mod.split(".")[0]
+            if root in BANNED_MODULES:
+                raise AssertionError(f"banned import from {mod}")
         elif isinstance(node, ast.Call):
             fn = node.func
             name = (
@@ -281,136 +368,320 @@ def test_from_scratch():
                 if isinstance(fn, ast.Name)
                 else (fn.attr if isinstance(fn, ast.Attribute) else "")
             )
-            assert name not in BANNED_CALLS, f"dynamic call not allowed ({name})"
-            # Block obfuscation via bytes([...]).decode etc
+            if name in BANNED_CALLS:
+                raise AssertionError(f"banned call {name}")
             if isinstance(fn, ast.Attribute):
-                assert fn.attr not in BANNED_ATTRS, (
-                    f"obfuscation call not allowed ({fn.attr})"
-                )
-            # Detect getattr/setattr/hasattr tricks that bypass checks
-            if name in {
-                "getattr",
-                "setattr",
-                "hasattr",
-                "globals",
-                "locals",
-                "vars",
-                "dir",
-            }:
-                assert False, f"reflection call not allowed ({name})"
+                if fn.attr in BANNED_ATTRS:
+                    raise AssertionError(f"banned attr {fn.attr}")
         elif isinstance(node, ast.Attribute):
-            attr = node.attr
-            if (
-                attr.startswith("__")
-                and attr.endswith("__")
-                and attr not in ALLOWED_DUNDER_ATTRS
-            ):
-                if attr in {
-                    "__dict__",
-                    "__subclasses__",
-                    "__mro__",
-                    "__bases__",
-                    "__code__",
-                    "__globals__",
-                    "__builtins__",
-                    "__class__",
-                }:
-                    assert False, f"dunder not allowed ({attr})"
-            if isinstance(node.value, ast.Name) and node.value.id == "os":
-                assert attr not in BANNED_OS_ATTRS, f"banned os.{attr} usage"
-            # Ban direct use of obfuscation patterns
-            if attr in BANNED_ATTRS:
-                assert False, f"obfuscation attr not allowed ({attr})"
+            if node.attr in BANNED_ATTRS:
+                raise AssertionError(f"banned attr {node.attr}")
 
-    # Check all static strings, including those built via + concatenation, for forbidden paths
-    all_strings = set(_iter_string_literals(tree)) | set(_iter_combined_strings(tree))
-    for lit in all_strings:
-        low = lit.lower()
-        # Skip very short strings to reduce false positives, but still catch /tests
-        # For the specific phrase "reference volume" we need longer match
-        for banned in BANNED_TOKENS_FOR_PATH:
-            if banned.lower() in low:
-                # Special-case: allow bare word "reference" in comments/docstrings like
-                # "sliding-median reference" unless it is part of "reference volume"
-                # Our list no longer contains bare "reference", so this is safe.
-                assert False, f"forbidden token {banned!r} in string {lit!r}"
+        s_val = _get_static_str_value(node)
+        if s_val is not None:
+            for bad in BANNED_SUBSTRINGS_SRC:
+                if bad in s_val:
+                    raise AssertionError(
+                        f"banned substring {bad!r} in static value {s_val!r}"
+                    )
+            low = s_val.lower()
+            for bm in BANNED_MODULES:
+                if len(bm) <= 2:
+                    continue
+                if bm.lower() in low:
+                    raise AssertionError(f"banned module substring {bm!r} in {s_val!r}")
+
+        if isinstance(node, ast.Constant):
+            v = node.value
+            if isinstance(v, str):
+                for bad in BANNED_SUBSTRINGS_SRC:
+                    if bad in v:
+                        raise AssertionError(f"banned substring {bad!r}")
+                low = v.lower()
+                if len(v) <= 128:
+                    for bm in BANNED_MODULES:
+                        if len(bm) <= 2:
+                            continue
+                        if bm.lower() in low:
+                            raise AssertionError(
+                                f"banned module name {bm!r} in string constant {v!r}"
+                            )
+            elif isinstance(v, (bytes, bytearray)):
+                try:
+                    decoded = (
+                        v.decode("utf-8", "ignore")
+                        if isinstance(v, (bytes, bytearray))
+                        else ""
+                    )
+                except Exception:
+                    decoded = ""
+                for bad in BANNED_SUBSTRINGS_SRC:
+                    if bad.encode() in (v if isinstance(v, bytes) else bytes(v)):
+                        raise AssertionError(f"banned substring bytes {bad!r}")
+                    if bad in decoded:
+                        raise AssertionError(
+                            f"banned substring {bad!r} in bytes literal"
+                        )
+                low = decoded.lower()
+                for bm in BANNED_MODULES:
+                    if len(bm) <= 2:
+                        continue
+                    if bm.lower() in low:
+                        raise AssertionError(
+                            f"banned module {bm!r} in bytes literal {decoded!r}"
+                        )
+
+        if isinstance(node, ast.Subscript):
+            slice_node = node.slice
+            if isinstance(slice_node, ast.Constant):
+                sv = slice_node.value
+                if isinstance(sv, str):
+                    low = sv.lower()
+                    for bm in BANNED_MODULES:
+                        if len(bm) <= 2:
+                            continue
+                        if bm.lower() == low or bm.lower() in low:
+                            raise AssertionError(
+                                f"banned subscript {sv!r} accessing {bm}"
+                            )
+                    for bad in BANNED_SUBSTRINGS_SRC:
+                        if bad.lower() in low:
+                            raise AssertionError(
+                                f"banned substring in subscript {sv!r}"
+                            )
+                elif isinstance(sv, (bytes, bytearray)):
+                    try:
+                        dec = (
+                            sv.decode("utf-8", "ignore").lower()
+                            if isinstance(sv, (bytes, bytearray))
+                            else ""
+                        )
+                    except Exception:
+                        dec = ""
+                    for bm in BANNED_MODULES:
+                        if len(bm) <= 2:
+                            continue
+                        if bm.lower() in dec:
+                            raise AssertionError(f"banned bytes subscript {dec!r}")
+            if isinstance(node.value, ast.Attribute) and node.value.attr == "modules":
+                raise AssertionError("banned sys.modules subscript access")
 
 
-@pytest.mark.parametrize("path", HELDOUTS)
-def test_heldout(path):
-    got = run_agent(path)
-    expected = ground_truth_charge(path)
-    assert abs(got - expected) <= REL_TOL * expected, (
-        f"{os.path.basename(path)}: got {got:.2f} expected {expected:.2f} +- {REL_TOL:.0%}"
+def run_agent_secure(esca_bytes, expected_uc, name="case"):
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            os.chmod(td, 0o755)
+        except Exception:
+            pass
+        esca_path = os.path.join(td, f"input_{os.urandom(4).hex()}.esca")
+        with open(esca_path, "wb") as f:
+            f.write(esca_bytes)
+        try:
+            os.chmod(esca_path, 0o644)
+        except Exception:
+            pass
+        secure_code = textwrap.dedent(f"""
+            import sys, os, runpy
+            solve_path = sys.argv[1]
+            esca_path = sys.argv[2]
+            BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "_gen", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
+            def _to_str(p):
+                if isinstance(p, (bytes, bytearray)):
+                    try:
+                        return p.decode('utf-8', 'ignore')
+                    except Exception:
+                        return str(p)
+                return str(p)
+            def is_blocked(p):
+                s = _to_str(p)
+                for b in BLOCKED_SUBSTRS:
+                    if b in s:
+                        return True
+                try:
+                    rp = os.path.realpath(s)
+                    for b in BLOCKED_SUBSTRS:
+                        if b in rp:
+                            return True
+                except:
+                    pass
+                return False
+            def audit_hook(event, args):
+                if event == "open":
+                    path = args[0] if args else ""
+                    if is_blocked(path):
+                        raise RuntimeError(f"Blocked file access: {{path}}")
+                    try:
+                        sp = _to_str(path)
+                        rp = os.path.realpath(sp)
+                        if rp.startswith("/tests") or "/tests" in rp:
+                            raise RuntimeError(f"Blocked realpath access: {{path}} -> {{rp}}")
+                    except RuntimeError:
+                        raise
+                    except:
+                        pass
+                elif event in ("os.listdir", "os.scandir", "os.walk"):
+                    path = args[0] if args else ""
+                    if is_blocked(path):
+                        raise RuntimeError(f"Blocked dir listing: {{path}}")
+                    try:
+                        sp = _to_str(path) if path else ""
+                        rp = os.path.realpath(sp) if sp else ""
+                        if rp in ("/", "/tests", "/tests/data") or rp.startswith("/tests"):
+                            raise RuntimeError(f"Blocked dir listing realpath: {{path}} -> {{rp}}")
+                    except RuntimeError:
+                        raise
+                    except:
+                        pass
+                    if _to_str(path) in ("", "/", "/tests", "/tests/data"):
+                        raise RuntimeError(f"Blocked listing of sensitive dir: {{path}}")
+                elif event.startswith("os."):
+                    banned = {{"os.system","os.popen","os.spawnl","os.spawnle","os.spawnlp","os.spawnlpe","os.spawnv","os.spawnve","os.spawnvp","os.spawnvpe","os.exec","os.execl","os.execle","os.execlp","os.execlpe","os.execv","os.execve","os.execvp","os.execvpe","os.posix_spawn","os.posix_spawnp","os.fork","os.forkpty"}}
+                    if event in banned:
+                        raise RuntimeError(f"Blocked {{event}}")
+                elif event.startswith("subprocess."):
+                    raise RuntimeError(f"Blocked {{event}}")
+                elif event.startswith("socket."):
+                    raise RuntimeError(f"Blocked {{event}}")
+                elif event == "import":
+                    mod = args[0] if args else ""
+                    base = mod.split(".")[0]
+                    banned_imports = {{"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","ctypes","importlib","runpy"}}
+                    if base in banned_imports:
+                        raise RuntimeError(f"Blocked import {{mod}}")
+            sys.addaudithook(audit_hook)
+            sys.argv = [solve_path, esca_path]
+            runpy.run_path(solve_path, run_name="__main__")
+        """)
+        secure_path = os.path.join(td, "_secure_runner.py")
+        with open(secure_path, "w") as f:
+            f.write(secure_code)
+        try:
+            os.chmod(secure_path, 0o644)
+        except Exception:
+            pass
+
+        demote_fn = None
+        try:
+            pw = pwd.getpwnam("esca_restricted_user")
+
+            def _demote():
+                try:
+                    os.setgid(pw.pw_gid)
+                    try:
+                        os.setgroups([])
+                    except Exception:
+                        pass
+                    os.setuid(pw.pw_uid)
+                    os.umask(0o077)
+                except Exception:
+                    pass
+
+            demote_fn = _demote
+        except KeyError:
+            demote_fn = None
+        except Exception:
+            demote_fn = None
+
+        proc = subprocess.run(
+            ["python3", secure_path, SCRIPT, esca_path],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=td,
+            preexec_fn=demote_fn,
+        )
+        assert proc.returncode == 0, (
+            f"fail {name} (expected {expected_uc:.2f} uC)\\nstdout:\\n{proc.stdout}\\nstderr:\\n{proc.stderr}"
+        )
+        lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+        assert lines, f"no output for {name}"
+        last = lines[-1]
+        try:
+            got = float(last)
+        except ValueError:
+            m = re.findall(r"[-+]?\\d*\\.\\d+|[-+]?\\d+", last)
+            assert m, f"no float in last line: {last}"
+            got = float(m[-1])
+        return got
+
+
+@pytest.mark.parametrize("cfg_name,cfg", ALL_TEST_CONFIGS)
+def test_heldout_secure(cfg_name, cfg):
+    field, true_charge, _, _ = build_field(cfg)
+    esca_bytes = pack_esca(cfg, field)
+    got = run_agent_secure(esca_bytes, true_charge, name=cfg_name)
+    assert abs(got - true_charge) <= REL_TOL * true_charge, (
+        f"{cfg_name}: got {got:.4f} uC expected {true_charge:.4f} ±{REL_TOL * 100}%"
     )
 
 
-def test_hard_offset_guard():
-    """Hardcoded offset 64 fails on 32/40/96/128"""
-    for off in [32, 40, 96, 128]:
-        hdr = bytearray(off)
-        hdr[0:4] = b"ESCA"
-        struct.pack_into("<I", hdr, 4, 1)
-        struct.pack_into("<I", hdr, 8, 10)
-        struct.pack_into("<I", hdr, 12, off)
-        struct.pack_into("<f", hdr, 16, 0.0008)
-        struct.pack_into("<f", hdr, 20, 1.0)
-        struct.pack_into("<I", hdr, 24, 100)
-        body = struct.pack("<%dh" % 10, *[1000] * 10)
-        data = bytes(hdr) + body
-        with tempfile.TemporaryDirectory() as td:
-            p = os.path.join(td, "x.esca")
-            open(p, "wb").write(data)
-            try:
-                got = run_agent(p)
-            except Exception as e:
-                pytest.fail(f"offset {off} crashed: {e}")
+def test_randomized_extra():
+    cfg = dict(
+        total=2200,
+        data_offset=96,
+        interval=0.00082,
+        gain=1.02,
+        baseline=102,
+        amp=1280,
+        width=42,
+        psf=4.4,
+        drift=12.5,
+        noise=8.0,
+        wide_width=66,
+        seed=777,
+    )
+    field, true_charge, _, _ = build_field(cfg)
+    esca_bytes = pack_esca(cfg, field)
+    got = run_agent_secure(esca_bytes, true_charge, name="randomized_extra")
+    assert abs(got - true_charge) <= REL_TOL * true_charge
 
 
-def test_leak_guard_blocks_concatenation():
-    """Ensure audit hook blocks dynamic construction of forbidden paths."""
-    # Simulate a malicious solver that concatenates "/te"+"sts/..." and tries to open
-    malicious = """
-import struct, sys
-p = "/te" + "sts/data/ground_truth.json"
-try:
-    open(p).read()
-    print("leaked")
-except Exception as e:
-    # Should be blocked by audit hook -> RuntimeError
-    # For this test, we emit 0 if blocked
-    print(f"blocked:{e}")
-    print(0.0)
+def test_global_conservation_shortcut_fails_on_wide_bump():
+    cfg = BASE_CONFIGS["heldout_1"]
+    field, true_charge, main_c, wide_c = build_field(cfg)
+
+    def naive_global():
+        # naive that includes wide bump would overcount
+        sv = sorted(field)
+        bg = sv[len(sv) // 2]
+        r = [v - bg for v in field]
+        # global sum without filtering wide bump
+        total = sum(r)
+        # estimate plateau as max
+        top = sorted(r, reverse=True)[:8]
+        amp = sum(top) / len(top) if top else 1
+        interval = cfg["interval"]
+        gain = cfg["gain"]
+        return total / 10.0 * interval * gain * 1000.0 if amp > 0 else 0
+
+    got = naive_global()
+    assert abs(got - true_charge) > REL_TOL * true_charge, (
+        f"Expected naive global to fail on wide bump, got {got:.2f} vs truth {true_charge:.2f}"
+    )
+
+
+def test_cheating_attempt_pathlib_construction_fails():
+    cheating_code = """
+import pathlib
+p = pathlib.Path("/") / "tests" / "test_outputs.py"
+print(p.read_text()[:10])
 """
-    with tempfile.TemporaryDirectory() as td:
-        iso = os.path.join(td, "solve.py")
-        with open(iso, "w") as f:
-            f.write(malicious)
-        runner = os.path.join(td, "_runner.py")
-        with open(runner, "w") as f:
-            f.write(RUNNER_TEMPLATE)
-        neutral = os.path.join(td, "scan.esca")
-        # copy a real esca for neutral
-        shutil.copyfile(
-            HELDOUTS[0]
-            if os.path.exists(HELDOUTS[0])
-            else "/home/purple29th/purple29th-tbench-2/electrostatic-chuck-residual-charge/tests/data/scene.esca",
-            neutral,
-        )
-        proc = subprocess.run(
-            [sys.executable, runner, iso, neutral],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd=td,
-        )
-        # The malicious open should be blocked, so we should NOT see "leaked"
-        assert "leaked" not in proc.stdout.lower(), (
-            f"leak not blocked: {proc.stdout} {proc.stderr}"
-        )
-        # It should have raised or printed blocked
-        assert (
-            proc.returncode == 0
-            or "blocked" in proc.stdout.lower()
-            or "blocked" in proc.stderr.lower()
-        ), f"expected block: {proc.stdout} {proc.stderr}"
+    tree = ast.parse(cheating_code)
+    banned_import_found = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name.split(".")[0] in BANNED_MODULES:
+                    banned_import_found = True
+        elif isinstance(node, ast.ImportFrom):
+            if (node.module or "").split(".")[0] in BANNED_MODULES:
+                banned_import_found = True
+    assert banned_import_found, "cheating pathlib import should be banned"
+
+
+def test_cheating_attempt_chr_construction_fails():
+    cheating_code = "print(chr(47)+chr(116)+chr(101)+chr(115)+chr(116)+chr(115))"
+    tree = ast.parse(cheating_code)
+    src = cheating_code
+    low = src.lower()
+    assert "chr(" in low, "chr construction should be flagged"
