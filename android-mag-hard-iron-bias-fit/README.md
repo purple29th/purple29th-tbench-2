@@ -13,8 +13,8 @@ Input is Nx3 array of raw readings in uT. Output is dict with bx by bz radius as
 
 ## Files
 * mag_calibration.py is main module agent must create, function estimate_hard_iron_bias
-* data/sample_orbit.csv is sample for local dev, 500 points, bias 15, negative 20, 8, R 45, no soft iron, also copied to /app/data/sample_orbit.csv in image
-* environment/Dockerfile installs python3 plus numpy plus pytest, copies sample
+* data/sample_orbit.csv is sample for local dev, 500 points, bias 15, negative 20, 8, R 45, no soft iron, available as data/sample_orbit.csv for local dev
+* environment/Dockerfile installs python3 plus numpy
 * tests/test_outputs.py is evaluation suite with soft iron and dwell tests
 
 ## Completion Criteria
