@@ -36,3 +36,5 @@ From-scratch guard uses AST checks for banned libs plus banned calls and attrs a
 New domain uses PV wafer EL microcrack area with carrier diffusion dust artefacts, embedding dedup novel.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
+
+v1.3 aniso fix validated Fri Jul 31 10:12:37 AM PDT 2026
