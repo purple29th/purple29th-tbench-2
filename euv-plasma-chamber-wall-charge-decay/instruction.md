@@ -17,9 +17,9 @@ Offset 24 float64 gain.
 Offset 32 uint32 spare.
 Offset 36 float32 wall temp hint, ignore because drift.
 
-Header at least 40 bytes up to data offset which varies 48 64 80 96 128 plus random padding. Always use data offset field.
+Header at least 40 bytes up to data offset which varies 48 64 80 128 plus random padding. Always use data offset field.
 
-Payload at data offset is N int32 little endian values. Each is probe current in nano amps. So divide by 1e6 to get milliamps? Actually 1 nA equals 1e-6 mA, then to amps divide by 1e3. So conversion chain is nA divided by 1e9 to get amps.
+Payload at data offset is N int32 little endian values. Each is probe current in nano amps. To get amps divide nano amps by 1e9.
 
 Trace contents are baseline drift from wall heating plus noise plus one real wall discharge with long low tails from RF filter, plus a few tiny far blips from shutter moves, plus one very wide low hump from chamber fan. The wide hump has huge count but low total charge, so counting by number of samples picks the wrong hump. The real event is largest charge mass.
 
@@ -29,7 +29,7 @@ Blur conserves charge. So integrate background subtracted smeared signal over ma
 
 Grading three percent.
 
-Allowed modules are struct sys math random tempfile re collections. Forbidden are numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os pty importlib runpy ctypes. Forbidden calls eval exec compile import chr. Forbidden tricks subprocess os system popen exec fork walk listdir scandir open pty importlib runpy and any path hiding via chr bytes fromhex base64 b64decode bytearray. Do not open or list tests directory and do not mention test outputs heldout reference volume _gen geometric truth.
+Allowed modules are struct sys math random tempfile re collections. Forbidden are numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os pty importlib runpy ctypes. Forbidden calls eval exec compile __import__ chr ord breakpoint bytes bytearray. Forbidden tricks subprocess os system popen exec fork walk listdir scandir open pty importlib runpy and any path hiding via chr bytes fromhex base64 b64decode bytearray. Your code must work on any temporary file path, not a fixed path.
 
 Print final charge as last word.
 
