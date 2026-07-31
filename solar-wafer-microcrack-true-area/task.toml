@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/solar-wafer-microcrack-true-area"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "From-scratch Python parser for a custom electroluminescence wafer scan (.elcr, magic ELCR) of microcracks in monocrystalline PV wafers. Carrier diffusion plus lens PSF creates a normalized blur that conserves total dark signal but inflates apparent crack area by ~2x. Task asks for true electrically dead area in mm2. Bright-counting fails 80-130% over or 30-50% under across batches due to varying gain and diffusion width. Solution needs robust background median/MAD, largest-mass 8-connected component to discard dust specks, filtered top-K plateau, and adaptive halo growth to noise floor before converting integrated energy to area using anisotropic pixel pitch. 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["pv-wafer", "microcrack", "electroluminescence", "carrier-diffusion", "true-area", "from-scratch", "binary-parsing", "intensity-conservation"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["pv", "solar-wafer", "microcrack", "EL-imaging", "carrier-diffusion", "true-area", "from-scratch", "binary-parsing", "intensity-conservation"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
