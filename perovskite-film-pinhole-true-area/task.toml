@@ -38,4 +38,3 @@ mcp_servers = []
 [verifier.env]
 [environment.env]
 [solution.env]
-

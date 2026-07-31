@@ -32,5 +32,3 @@ From-scratch guard uses AST checks for banned libraries and calls and attrs and 
 New domain uses perovskite PL pinhole with slot die coating PL quench shunt risk, embedding dedup novel.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
-
-<!-- restore: accidental PR reverted accepted state, this commit restores v1.1 accepted + docstring fix from v1.2, no logic change, oracle 3/3 -->
