@@ -38,18 +38,10 @@ def generate_trace(
     try:
         import numpy as np
         import scipy.ndimage as ndi
-    except:
-        np = None
-    if np is None:
-        vals = [baseline] * total
-        c = total // 3
-        for i in range(c - width // 2, c + width // 2):
-            if 0 <= i < total:
-                vals[i] = baseline + plateau
-        true_charge = (
-            width * plateau / 100.0 * interval * gain
-        )  # uC per instruction: sum/100 * period * gain
-        return vals, true_charge
+    except ImportError as e:
+        raise ImportError(
+            "numpy and scipy required to generate CRYO traces, install with pip"
+        ) from e
     rng = np.random.RandomState(seed)
     occupancy = np.zeros(total, dtype=float)
     c = total // 3 + rng.randint(-35, 35)
