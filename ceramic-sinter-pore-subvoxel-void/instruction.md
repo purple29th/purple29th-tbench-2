@@ -1,29 +1,39 @@
-You are in a ceramics additive lab inspecting sintered silicon carbide parts made by binder jetting plus sintering. After firing, internal pores remain that hurt strength. Micro-CT sees them but the X-ray focal spot is not a point and Compton scatter spreads signal everywhere, so each pore glows as a large fuzzy cloud much bigger than its true solid void.
+I run quality checks on ballistic ceramic tiles that were formed by spark-plasma sintering of silicon carbide powder. After densification there are often sealed internal pores left behind that become crack initiation points. We image tiles with a cone-beam lab micro-CT system at 90 kV.
 
-Create a program that reports the true physical size of the main internal pore in cubic millimetres, not the smeared X-ray cloud. Precision matters for fracture prediction.
+The problem is the imaging itself lies. The X-ray source is not an ideal point, the detector has a scintillator spread, and there is Compton scatter inside the dense tile. The combined effect is a blur that keeps the total signal energy but pushes it outward into a wide fuzzy fringe. So on screen a pore that is actually compact looks like a huge glowing cloud. Customer wants the real geometric pore size in mm³, not the apparent cloud size.
 
-Your program must be saved as `/app/solve.py`. It will be invoked as `python /app/solve.py <scan_path>` and the last word it prints will be taken as the volume.
+You must write the tool that does this.
 
-You are provided one example scan for local testing at `/app/data/scene.cspv`. You may read this file while developing, but hidden grading uses different scans you have never seen, with different dimensions, spacings, brightness, ceramic density, and voxel pitch, passed as random temporary files. Do not hardcode numbers or paths from the example; your solver must work on any file path given as the first argument. Hardcoding the sample volume will fail the hidden volume checks.
+Save it as /app/solve.py. Grader runs python /app/solve.py <path_to_scan> and takes the final whitespace token from stdout as your answer.
 
-Format .cspv is a custom binary for ceramic sinter pore volumes. Everything is little-endian:
+We include one tile scan to develop with: /app/data/scene.cspv . You can open that while coding. The hidden evaluation set uses completely different scans that vary in grid shape, voxel pitch, ceramic bulk density, pore brightness, scatter width, background level, and noise. They are passed as randomly named temporary files. Do not embed numbers or absolute paths from the example file. Any solution that hardcodes the example volume fails the hidden checks.
 
-* Offset 0: magic `CSPV` four ASCII bytes.
-* Offset 4: version uint32.
-* Offset 8: dtype code uint32. 2 means int16 voxels, 16 means float32 voxels.
-* Offset 12: three uint32 values for voxel counts per axis, nx, ny, nz.
-* Offset 24: three float32 values for millimetres per voxel per axis, sx, sy, sz. These change per file and must be read from the header.
-* Offset 36: uint32 data offset where voxel values start.
-* After data offset: nx * ny * nz values in the announced dtype, x fastest, so linear index for x,y,z is `x + nx * (y + ny * z)`.
+File format – .cspv – small custom container, all little-endian:
 
-Each volume contains one solid pore where signal is negative contrast (dark void) stored as inverted bright signal after inversion for easier processing: the pore interior is flat and hot where inverted void signal saturates, the border is dimmer with partial fill smeared by X-ray blur. There is a flat ambient background plus sensor noise. Some scans have one or two tiny bright specks far away from powder artefacts that must be ignored. Keep only the main connected pore mass using 26-neighbour connectivity.
+- bytes 0-3: ASCII magic CSPV
+- 4-7: uint32 version
+- 8-11: uint32 data type tag: 2 = signed int16, 16 = float32
+- 12-23: three uint32 dimensions: nx, ny, nz (voxels along x,y,z)
+- 24-35: three float32 scale factors: sx, sy, sz in mm per voxel (anisotropic and file dependent – you must read it)
+- 36-39: uint32 offset to start of voxel block
+- from offset onward: nx*ny*nz samples in the declared type, x moves fastest, so linear address for (x,y,z) is x + nx * ( y + ny * z ). In the file the dark void was inverted during export so that pore voxels appear bright.
 
-Threshold counting cannot be precise. A low cutoff includes a huge halo and overcounts by eighty to one hundred thirty percent. A high cutoff misses thin sintering cracks that never get bright enough and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and diffusion width change. The blurry images give the best clue where signal is most concentrated, not how many bright voxels there are. The true core is flat but hidden by blur noise.
+What is inside each file:
+A single dominant sealed pore (the one we grade) plus sometimes one or two tiny isolated bright dots far away caused by un-sintered powder granules. Those dots must not be counted. To get rid of them keep only the principal connected structure using 26-neighbour volumetric connectivity and choose the component with the most integrated excess signal. The pore interior has a flat saturated plateau, edges are diluted by partial volume and then further smeared by the X-ray blur. The rest of the tile is a roughly flat matrix brightness plus detector noise.
 
-The blur spreads energy but does not create or destroy signal. That physics makes precise volume recovery possible despite smear, but using it requires separating the main pore from far specks, estimating background without bias from the pore itself, estimating the true concentrated level without being fooled by noise, and deciding how far the faint halo extends without merging specks. That is the hard part.
+Why naive voxel counting does not work here:
+If you count everything above a generous brightness you absorb the diffuse halo that surrounds every pore and the result is roughly double the true physical size, sometimes more. If you count only very bright voxels you miss the thin fissure-like extensions from sintering shrinkage – those never become fully bright because of partial filling – and you end up at about half the true size. No single global level works across the product line because overall gain, tile density, blur width and noise floor all shift per batch. Counting bright voxels is a proxy; integrating total energy is the physical invariant.
 
-Simple shortcuts are off by a large margin. Grading is at three percent tolerance; only a genuine precise method passes.
+Blur conserves counts. That is the key that allows sub-voxel recovery. But using it correctly is a small pipeline of its own: first get an unbiased estimate of background matrix level without letting the pore itself bias you, next get a robust estimate of background scatter (noise sigma), then isolate the main pore energy from the far specks, then get the real interior signal level that would be seen without blur and without being tricked by detector noise spikes, then grow outward to capture the faint halo belonging to the pore until the halos average excess falls into the noise while stopping before you accidentally bridge to a distant speck. Skipping halo capture causes systematic under-estimation because a large fraction of energy lives in the halo when scatter is wide; including specks causes over-estimation.
 
-Implementation constraints: parse bytes yourself using only the standard library. Allowed stdlib modules include `struct`, `sys`, `math`, `random`, `tempfile`, `re`. The following are banned and will be rejected by `test_from_scratch`: `numpy`, `scipy`, `skimage`, `cv2`, `PIL`, `Pillow`, `networkx`, `igraph`, `imageio`, `pandas`, `torch`, `tensorflow`, `socket`, `multiprocessing`, `glob`, `pathlib`, `os`, `io`, `posixpath`, `ntpath`, `genericpath`, plus any array, imaging, or graph helper library. Banned calls include `eval`, `exec`, `compile`, `__import__`, `chr`. Banned runtime tricks include `subprocess`, `os.system`, `os.popen`, `os.exec`, `os.fork`, `os.walk`, `os.listdir`, `os.scandir`, `os.open`, `pty`, `importlib`, `runpy`, `ctypes`, filesystem listing, and any obfuscation that hides paths using `chr()`, `bytes.fromhex`, `base64`, `b64decode`, `bytearray`, `bytes([...])` tricks, or string concatenation that builds forbidden paths. Do not attempt to open or list the `/tests` directory, and do not reference `test_outputs`, `heldout`, `reference_volume`, `_gen`, `GEOM_TRUTH`, or `geometric_truth` in your solver source. Your solver must work on random temporary files, not hardcoded paths.
+We grade to 3% relative error. Simple level methods are far outside that window.
 
-Print the volume in mm3 as the last word on stdout.
+Coding rules – your solve.py is scanned:
+- Parse the binary yourself. Use only Python stdlib. Acceptable imports: struct, sys, math, random, tempfile, re.
+- The following are forbidden and will make test_from_scratch fail: numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, os, io, posixpath, ntpath, genericpath, and any other array, imaging or graph package.
+- Forbidden builtins: eval, exec, compile, __import__, chr
+- Forbidden runtime behaviour: subprocess, os.system, os.popen, os.exec, os.fork, os.walk, os.listdir, os.scandir, os.open, pty, importlib, runpy, ctypes, any directory listing, plus any trick to hide paths via chr, bytes.fromhex, base64, b64decode, bytearray or bytes([...]) or string concatenation building forbidden locations.
+- Never try to open or list /tests, never mention test_outputs, heldout, reference_volume, _gen, GEOM_TRUTH, geometric_truth inside solve.py.
+- Your program must work on any temporary file path, not a fixed path.
+
+Print just the volume in mm³ as the last token. Example output line: 123.456

@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/ceramic-sinter-pore-subvoxel-void"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no array/imaging/graph libraries) that parses a custom micro-CT ceramic pore volume (custom binary .cspv) and reports its physical pore volume in mm^3. X-ray focal spot plus scattering smears pores, so thresholding overcounts halo by 80-130% or undercounts thin cracks by 30-50%. Correct method is intensity conservation: integrate background-subtracted intensity over isolated pore+halo and normalize by concentrated plateau. Graded on held-out scans at 3% tolerance."
+description = "From-scratch Python parser for a custom cone-beam micro-CT tile scan (.cspv, magic CSPV) of spark-plasma sintered SiC ceramic armor. X-ray source spot, scintillator and Compton scatter create a normalized anisotropic blur that conserves total counts but inflates apparent size. Task asks for true sealed pore volume in mm3. Bright voxel counting fails by ~2x over or ~0.5x under across batches. Solution requires robust background/median/MAD noise, largest-mass 26-connected component to remove powder specks, filtered top-K plateau estimation, and adaptive halo growth to noise floor before converting energy to volume using anisotropic voxel pitch from header. 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["ceramic", "sintering", "porosity", "micro-CT", "X-ray", "pore-volume", "subvoxel", "intensity-conservation", "binary-parsing", "from-scratch"]
+keywords = ["ceramic-armor", "SiC", "spark-plasma-sintering", "micro-CT", "cone-beam", "sealed-porosity", "subvoxel", "energy-conservation", "from-scratch", "binary-parsing"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,9 +16,9 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["ceramic", "sintering", "porosity", "micro-CT", "pore-volume", "X-ray-scatter", "subvoxel", "intensity-conservation", "from-scratch", "binary-parsing"]
-expert_time_estimate_min = 60.0
-junior_time_estimate_min = 200.0
+tags = ["ceramic-armor", "SiC", "spark-plasma-sintering", "micro-CT", "cone-beam", "closed-porosity", "subvoxel", "energy-conservation", "from-scratch", "binary-parsing", "quality-control"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 210.0
 
 [verifier]
 timeout_sec = 600.0
