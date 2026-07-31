@@ -109,27 +109,65 @@ def object_volume_mm3(path):
     candidates = elongated if elongated else comps
     best_mass, best_comp, aspect = max(candidates, key=lambda x: x[0])
 
-    # plateau via 3x3x3 mean top-8
-    filtered = []
+    # plateau via interior voxels to avoid pulling in dim surface neighbours
+    best_set = set(best_comp)
+
+    # find interior: all 26 neighbours also in best_set
+    interior = []
     for j in best_comp:
         x = j % nx
         y = (j // nx) % ny
         z = j // (nx * ny)
-        acc = 0.0
-        cnt = 0
+        is_in = True
         for dz in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 for dx in (-1, 0, 1):
+                    if dx == 0 and dy == 0 and dz == 0:
+                        continue
                     a = x + dx
                     b = y + dy
                     c = z + dz
-                    if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
-                        acc += residual[idx(a, b, c)]
-                        cnt += 1
-        filtered.append(acc / cnt)
-    filtered.sort(reverse=True)
-    topk = filtered[: max(1, min(8, len(filtered)))]
-    plateau = sum(topk) / len(topk)
+                    if not (0 <= a < nx and 0 <= b < ny and 0 <= c < nz):
+                        is_in = False
+                        break
+                    if idx(a, b, c) not in best_set:
+                        is_in = False
+                        break
+                if not is_in:
+                    break
+            if is_in:
+                interior.append(j)
+
+    # Use interior residuals if enough, else fall back to best_comp residuals
+    if len(interior) >= 4:
+        cand_vals = [residual[k] for k in interior]
+    else:
+        cand_vals = [residual[k] for k in best_comp]
+
+    cand_vals.sort(reverse=True)
+    # robust top-k: use up to 12 but at least 4, median of top to reduce spike influence
+    k = max(4, min(12, len(cand_vals) // 3 + 1))
+    k = min(k, len(cand_vals))
+    topk = cand_vals[:k]
+    # Use median of topk for stability, or mean of topk after trimming max spike
+    # To avoid single bright read spike, if top value is much larger than second, drop it
+    if len(topk) >= 3:
+        # simple outlier trim: if top > 1.4*second, drop top
+        if topk[0] > 1.4 * topk[1]:
+            topk = topk[1:]
+    # plateau as mean of remaining topk
+    topk_sorted = sorted(topk)
+    # median-ish mean: average middle 50%
+    # For small k, just mean
+    if len(topk) <= 4:
+        plateau = sum(topk) / len(topk) if topk else 0
+    else:
+        # trim lower quartile
+        mid_start = len(topk) // 4
+        mid_end = len(topk) * 3 // 4
+        trimmed = topk_sorted[mid_start:mid_end] if mid_end > mid_start else topk_sorted
+        plateau = sum(trimmed) / len(trimmed) if trimmed else sum(topk) / len(topk)
+
     if plateau <= 0:
         return 0.0
 

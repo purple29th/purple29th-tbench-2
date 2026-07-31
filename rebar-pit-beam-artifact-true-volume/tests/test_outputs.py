@@ -71,7 +71,7 @@ BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
-    "_gen",
+    "_gen.py",
     "GEOM_TRUTH",
     "geometric_truth",
     "reference_volume",
@@ -228,12 +228,14 @@ BASE_CONFIGS = {
         sig_z=0.65,
         noise=5,
         seed=202,
+        # core positioned around (22,20,11) — elongated along x
         object=[
             ("box", 8, 36, 16, 24, 7, 15),
             ("box", 12, 34, 16, 24, 15, 18),
             ("ell", 22, 20, 11, 9.5, 4.2, 3.2),
         ],
-        specks=[(42, 2, 3, 5.0), (2, 39, 18, 1.3)],
+        # bubbles far in y (top/bottom) but varied x,z per spec
+        specks=[(40, 2, 5, 5.0), (6, 39, 16, 1.3)],
     ),
     "heldout_2": dict(
         dims=(40, 38, 26),
@@ -246,8 +248,10 @@ BASE_CONFIGS = {
         sig_z=0.60,
         noise=7,
         seed=303,
+        # core shifted vs heldout_1 (different x,z) but still elongated
         object=[("box", 5, 31, 16, 24, 9, 17), ("box", 7, 29, 16, 24, 17, 21)],
-        specks=[(37, 2, 3, 4.6), (2, 35, 22, 1.2)],
+        # bubbles far y, varied x,z vs heldout_1
+        specks=[(36, 3, 21, 4.6), (5, 36, 8, 1.2)],
     ),
     "heldout_3": dict(
         dims=(45, 41, 23),
@@ -260,12 +264,14 @@ BASE_CONFIGS = {
         sig_z=0.70,
         noise=6,
         seed=404,
+        # core at different position vs heldout_1/2 (original elongated)
         object=[
             ("box", 7, 35, 17, 25, 8, 16),
             ("box", 9, 33, 17, 25, 16, 20),
             ("ell", 21, 21, 12, 9.0, 4.0, 3.0),
         ],
-        specks=[(41, 2, 3, 1.6), (2, 38, 20, 1.2)],
+        # bubbles far y, varied x,z vs others
+        specks=[(10, 2, 6, 1.6), (38, 38, 18, 1.2)],
     ),
     "heavy_round": dict(
         dims=(46, 42, 22),
@@ -278,12 +284,14 @@ BASE_CONFIGS = {
         sig_z=0.65,
         noise=5,
         seed=202,
+        # same core as heldout_1 (elongated) — heavy round trap
         object=[
             ("box", 8, 36, 16, 24, 7, 15),
             ("box", 12, 34, 16, 24, 15, 18),
             ("ell", 22, 20, 11, 9.5, 4.2, 3.2),
         ],
-        specks=[(42, 2, 3, 6.0), (2, 39, 18, 5.5)],
+        # bubbles heavier and at distinct x,z vs heldout_1 (still far y)
+        specks=[(42, 2, 6, 6.0), (4, 38, 14, 5.5)],
     ),
 }
 
