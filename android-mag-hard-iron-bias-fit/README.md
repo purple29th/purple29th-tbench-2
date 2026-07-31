@@ -13,9 +13,19 @@ Input is Nx3 array of raw readings in uT. Output is dict with bx by bz radius as
 
 ## Files
 * mag_calibration.py is main module agent must create, function estimate_hard_iron_bias
-* data/sample_orbit.csv is sample for local dev, 500 points, bias 15, negative 20, 8, R 45, no soft iron, available as data/sample_orbit.csv for local dev
+* data/sample_orbit.csv is sample for local dev, 500 points, bias [15, -20, 8], R 45, no soft iron, available as data/sample_orbit.csv for local dev, also copied to /app/data via Dockerfile
 * environment/Dockerfile installs python3 plus numpy
 * tests/test_outputs.py is evaluation suite with soft iron and dwell tests
+* solution/solve.sh is reference oracle that passes all tests via robust sphere plus ellipsoid plus density downsampling
+
+## Model Analysis / Completion Rates
+
+* Oracle 3/3 100 percent - reference solution passes all 25 tests including soft iron and dwell and 10k
+* Naive centroid mean fails partial and dwell cases, err >5 on partial 35 percent and >4 on dwell 65 percent with motor interference, as verified by test_naive_avg_fails_partial and test_nonuniform_dwell_density
+* Min-max average fails on partial 40 percent with err >4 as in test_min_max_avg_fails
+* Simple one-pass sphere least squares without outlier handling fails outlier cases (err 1.6 to 2.4 vs tol 1.2 and 1.5) and soft iron ellipsoid cases (naive sphere err 2.8 vs tol 1.0) while robust MAD trim plus ellipsoid passes
+* Expected difficulty: avocado 2/5 to 3/5, gpt 4/5, opus 3/5 - harder than original 21/21 textbook because soft iron plus dwell plus tightened tolerances require ellipsoid awareness and density downsampling
+* Performance: 5000 and 10000 points handled in O(n log n) via voxel and farthest point downsampling, <1.5 sec for 10k on reference
 
 ## Completion Criteria
 Tests check estimation error against hidden ground truth under many conditions including clean, noisy, partial coverage, strong bias, outliers, partial plus outlier combo, random stress, NaN handling, determinism, JSON serializability, large N performance up to 10000, non-uniform dwell density with motor interference, soft iron ellipsoid distortion, and combined hardest case (soft iron plus dwell plus partial plus outliers plus NaN). Tolerances are tighter for easy cases (0.3) and moderately tight for hard cases (1.0 to 1.8) to ensure textbook one-pass sphere without ellipsoid or density handling fails while robust ellipsoid plus downsampling passes. Additional checks verify naive centroid and min-max averages fail on partial and dwell cases.
@@ -23,7 +33,7 @@ Tests check estimation error against hidden ground truth under many conditions i
 ## Anti Cheating
 * No hardcoded bias, must estimate from data
 * Hidden tests use random bias up to 80 uT, random radius 28 to 62, random N 200 to 10000, random noise up to 2.0, coverage 0.3 to 1.0, outlier ratio up to 0.07, soft iron scale 0.85 to 1.15 on some tests, dwell ratio 0.0 to 0.65 with motor interference up to 0.7, plus NaN or Inf injection
-* Sample bias 15, negative 20, 8 differs from hidden
+* Sample bias [15, -20, 8] differs from hidden
 * Only numpy and standard library allowed, no scipy, sklearn, torch etc
 * Only dangerous builtins banned: eval, exec, compile, __import__, breakpoint — getattr, hasattr, locals etc are allowed per spec to avoid false FAIL
 * Function must be deterministic and JSON serializable

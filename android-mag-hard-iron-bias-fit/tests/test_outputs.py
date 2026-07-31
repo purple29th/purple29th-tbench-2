@@ -38,6 +38,7 @@ BANNED_MODULES = {
     "imageio",
     "torchvision",
     "torchaudio",
+    "importlib",
 }
 
 # Only dangerous builtins that enable cheating, per reviewer feedback
