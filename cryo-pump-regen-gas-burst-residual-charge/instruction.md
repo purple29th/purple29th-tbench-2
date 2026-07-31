@@ -27,7 +27,7 @@ Charge is conserved through blur. The area under the smeared main burst equals t
 
 Tolerances three percent. Grade uses three percent relative tolerance on charge uC.
 
-Allowed imports are struct sys math random tempfile re collections only. Do not use numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os pty importlib runpy ctypes. Do not use eval exec compile __import__ chr ord breakpoint bytes bytearray. Do not use subprocess or os system popen exec fork walk listdir scandir open. Do not hide paths with chr bytes fromhex base64 b64decode bytearray tricks. Do not open or list tests folder and do not write test outputs heldout reference volume _gen geometric truth in your solver.
+Allowed imports are struct sys math random tempfile re collections only. Do not use numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib shutil io os pty importlib runpy ctypes. Do not use eval exec compile __import__ chr ord breakpoint bytes bytearray. Do not use subprocess or os system popen exec fork walk listdir scandir open. Do not hide paths with chr bytes fromhex base64 b64decode bytearray tricks. Your code must work on any temporary file path, not a fixed path.
 
 Return charge as last token.
 

@@ -1,4 +1,4 @@
-"""Secure verifier for solar-wafer-microcrack-true-area"""
+"""Secure verifier for perovskite-film-pinhole-true-area"""
 
 import ast, math, os, re, struct, subprocess, sys, tempfile, textwrap, pytest
 

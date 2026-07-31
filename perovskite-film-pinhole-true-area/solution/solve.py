@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Oracle for solar-wafer-microcrack-true-area: true dead area via intensity conservation (2D)."""
+"""Oracle for perovskite-film-pinhole-true-area: true dead area via intensity conservation (2D)."""
 
 import struct, sys
 
