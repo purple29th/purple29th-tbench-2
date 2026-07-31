@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/perovskite-film-pinhole-true-area"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "From-scratch parser for custom PL film scan (.ppha, magic PPHA) of pinhole defects in perovskite PV films. Photo-generated carriers diffuse plus lens PSF creates normalized blur conserving total non-radiative deficit but inflating apparent pinhole area ~2x. Task asks for true pinhole dead area mm2. Bright counting fails 90-130% over or 40-55% under. Needs median/MAD background, largest-mass 8-connected component to discard dust, filtered top-K plateau, halo growth to noise floor, anisotropic pitch. 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["perovskite", "pinhole", "photoluminescence", "carrier-diffusion", "true-area", "from-scratch", "binary-parsing"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["perovskite", "pinhole", "PL-imaging", "carrier-diffusion", "true-area", "from-scratch", "binary-parsing", "intensity-conservation"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
