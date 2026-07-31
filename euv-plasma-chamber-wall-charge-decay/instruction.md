@@ -4,7 +4,7 @@ We need a tool that reads the wall probe trace and reports true decay charge.
 
 Please create a file at /app/solve.py that when run as python3 /app/solve.py /path/to/file.euv will print the true wall charge in microcoulombs as the last token. Tolerance three percent.
 
-You have a sample at /app/data/scene.euv for local testing. Hidden eval uses unrelated files with different charge, drift, gain, shutter patterns. Do not hardcode sample numbers. Work on any path given.
+You have a sample at data/scene.euv for local testing. Hidden eval uses unrelated files with different charge, drift, gain, shutter patterns. Do not hardcode sample numbers. Work on any path given.
 
 File format EUVW was defined by our plasma controller. Little endian.
 

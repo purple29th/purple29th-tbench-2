@@ -4,7 +4,7 @@ We need to know how much residual charge was in that main burst for contaminatio
 
 Please create a file at /app/solve.py. It will be executed like python3 /app/solve.py /path/to/file.cryo and it should print the true burst charge in microcoulombs as the final token on stdout. We allow three percent error.
 
-For development you have /app/data/scene.cryo. The hidden evaluation uses completely different files that you have never seen. They have different total charge, different temperature drift, different gain, different pump vibration. Do not hardcode numbers from the sample.
+For development you have data/scene.cryo. The hidden evaluation uses completely different files that you have never seen. They have different total charge, different temperature drift, different gain, different pump vibration. Do not hardcode numbers from the sample.
 
 File format CRYO is my own binary. All integers are little endian, floats are little endian too.
 
