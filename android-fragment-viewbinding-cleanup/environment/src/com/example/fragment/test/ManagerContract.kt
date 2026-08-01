@@ -230,6 +230,42 @@ fun main() {
         else expect("replace child binding cleared on parent replace", "Tab1 should be removed with parent", snap)
     }
 
+    run("set max cascades binding retained") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.begin("t3"); m.addChild("t3", "Tab1", "inner", "Inner"); m.commit("t3")
+        m.putViewModel("Home", "vmK", "vmV")
+        m.putBinding("Home", "bK", "bV")
+        m.putBinding("Tab1", "bK2", "bV2")
+        m.putBinding("Inner", "bK3", "bV3")
+        m.begin("t4"); m.setMax("t4", "Home", "STARTED"); m.commit("t4")
+        val snap = m.snapshot()
+        val homeStarted = snap.contains("fragment=Home") && snap.contains("lifecycle=STARTED") && snap.contains("maxLifecycle=STARTED")
+        val tabStarted = snap.contains("fragment=Tab1") && snap.contains("maxLifecycle=STARTED")
+        val innerStarted = snap.contains("fragment=Inner") && snap.contains("lifecycle=STARTED")
+        val bindingsRetained = snap.contains("bK=bV") && snap.contains("bK2=bV2") && snap.contains("bK3=bV3")
+        if (homeStarted && tabStarted && innerStarted && bindingsRetained) results.add("set max cascades binding retained" to "PASS")
+        else expect("set max cascades binding retained", "max should cascade and binding retained", snap)
+    }
+
+    run("hide propagates three levels") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.begin("t3"); m.addChild("t3", "Tab1", "inner", "Inner"); m.commit("t3")
+        m.putBinding("Home", "b0", "v0")
+        m.putBinding("Tab1", "b1", "v1")
+        m.putBinding("Inner", "b2", "v2")
+        m.begin("t4"); m.hide("t4", "Home"); m.commit("t4")
+        val snap = m.snapshot()
+        val lines = snap.lines().filter { it.startsWith("fragment=") }
+        val allEmpty = lines.all { it.contains("binding={}") }
+        val allHiddenOrParentHidden = snap.contains("hidden=true") // Home hidden
+        if (allEmpty) results.add("hide propagates three levels" to "PASS")
+        else expect("hide propagates three levels", "all 3 levels binding should be empty after parent hide", snap)
+    }
+
     var allPass = true
     for ((name, status) in results) {
         if (status.startsWith("PASS")) println("PASS  $name")

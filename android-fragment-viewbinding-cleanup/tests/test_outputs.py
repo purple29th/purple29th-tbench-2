@@ -49,6 +49,8 @@ CASE_NAMES = [
     "pop_missing_is_noop",
     "replace_clears_binding_of_old",
     "replace_child_binding_cleared_on_parent_replace",
+    "set_max_cascades_binding_retained",
+    "hide_propagates_three_levels",
 ]
 
 
