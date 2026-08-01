@@ -1,68 +1,44 @@
-# Fix Fragment Result Listener Backstack
+I own the Settings search flow on our Android flagship. We use fragments for every settings page and we let fragments talk to each other with the Fragment Result API so a child picker can send a result back to its parent without tight coupling. The picker sets a result, the parent has a result listener, and the result is delivered even if the listener was added after the result was set because we queue it. If the result handling is wrong we lose user choices and we get bug reports about settings not sticking.
 
-You are fixing a mini Android-style FragmentManager that supports the Fragment Result API. The program reads `/app/scenario.txt` (one operation per line) and writes `/app/output.txt`. Some contract tests fail — read the contract and fix the implementation. Do not change output format.
+I have a small Kotlin simulation of our FragmentManager that should do this. It reads a scenario file at /app/scenario.txt with one operation per line and writes snapshots to /app/output.txt at each QUERY. Right now some contract tests are failing and the manager misbehaves on rotate and named backstack pops. I need you to fix it.
 
-## Model
+The model: root containers like main hold fragments. Each fragment keeps resultListeners map (key -> registered), pendingResults map (key -> value queued when no listener yet), deliveredResults map (last delivered, for debugging). 
 
-Root containers (e.g. main) hold root fragments. Each fragment has:
-- container assignment (last container it was added to)
-- resultListeners: map key -> true if a listener is registered for that key
-- pendingResults: map key -> value queued when setResult happened but no listener existed yet
-- deliveredResults: map key -> value of last delivered result (for snapshot visibility, cleared only on REMOVE)
+Result handling:
+- SET_RESULT_LISTENER txn fragment key inside a transaction: register listener for key on that fragment. Ignore if fragment not in registry yet. If a pending result already exists for same key, deliver right away: move pending value to delivered, clear pending and listener (listener consumed).
+- CLEAR_RESULT_LISTENER txn fragment key: clear listener.
+- SET_RESULT txn targetFragment key value inside transaction: set result for target. If target currently has a listener for that key, deliver instantly (delivered[key]=value, remove listener and any pending for that key). If no listener, queue as pending[key]=value overwriting any previous pending for same key.
+- REMOVE txn fragment: removes fragment from any container and deletes its listeners, pending, delivered, and all registration.
 
-Result semantics mirror AndroidX fragment result but simplified:
+Backstack:
+- ADD_TO_BACK_STACK txn name|NONE marks transaction as backstack entry, NONE means anon. COMMIT applies ops in order; if marked, push entry onto backstack capturing replaced fragments full child state (all result maps plus container) for REPLACE ops so POP can restore.
+- POP name|NONE: NONE pops most recent entry. POP with a name must pop down to and including the most recent entry with that name, searching from the top and using the last occurrence, not the first. Name search is case sensitive. If name not found on stack, POP is no-op and must not drain the whole stack, otherwise you lose user navigation history.
+- ROTATE simulates config change: clear live containers and registry, keep backstack, replay only transactions that were added to backstack, in order. Fragments never part of a backstacked ADD or REPLACE must not reappear after rotate. Listeners and pending/delivered that were registered or set inside backstacked transactions must survive rotate because replay re-creates them; anything only from non-backstacked transactions is dropped.
 
-- `SET_RESULT_LISTENER txn fragment key` — inside transaction, register a listener for key on fragment. Ignore if fragment does not exist in registry (not yet added). If a pendingResult exists for same key, deliver immediately: move pendingResult value to deliveredResults, remove pendingResult and listener.
-- `CLEAR_RESULT_LISTENER txn fragment key` — remove listener for key.
-- `SET_RESULT txn targetFragment key value` — inside transaction, set a result for targetFragment. If target has a listener for that key, deliver immediately (deliveredResults[key]=value, remove listener and any pending for that key). If no listener, queue as pendingResults[key]=value (overwrite any previous pending for same key).
-- `REMOVE txn fragment` — remove fragment from containers and registry, clear its resultListeners, pendingResults, deliveredResults.
+Operations you will see in scenario.txt:
+BEGIN txn, ADD txn container fragment, REPLACE txn container fragment, REMOVE txn fragment, SET_RESULT_LISTENER txn fragment key, CLEAR_RESULT_LISTENER txn fragment key, SET_RESULT txn targetFragment key value, ADD_TO_BACK_STACK txn name|NONE, COMMIT txn, POP name|NONE, ROTATE, QUERY.
 
-Backstack and rotation:
-
-- `ADD_TO_BACK_STACK txn name|NONE` — mark transaction as backstack entry (NONE=anon). Commit records ops plus snapshot of current containers and fragment result state (listeners/pending/delivered) for REPLACE ops.
-- `COMMIT txn` — apply ops in order; if marked, push entry onto backStack. For REPLACE, capture previous container snapshot (fragments list) and for each replaced fragment, capture its full state (listeners/pending/delivered/container) to allow restore on POP.
-- `POP name|NONE` — NONE pops most recent entry; `POP name` pops down to and including most recent entry with that name (search from top, case-sensitive, must use last occurrence, not first). If name not found, POP is no-op and must NOT drain entire stack. On pop, reverse entry ops and restore captured replaced state including listeners/pending/delivered.
-- `ROTATE` — simulate config change: clear live containers and registry, keep backstack, replay only backstacked transactions in order to rebuild live state. Fragments that were never part of a backstacked ADD/REPLACE must NOT reappear. ResultListeners that were registered inside backstacked transactions must survive rotate (because replay re-registers them), and pending/delivered results that were part of backstacked state must also survive. Non-backstacked listeners/results are dropped.
-
-## Operations
-
-- BEGIN txn
-- ADD txn container fragment
-- REPLACE txn container fragment
-- REMOVE txn fragment
-- SET_RESULT_LISTENER txn fragment key
-- CLEAR_RESULT_LISTENER txn fragment key
-- SET_RESULT txn targetFragment key value
-- ADD_TO_BACK_STACK txn name|NONE
-- COMMIT txn
-- POP name|NONE
-- ROTATE
-- QUERY — record snapshot
-
-## Output format
-
-One block per QUERY, in order, separated by blank line. Each block:
-
-- container lines sorted by container name, e.g. `container=main fragments=[Home]`
-- fragment lines sorted by name, e.g. `fragment=Home listeners=[requestKey] pending={} delivered={key=val} ` (listeners sorted, pending and delivered sorted by key as key=value comma-separated)
-- final line `backstack=[entries comma-separated, anon for unnamed]`
+Output format per QUERY, in order, blank line between blocks:
+- container lines sorted by name, printed even if empty if ever used: container=main fragments=[Home]
+- fragment lines sorted by name: fragment=Home listeners=[reqKey] pending={} delivered={key=val}
+  listeners sorted, pending and delivered sorted as key=value comma
+- final line backstack=[entries, anon for unnamed]
 
 Example block:
-```
 container=main fragments=[Home, Profile]
 fragment=Home listeners=[rk1] pending={} delivered={}
 fragment=Profile listeners=[] pending={k=v} delivered={}
 backstack=[home, anon]
-```
 
-## Where to start
+Where to start:
+- /app/src/com/example/fragment/FragmentManager.kt — this is where most bugs are
+- /app/src/com/example/fragment/Transaction.kt
+- /app/src/com/example/fragment/BackStackEntry.kt
+- /app/src/com/example/fragment/Container.kt
+- /app/src/com/example/fragment/Fragment.kt
 
-- `/app/src/com/example/fragment/FragmentManager.kt` — main buggy implementation
-- `/app/src/com/example/fragment/Transaction.kt` — op definitions
-- `/app/src/com/example/fragment/BackStackEntry.kt` — entry capture
-- `/app/src/com/example/fragment/Container.kt`
-- `/app/src/com/example/fragment/Fragment.kt`
+Build: bash /app/src/build.sh uses kotlinc to compile. Run: bash /app/src/run.sh reads /app/scenario.txt writes /app/output.txt. Contract tests: bash /app/src/run-contract.sh runs ManagerContractKt with 13 cases covering simple add, listener registration, result delivery, queuing, pending delivery later, clear, remove, replace capture, pop named uses last, pop missing is noop, rotate retains listeners and pending for backstacked only, queued result survives rotate.
 
-Contract tests: `bash /app/src/run-contract.sh`. Build/run: `bash /app/src/run.sh` reads `/app/scenario.txt` writes `/app/output.txt`.
+Fix the manager so all contract tests pass. The logic for result queuing and named POP using last occurrence is the hard part. Do not change output format.
 
-Make all contract tests pass. Pay attention to named POP using last occurrence, POP missing being no-op not draining, ROTATE retaining listeners/pending for backstacked fragments only, and queued result delivery when listener appears later.
+Thanks for fixing our Settings result flow — losing results is blocking release.

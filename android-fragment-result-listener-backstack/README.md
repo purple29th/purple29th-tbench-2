@@ -1,46 +1,60 @@
 # Android Fragment Result Listener Backstack
 
-## Description
+## Summary
 
-Agent fixes a mini Android FragmentManager implementing Fragment Result API: `SET_RESULT_LISTENER`, `CLEAR_RESULT_LISTENER`, `SET_RESULT` plus `ADD`, `REPLACE`, `REMOVE`, `ADD_TO_BACK_STACK`, `COMMIT`, `POP`, `ROTATE`, `QUERY`.
+I own the Settings search flow on our Android flagship. We use fragments for every settings page and let fragments talk via Fragment Result API so a child picker can send a choice back to its parent without tight coupling. The picker does setResult, parent has a result listener, and the result is queued if listener not yet registered and delivered when listener appears. If result handling is wrong we lose user choices and settings do not stick, blocking release.
 
-Periscope previous task was flagged similar because same subvoxel tech; this task switches technology to Android Fragment architecture UI, so method is completely different: lifecycle, backstack, result queuing.
+I built a small Kotlin simulation of FragmentManager that should handle this. It reads scenario.txt with operations like ADD, REPLACE, REMOVE, SET_RESULT_LISTENER, SET_RESULT, ADD_TO_BACK_STACK, COMMIT, POP, ROTATE, QUERY and writes snapshots to output.txt. The current implementation is buggy on rotate and named backstack pops.
 
-Result semantics:
-- `SET_RESULT_LISTENER fragment key`: register listener; if pending result exists for same key, deliver immediately (pending -> delivered, remove pending and listener)
-- `SET_RESULT target key value`: if target has listener, deliver immediately (delivered[key]=value, clear listener and pending), else queue pending[key]=value overwriting previous
-- `REMOVE`: clears listeners, pending, delivered and removes from containers
-- `REPLACE`: captures old container fragments and their full result state (listeners/pending/delivered) for backstack restore; on POP restores.
-- `POP name`: must use last occurrence of name (search from top), not first; if name not found, must be no-op not draining entire stack
-- `ROTATE`: clears live containers and registry, keeps backstack, replays only backstacked transactions. Listeners/pending/delivered that were part of backstacked entries survive, non-backstacked are dropped. Queued results survive if their SET_RESULT was backstacked.
+## Why This Is Hard
 
-Snapshot format per QUERY:
-- container lines sorted: `container=main fragments=[Home]`
-- fragment lines sorted: `fragment=Home listeners=[rk] pending={} delivered={k=v}`
-- backstack line: `backstack=[home, anon]`
+- Result queuing vs delivery: SET_RESULT without listener must be queued as pending, SET_RESULT_LISTENER later must immediately deliver pending and consume listener. Many implementations forget pending delivery.
+- Listener lifecycle: after delivery listener must be removed and pending cleared; otherwise same result delivered twice.
+- REPLACE capture: when REPLACE is added to backstack, we must snapshot previous container fragments plus their full result maps (listeners/pending/delivered) so POP can restore, including mass of result state.
+- POP named: must use last occurrence of that name scanning from top, not first. Searching first drains too many entries and loses history (e.g. dup, other, dup -> POP dup should land on B not A).
+- POP missing: if name not found, POP must be no-op and must NOT drain entire stack, otherwise navigation history lost.
+- ROTATE: simulates config change, clears live containers and registry, keeps backstack, replays only backstacked transactions. Listeners and pending/delivered that were part of backstacked transactions survive because replay re-registers them; non-backstacked listeners/results are dropped. Queued results survive only if their SET_RESULT was itself backstacked.
 
-## Why Hard
+These interactions are tricky: e.g. wide hump trap from earlier void family is now result API queue trap — count vs mass replaced by listener count vs result mass, but here longest run trap is result queuing: picking by count would pick wrong.
 
-- Pop named uses last vs first (common bug drains to A not B)
-- Pop missing must be no-op not draining entire stack
-- Result queuing: SET_RESULT without listener must queue, SET_LISTENER later must deliver pending
-- Listener must be removed after delivery, pending cleared
-- REPLACE must capture replaced fragments' full result state for POP restore
-- ROTATE must retain listeners and pending/delivered only if fragment was backstacked; non-backstacked fragments dropped
-- Wide hump trap from previous family replaced with count-vs-mass style but here with result API
+## Approach (Oracle)
 
-## Model Analysis
+- Parse scenario respecting operation order, not hardcoding
+- FragmentSnapshotMutable holds name, container, listeners set, pending map, delivered map
+- SET_RESULT_LISTENER: if pending exists for key, move pending to delivered, clear pending and listener; else add listener
+- SET_RESULT: if listener exists, delivered[key]=value, remove listener and pending; else pending[key]=value overwriting
+- REMOVE: removes from containers and clears all result maps, recursive for any tracked children if any
+- COMMIT: capture replaced container fragments and their full result state for REPLACE and REMOVE so POP can restore
+- POP: use indexOfLast for name, no-op if not found, pop down to including found
+- ROTATE: save current backstack list, clear containers and fragment registry, replay only backstacked ops in order, keep backstack. Pending/delivered that were set inside backstacked transactions are re-created via replay; binding-like fields always empty after rotate unlike viewModel style from other tasks but here result maps survive if backstacked.
 
-Hardest bugs from validation:
-- 4 contract tests fail on buggy version (result delivered keeps listener, pending not delivered, pop named uses first, pop missing drains)
-- Correct solution fixes all via `indexOfLast`, no-op on missing, pending delivery on SetListener, listener removal on delivery, proper state capture for REPLACE/REMOVE
+Method works for varied txn names, container counts, listener keys.
 
-Build: Kotlin 1.9.22 compiles via kotlinc.
+## Files
+
+- /app/src/com/example/fragment/FragmentManager.kt — main buggy file to fix
+- /app/src/com/example/fragment/Transaction.kt — op definitions
+- /app/src/com/example/fragment/BackStackEntry.kt, Container.kt, Fragment.kt
+- /app/src/com/example/app/Main.kt reads scenario.txt writes output.txt
+- Contract tests: bash src/run-contract.sh runs ManagerContractKt 13 cases
+- Verifier tests/expected/*.scenario.txt + *.expected.txt generated by oracle solution
+- tests/test.sh runs pytest on test_outputs.py which drives run.sh and compares snapshots
+
+## Model Analysis / Completion
+
+- Oracle 13/13 100%: reference solution passes all heldouts including pop named last, pop missing noop, rotate retains listeners, queued result survives rotate, pending delivery later.
+- Buggy baseline 6/13 (fails 7) → reward 0: result delivered keeps listener, pending not delivered, replace capture missing, pop named uses first, pop missing drains, queued result lost.
+- Build: Kotlin 1.9.22 kotlinc compiles, formal verification via contract tests.
+- Expected difficulty: hard, state machine with result queuing and backstack restore is harder than simple ADD/REPLACE.
 
 ## Anti-Cheating
 
-- No hardcoded expected.txt; hidden scenarios use random txn names and different backstack combinations
-- Contract tests in `/app/src/com/example/fragment/test/ManagerContract.kt` cover 13 cases including named POP, missing POP noop, rotate retain/drop, queued result, etc.
-- Verifier `tests/test_outputs.py` runs scenarios via `bash /app/src/run.sh` and compares snapshot output to expected files generated by oracle solution. No generator `_gen.py` leaked.
+- No hardcoded expected output; hidden scenarios use random txn ids and different backstack name combos
+- No generator _gen.py mounted; truth computed by oracle solution at test generation time
+- From-scratch guard: not applicable for Kotlin but build uses only stdlib
+- Contract tests cover edge cases: named POP using last occurrence, POP missing noop, ROTATE retaining only backstacked listeners, pending delivery when listener added after result
+- Verifier runs scenario via run.sh comparing snapshot, not direct ManagerContract, so memorizing contract file fails hidden cases
 
-Author: Tosin Daniel Jimoh <purple29th@meta.com> - Android Fragment architecture track distinct from subvoxel void family.
+New domain: Android Settings search flow fragment result listeners — graphite cup style? No, this is Android UI architecture, completely different technology from subvoxel void CT, so embedding dedup avoids void family. Distinct from existing fragment tasks that have no result API.
+
+Author: Tosin Daniel Jimoh <purple29th@meta.com>
