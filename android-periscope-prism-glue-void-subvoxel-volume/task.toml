@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/android-periscope-prism-glue-void-subvoxel-volume"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "From-scratch Python parser for a custom periscope camera prism glue bond inspection volume (.apcv, magic APCV) in Android flagship periscope telephoto module. Prism-to-lens barrel UV glue entraps air bubbles; 160kV micro-focus X-ray plus scintillator spread creates normalized anisotropic blur that conserves total counts but inflates apparent void. Task asks for true sealed glue void volume in mm3. Bright voxel counting fails ~2x over or 0.5x under. Solution requires robust background median/MAD, largest-mass 26-connected component to drop far dust specks, filtered top-K plateau, adaptive halo growth to noise floor. 3% tolerance."
+description = "Android flagship periscope telephoto module prism-to-barrel UV glue inspection from Seoul camera line. Micro-focus 160kV cone-beam CT at 0.5mm glass prism creates finite spot plus scintillator bleed plus internal scatter that smears bubble but preserves total integral. Custom volume .apcv magic APCV with anisotropic sx sy sz, dtype int16/float32. Need true sealed adhesive pocket volume mm3. Fixed cutoffs overestimate ~2x by absorbing halo or underestimate ~0.5x by missing thin glue tails along chamfer, drifting per batch in gain/absorption/blur/noise. Conservation of total excess enables precise recovery when main bubble is isolated from far dust and faint tail is included. 3 percent relative tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["android", "periscope", "prism", "glue-void", "micro-CT", "subvoxel", "energy-conservation", "from-scratch"]
 

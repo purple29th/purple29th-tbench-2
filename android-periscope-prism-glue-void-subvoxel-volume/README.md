@@ -1,39 +1,39 @@
-# codimango/android-periscope-prism-glue-void-subvoxel-volume
+# Android Periscope Prism Glue Void - Subvoxel Volume
 
-## Description
+## Overview
 
-Agent writes from-scratch Python at /app/solve.py using only stdlib that reads a custom micro-CT volume with magic APCV of glue voids in Android flagship periscope telephoto prism bonding and reports physical void volume in mm3. Script takes scan path as first arg and prints volume as final number.
+This task checks an Android flagship periscope telephoto camera module for adhesive air pockets. At the Seoul line, a large glass prism is UV-glued to the plastic barrel; trapped air after cure leads to OIS drift and flare in final image QA. The line uses 160 kV micro-focus cone-beam CT to screen modules.
 
-Periscope uses right-angle glass prism glued to lens barrel with UV adhesive; entrapped air forms sealed voids causing OIS drift and flare. 160kV micro-focus X-ray plus scintillator spread plus glass scatter smears signal while preserving total energy. Solid core saturates to peak after blur and thin glue fingers along prism edge never reach fixed level due to partial volume. Threshold counting therefore fails. Correct method is intensity conservation where true voxels = sum(bg-subtracted over void+halo) / plateau. Requires inferring background robustly, isolating main void from far dust specks via largest-mass 26-connected, estimating plateau via filtered peak, integrating halo with adaptive growth until shell mean hits noise floor without bridging to specks. Tolerance 3% and only careful reconstruction meets it.
+Relevant physics: finite focal spot plus scintillator bleed plus scatter inside thick prism acts as a normalized anisotropic low-pass. Total integrated excess over background stays constant, but energy is spread into a wide halo, so the bubble appears much larger than reality.
 
-One-shot numpy template with threshold count is both forbidden and wrong.
+Input is custom binary `.apcv` (magic `APCV`) with anisotropic voxel pitch `sx sy sz` in mm, dimensions `nx ny nz`, dtype int16 (2) or float32 (16), x-fastest, contrast inverted so voids appear bright. Task delivers volume in cubic mm as last token of stdout. Only the principal sealed pocket counts; far dust specks on prism facet must be ignored. A simple bright-voxel count over-estimates by ~2x (halo) or under-estimates by ~0.5x (thin glue tails along chamfer) and no universal cutoff works because tube brightness, glass absorption, smear width and noise floor drift per lot.
 
-## Completion Rates
+The intended solver exploits conservation: `true_voxels = sum(background_subtracted over void+halo) / plateau`. Achieving 3% relative error demands careful handling of background bias, noise level, dust exclusion via largest integrated residual under 26-connectivity, plateau estimation from most concentrated region, and inclusive halo growth until shell mean drops to noise without bridging to distant specks.
 
-Validation at commit with secure verifier and 5 checks:
-Internal oracle: scene truth vs solver error <1% on all heldouts including speck_heavy discriminator.
-Calibration: low threshold 88-130% over, best fixed absolute 30% worst, half-max/Otsu 18-36% off. Conservation 0.5-1.1% per scan.
+Templated numpy + label + threshold counting is both forbidden by from-scratch guard and wrong physically.
 
-Expected difficulty hard, genuine conservation required.
+## Validation
 
-## Model Analysis
+Secure verifier generates held-out volumes at test time with random temporary filenames, varied grid, pitch, amplitude, background, PSF, noise. Sample at `/app/data/scene.apcv` only ~560 mm3, heldouts 795/820/931 mm3 plus speck_heavy and randomized, all anisotropic.
 
-Binary parsing custom little-endian header magic APCV, version, dtype 2=int16 16=float32, nx ny nz, sx sy sz mm anisotropic, data_offset. X fastest. From-scratch check rejects array imaging graph libs.
-Background glass matrix dominates volume, must be estimated robustly without bias from void.
-Speck isolation far dust artefacts dropped by keeping largest-mass 26-connected component. Mass is sum residual, not voxel count.
-Plateau interior signal never observed directly due to scatter plus noise, must be estimated from most concentrated region via local mean filter.
-Halo faint scatter halo carries significant energy and must be included via growth until shell mean hits noise floor, without bridging to specks.
-Volume voxels = integrated residual / amplitude, mm3 = voxels*sx*sy*sz with per-scan anisotropic spacing.
+Oracle: stdlib-only conservation with median lower-half baseline, MAD noise, largest-mass 26-connected isolation, 3x3x3 mean-filter plateau top-8, halo growth to noise floor. Measured <1.1% per scan.
 
-Typical failures: threshold counting 12-130% error, global integration without speck removal fails speck_heavy by 20%+ over, raw max for plateau noisy 5-10% error, missing halo growth 15-25% under.
+Negative controls:
+- Low cutoff includes halo → 88-130% over
+- Best fixed absolute → 30% worst
+- Half-max/Otsu → 18-36% off
+- Global sum without speck removal → speck_heavy fails by 20%+ over
+- Missing halo growth → 15-25% under
 
-## Anti-Cheating Analysis
+Tolerance 3% sits in empty band between ~1% (any sound conservation) and >=12% (any counting shortcut).
 
-Hardcoded outputs: grading generates held-out scans at test time from configs with geometric truth computed inside verifier, not from static files. Volumes differ from sample. Constant cannot pass.
-Overfitting to visible: only sample scan present at /app/data/scene.apcv, different volume/spacing/PSF/amplitude/background/noise than hidden generated scans. Hidden inputs generated in temp dir with random filenames.
-Secure runner: verifier generates held-outs at runtime and runs solver via secure runner with audit hook blocking open on sensitive paths, blocking listdir scandir walk, blocking system popen exec fork spawn and subprocess socket, and blocking banned imports.
-From-scratch guard: test_from_scratch uses AST checks for banned modules, banned calls, banned attrs, bans chr fromhex b64decode pathlib rglob glob.
+## Anti-Cheating Hardening
 
-New domain: Android periscope prism glue bond void uses flagship telephoto periscope, right-angle glass prism, UV-cure adhesive, OIS drift, flare, distinct from OLED bond despite same physics core.
+- No generator `_gen.py` mounted in grading bundle; geometric truth recomputed inside verifier
+- `solve.py` executed in isolated `TemporaryDirectory` with neutral scan name, `PYTHONPATH=td`, audit hook blocks open on `/tests`, `test_outputs`, `heldout`, `_gen`, `GEOM_TRUTH`, `geometric_truth`, `reference_volume`, blocks `listdir/scandir/walk`, blocks `system/popen/exec/fork/spawn` and `subprocess/socket`, blocks banned imports
+- `test_from_scratch` AST bans `numpy/scipy/skimage/cv2/PIL/pandas/torch/tensorflow/subprocess/socket/multiprocessing/glob/pathlib/os/io/posixpath/ntpath/genericpath` and calls `eval/exec/compile/__import__/chr`, bans `chr(`, `fromhex`, `b64decode`, `base64`, `pathlib`, `rglob`, `glob(`
+- Hardcoded volume blocked: sample 560.7 mm3 differs from hidden; hidden files random names in temp dir
+
+New domain uses Android periscope telephoto, right-angle glass prism, UV glue, OIS drift, flare — embedding dedup distinct from ceramic sinter SiC despite same conservation physics; ceramic uses spark plasma sintering, SiC armor, Compton scatter, powder artefacts. This task is periscope prism glue void.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
