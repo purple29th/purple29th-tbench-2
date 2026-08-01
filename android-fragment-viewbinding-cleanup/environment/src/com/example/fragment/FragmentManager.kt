@@ -7,60 +7,46 @@ class FragmentManager {
     private val backStack = mutableListOf<BackStackEntry>()
 
     fun begin(txnId: String) { openTransactions[txnId] = Transaction(txnId) }
-
     fun add(txnId: String, container: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Add(container, Fragment(fragment)))
     }
-
     fun addChild(txnId: String, parent: String, childContainer: String, childFragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.AddChild(parent, childContainer, Fragment(childFragment)))
     }
-
     fun replace(txnId: String, container: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Replace(container, Fragment(fragment)))
     }
-
     fun remove(txnId: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Remove(Fragment(fragment)))
     }
-
     fun hide(txnId: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Hide(Fragment(fragment)))
     }
-
     fun show(txnId: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Show(Fragment(fragment)))
     }
-
     fun detach(txnId: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Detach(Fragment(fragment)))
     }
-
     fun attach(txnId: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Attach(Fragment(fragment)))
     }
-
     fun setMax(txnId: String, fragment: String, maxState: String) {
         val lc = try { Lifecycle.valueOf(maxState) } catch (e: Exception) { Lifecycle.RESUMED }
         openTransactions[txnId]?.addOp(TransactionOp.SetMax(Fragment(fragment), lc))
     }
-
     fun save(fragment: String, key: String, value: String) {
         fragmentStates.getOrPut(fragment) { FragmentState(Fragment(fragment)) }.savedState[key] = value
     }
-
     fun putViewModel(fragment: String, key: String, value: String) {
         fragmentStates.getOrPut(fragment) { FragmentState(Fragment(fragment)) }.viewModel[key] = value
     }
-
     fun putBinding(fragment: String, key: String, value: String) {
         fragmentStates.getOrPut(fragment) { FragmentState(Fragment(fragment)) }.binding[key] = value
     }
-
     fun addToBackStack(txnId: String, name: String?) {
         openTransactions[txnId]?.markBackStack(name)
     }
-
     fun commit(txnId: String) {
         val txn = openTransactions.remove(txnId) ?: return
         val replaced = mutableMapOf<String, List<Fragment>>()
@@ -80,33 +66,10 @@ class FragmentManager {
                             )
                         }
                     }
-                    // capture all descendants of replaced fragments
-                    val queue = replaced[op.container]!!.map { it.name }.toMutableList()
-                    var i = 0
-                    while (i < queue.size) {
-                        val curName = queue[i]
-                        val curState = fragmentStates[curName]
-                        if (curState != null) {
-                            for (child in curState.children) {
-                                if (child !in queue) queue.add(child)
-                                fragmentStates[child]?.let { childSt ->
-                                    replacedStates[child] = childSt.copy(
-                                        viewModel = childSt.viewModel.toMutableMap(),
-                                        savedState = childSt.savedState.toMutableMap(),
-                                        binding = childSt.binding.toMutableMap(),
-                                        children = childSt.children.toMutableSet()
-                                    )
-                                }
-                            }
-                        }
-                        i++
-                    }
                 }
             }
             if (op is TransactionOp.Remove) {
-                val st = fragmentStates[op.fragment.name]
-                if (st != null) {
-                    // capture to allow restore on pop
+                fragmentStates[op.fragment.name]?.let { st ->
                     replacedStates[op.fragment.name] = st.copy(
                         viewModel = st.viewModel.toMutableMap(),
                         savedState = st.savedState.toMutableMap(),
@@ -115,28 +78,8 @@ class FragmentManager {
                     )
                     st.lastContainer?.let { cId ->
                         containers[cId]?.let { cont ->
-                            replaced[cId] = cont.snapshot()
+                            replaced[cont.id] = cont.snapshot()
                         }
-                    }
-                    // capture descendants
-                    val queue = mutableListOf(op.fragment.name)
-                    queue.addAll(st.children)
-                    var idx = 0
-                    while (idx < queue.size) {
-                        val curName = queue[idx]
-                        val curState = fragmentStates[curName]
-                        if (curState != null && curName != op.fragment.name) {
-                            replacedStates[curName] = curState.copy(
-                                viewModel = curState.viewModel.toMutableMap(),
-                                savedState = curState.savedState.toMutableMap(),
-                                binding = curState.binding.toMutableMap(),
-                                children = curState.children.toMutableSet()
-                            )
-                            for (child in curState.children) if (child !in queue) queue.add(child)
-                        } else if (curState != null) {
-                            for (child in curState.children) if (child !in queue) queue.add(child)
-                        }
-                        idx++
                     }
                 }
             }
@@ -146,92 +89,33 @@ class FragmentManager {
             backStack.add(BackStackEntry(txn.backStackName, txn.operations(), replaced, replacedStates))
         }
     }
-
     fun pop(name: String?) {
         if (backStack.isEmpty()) return
         if (name == null) {
-            val entry = backStack.removeAt(backStack.size - 1)
-            reverseEntry(entry)
+            reverseEntry(backStack.removeAt(backStack.size - 1))
             return
         }
-        val index = backStack.indexOfLast { it.name == name }
-        if (index < 0) return // no-op, do NOT drain
-        while (backStack.size > index) {
-            val entry = backStack.removeAt(backStack.size - 1)
-            reverseEntry(entry)
+        val index = backStack.indexOfFirst { it.name == name }
+        if (index < 0) {
+            while (backStack.isNotEmpty()) {
+                reverseEntry(backStack.removeAt(backStack.size - 1))
+            }
+            return
+        }
+        while (backStack.size > index + 1) {
+            reverseEntry(backStack.removeAt(backStack.size - 1))
         }
     }
-
     fun rotate() {
-        // save viewModel and savedState before clearing, as they survive rotate unlike binding
-        val vmSave = fragmentStates.mapValues { it.value.viewModel.toMap() }
-        val ssSave = fragmentStates.mapValues { it.value.savedState.toMap() }
-
         for (container in containers.values) container.clear()
         fragmentStates.clear()
         val saved = backStack.toList()
         backStack.clear()
         for (entry in saved) {
-            applyOpsForRotate(entry.ops)
+            applyOps(entry.ops)
             backStack.add(entry)
         }
-        // restore viewModel and savedState for fragments that survived replay, binding stays empty
-        for ((fragName, vm) in vmSave) {
-            if (fragmentStates.containsKey(fragName)) {
-                val cur = fragmentStates[fragName]!!
-                for ((k, v) in vm) {
-                    if (!cur.viewModel.containsKey(k)) cur.viewModel[k] = v
-                }
-            }
-        }
-        for ((fragName, ss) in ssSave) {
-            if (fragmentStates.containsKey(fragName)) {
-                val cur = fragmentStates[fragName]!!
-                for ((k, v) in ss) {
-                    if (!cur.savedState.containsKey(k)) cur.savedState[k] = v
-                }
-            }
-        }
-        // ensure all bindings are empty after rotate
-        for (fs in fragmentStates.values) fs.binding.clear()
     }
-
-    private fun applyOpsForRotate(ops: List<TransactionOp>) {
-        for (op in ops) {
-            when (op) {
-                is TransactionOp.Add -> {
-                    allContainersEverUsed.add(op.container)
-                    val container = containers.getOrPut(op.container) { Container(op.container) }
-                    val fs = fragmentStates.getOrPut(op.fragment.name) { FragmentState(op.fragment) }
-                    fs.parent = null
-                    fs.detached = false
-                    fs.hidden = false
-                    fs.lifecycle = minLifecycle(Lifecycle.RESUMED, fs.maxLifecycle)
-                    fs.lastContainer = op.container
-                    fs.binding.clear()
-                    container.add(op.fragment)
-                }
-                is TransactionOp.AddChild -> {
-                    allContainersEverUsed.add(op.childContainer)
-                    val parentState = fragmentStates[op.parentFragment]
-                    if (parentState == null) continue
-                    if (parentState.detached) continue
-                    val childState = fragmentStates.getOrPut(op.childFragment.name) { FragmentState(op.childFragment) }
-                    childState.parent = op.parentFragment
-                    childState.detached = false
-                    childState.hidden = false
-                    childState.lifecycle = minLifecycle(Lifecycle.RESUMED, childState.maxLifecycle)
-                    parentState.children.add(op.childFragment.name)
-                    childState.lastContainer = op.childContainer
-                    childState.binding.clear()
-                    val container = containers.getOrPut(op.childContainer) { Container(op.childContainer) }
-                    container.add(op.childFragment)
-                }
-                else -> {}
-            }
-        }
-    }
-
     fun snapshot(): String {
         val builder = StringBuilder()
         for ((id, container) in containers.toSortedMap()) {
@@ -241,9 +125,9 @@ class FragmentManager {
         }
         for ((name, state) in fragmentStates.toSortedMap()) {
             val parent = state.parent ?: "NONE"
-            val vm = state.viewModel.toSortedMap().entries.joinToString(", ") { "${it.key}=${it.value}" }
-            val ss = state.savedState.toSortedMap().entries.joinToString(", ") { "${it.key}=${it.value}" }
-            val bd = state.binding.toSortedMap().entries.joinToString(", ") { "${it.key}=${it.value}" }
+            val vm = state.viewModel.toSortedMap().entries.joinToString(", ") { "${'$'}{it.key}=${'$'}{it.value}" }
+            val ss = state.savedState.toSortedMap().entries.joinToString(", ") { "${'$'}{it.key}=${'$'}{it.value}" }
+            val bd = state.binding.toSortedMap().entries.joinToString(", ") { "${'$'}{it.key}=${'$'}{it.value}" }
             val childs = state.children.sorted().joinToString(", ")
             builder.append("fragment=").append(name)
                 .append(" parent=").append(parent)
@@ -260,9 +144,7 @@ class FragmentManager {
         builder.append("backstack=[").append(entries).append("]\n")
         return builder.toString()
     }
-
     private val allContainersEverUsed = mutableSetOf<String>()
-
     private fun applyOps(ops: List<TransactionOp>) {
         for (op in ops) {
             when (op) {
@@ -276,57 +158,36 @@ class FragmentManager {
                     fragState.lifecycle = Lifecycle.RESUMED
                     fragState.lifecycle = minLifecycle(fragState.lifecycle, fragState.maxLifecycle)
                     fragState.lastContainer = op.container
-                    fragState.binding.clear()
                     container.add(op.fragment)
                 }
                 is TransactionOp.AddChild -> {
                     allContainersEverUsed.add(op.childContainer)
-                    val parentState = fragmentStates[op.parentFragment] ?: continue
+                    val parentState = fragmentStates[op.parentFragment]
+                    if (parentState == null) continue
                     if (parentState.detached) continue
                     val childState = fragmentStates.getOrPut(op.childFragment.name) { FragmentState(op.childFragment) }
                     childState.parent = op.parentFragment
-                    childState.detached = false
                     childState.hidden = false
+                    childState.detached = false
                     childState.lifecycle = Lifecycle.RESUMED
-                    childState.lifecycle = minLifecycle(childState.lifecycle, childState.maxLifecycle)
-                    if (parentState.hidden) {
-                        childState.lifecycle = minLifecycle(Lifecycle.STARTED, childState.maxLifecycle)
-                    }
                     parentState.children.add(op.childFragment.name)
                     childState.lastContainer = op.childContainer
-                    childState.binding.clear()
                     val container = containers.getOrPut(op.childContainer) { Container(op.childContainer) }
                     container.add(op.childFragment)
                 }
                 is TransactionOp.Replace -> {
                     allContainersEverUsed.add(op.container)
                     val container = containers.getOrPut(op.container) { Container(op.container) }
-                    val oldList = container.snapshot().toList()
+                    val oldList = container.snapshot()
                     for (old in oldList) {
-                        val oldState = fragmentStates[old.name]
-                        if (oldState != null) {
-                            // recursively remove children
-                            val queue = mutableListOf(old.name)
-                            queue.addAll(oldState.children)
-                            var idx = 0
-                            while (idx < queue.size) {
-                                val curName = queue[idx]
-                                val curSt = fragmentStates[curName]
-                                if (curSt != null) {
-                                    for (child in curSt.children) if (child !in queue) queue.add(child)
-                                }
-                                idx++
+                        container.remove(old)
+                        fragmentStates[old.name]?.let { st ->
+                            for (childName in st.children) {
+                                fragmentStates.remove(childName)
+                                for (c in containers.values) c.remove(Fragment(childName))
                             }
-                            for (fn in queue) {
-                                fragmentStates[fn]?.let {
-                                    for (c in containers.values) c.remove(Fragment(fn))
-                                    if (it.parent != null) fragmentStates[it.parent]?.children?.remove(fn)
-                                }
-                                fragmentStates.remove(fn)
-                            }
-                        } else {
-                            container.remove(old)
                         }
+                        fragmentStates.remove(old.name)
                     }
                     container.replace(op.fragment)
                     val newState = fragmentStates.getOrPut(op.fragment.name) { FragmentState(op.fragment) }
@@ -334,12 +195,14 @@ class FragmentManager {
                     newState.hidden = false
                     newState.detached = false
                     newState.lifecycle = Lifecycle.RESUMED
-                    newState.lifecycle = minLifecycle(newState.lifecycle, newState.maxLifecycle)
                     newState.lastContainer = op.container
-                    newState.binding.clear()
                 }
                 is TransactionOp.Remove -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
+                    for (c in containers.values) c.remove(op.fragment)
+                    if (state.parent != null) {
+                        fragmentStates[state.parent]?.children?.remove(op.fragment.name)
+                    }
                     val toRemove = mutableListOf<String>()
                     toRemove.add(op.fragment.name)
                     var idx = 0
@@ -352,9 +215,8 @@ class FragmentManager {
                         idx++
                     }
                     for (fn in toRemove) {
-                        for (c in containers.values) c.remove(Fragment(fn))
                         fragmentStates[fn]?.let { st ->
-                            if (st.parent != null) fragmentStates[st.parent]?.children?.remove(fn)
+                            for (c in containers.values) c.remove(Fragment(fn))
                         }
                         fragmentStates.remove(fn)
                     }
@@ -363,140 +225,42 @@ class FragmentManager {
                     val state = fragmentStates[op.fragment.name] ?: continue
                     state.hidden = true
                     state.lifecycle = minLifecycle(Lifecycle.STARTED, state.maxLifecycle)
-                    state.binding.clear()
-                    // propagate to descendants
-                    val queue = state.children.toMutableList()
-                    var idx = 0
-                    while (idx < queue.size) {
-                        val curName = queue[idx]
-                        val curSt = fragmentStates[curName]
-                        if (curSt != null) {
-                            curSt.lifecycle = minLifecycle(curSt.lifecycle, state.maxLifecycle)
-                            curSt.binding.clear()
-                            queue.addAll(curSt.children)
-                        }
-                        idx++
-                    }
                 }
                 is TransactionOp.Show -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
                     state.hidden = false
-                    val parentMax = state.parent?.let { fragmentStates[it]?.maxLifecycle } ?: Lifecycle.RESUMED
-                    val parentHidden = state.parent?.let { fragmentStates[it]?.hidden } ?: false
-                    val parentDetached = state.parent?.let { fragmentStates[it]?.detached } ?: false
-                    var target = Lifecycle.RESUMED
-                    if (parentHidden || parentDetached) target = Lifecycle.STARTED
-                    target = minLifecycle(target, state.maxLifecycle)
-                    target = minLifecycle(target, parentMax)
-                    state.lifecycle = target
-                    state.binding.clear()
-                    // propagate to children
-                    val queue = state.children.toMutableList()
-                    var idx = 0
-                    while (idx < queue.size) {
-                        val curName = queue[idx]
-                        val curSt = fragmentStates[curName]
-                        if (curSt != null) {
-                            if (!curSt.hidden && !curSt.detached) {
-                                val pMax = curSt.parent?.let { fragmentStates[it]?.maxLifecycle } ?: Lifecycle.RESUMED
-                                val pHidden = curSt.parent?.let { fragmentStates[it]?.hidden } ?: false
-                                val pDetached = curSt.parent?.let { fragmentStates[it]?.detached } ?: false
-                                var t = Lifecycle.RESUMED
-                                if (pHidden || pDetached) t = Lifecycle.STARTED
-                                t = minLifecycle(t, curSt.maxLifecycle)
-                                t = minLifecycle(t, pMax)
-                                curSt.lifecycle = t
-                                curSt.binding.clear()
-                            }
-                            queue.addAll(curSt.children)
-                        }
-                        idx++
-                    }
+                    state.lifecycle = Lifecycle.RESUMED
                 }
                 is TransactionOp.Detach -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
-                    // remove from containers and clear binding for self and children
-                    val queue = mutableListOf(op.fragment.name)
-                    queue.addAll(state.children)
-                    var idx = 0
-                    while (idx < queue.size) {
-                        val curName = queue[idx]
-                        val curSt = fragmentStates[curName]
-                        if (curSt != null) {
-                            for (c in containers.values) c.remove(Fragment(curName))
-                            curSt.detached = true
-                            curSt.lifecycle = Lifecycle.CREATED
-                            curSt.binding.clear()
-                            queue.addAll(curSt.children)
-                        }
-                        idx++
-                    }
+                    for (c in containers.values) c.remove(op.fragment)
+                    state.detached = true
+                    state.lifecycle = Lifecycle.CREATED
                 }
                 is TransactionOp.Attach -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
                     if (!state.detached) continue
                     state.detached = false
-                    val parentMax = state.parent?.let { fragmentStates[it]?.maxLifecycle } ?: Lifecycle.RESUMED
-                    val parentHidden = state.parent?.let { fragmentStates[it]?.hidden } ?: false
-                    val parentDetached = state.parent?.let { fragmentStates[it]?.detached } ?: false
-                    var target = if (state.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
-                    if (parentHidden || parentDetached) target = Lifecycle.STARTED
-                    target = minLifecycle(target, state.maxLifecycle)
-                    target = minLifecycle(target, parentMax)
-                    state.lifecycle = target
-                    state.binding.clear()
+                    state.lifecycle = minLifecycle(Lifecycle.RESUMED, state.maxLifecycle)
                     state.lastContainer?.let { lc ->
                         val container = containers.getOrPut(lc) { Container(lc) }
                         container.add(op.fragment)
-                    }
-                    // restore children
-                    val queue = state.children.toMutableList()
-                    var idx = 0
-                    while (idx < queue.size) {
-                        val curName = queue[idx]
-                        val curSt = fragmentStates[curName]
-                        if (curSt != null) {
-                            curSt.detached = false
-                            val pMax = curSt.parent?.let { fragmentStates[it]?.maxLifecycle } ?: Lifecycle.RESUMED
-                            val pHidden = curSt.parent?.let { fragmentStates[it]?.hidden } ?: false
-                            val pDetached = curSt.parent?.let { fragmentStates[it]?.detached } ?: false
-                            var t = if (curSt.hidden) Lifecycle.STARTED else Lifecycle.RESUMED
-                            if (pHidden || pDetached) t = Lifecycle.STARTED
-                            t = minLifecycle(t, curSt.maxLifecycle)
-                            t = minLifecycle(t, pMax)
-                            curSt.lifecycle = t
-                            curSt.binding.clear()
-                            curSt.lastContainer?.let { lc2 ->
-                                val container = containers.getOrPut(lc2) { Container(lc2) }
-                                container.add(Fragment(curName))
-                            }
-                            queue.addAll(curSt.children)
-                        }
-                        idx++
                     }
                 }
                 is TransactionOp.SetMax -> {
                     val state = fragmentStates[op.fragment.name] ?: continue
                     state.maxLifecycle = op.maxState
                     state.lifecycle = minLifecycle(state.lifecycle, state.maxLifecycle)
-                    // cascade to descendants
-                    val queue = state.children.toMutableList()
-                    var idx = 0
-                    while (idx < queue.size) {
-                        val curName = queue[idx]
-                        val curSt = fragmentStates[curName]
-                        if (curSt != null) {
-                            curSt.maxLifecycle = minLifecycle(curSt.maxLifecycle, state.maxLifecycle)
-                            curSt.lifecycle = minLifecycle(curSt.lifecycle, curSt.maxLifecycle)
-                            queue.addAll(curSt.children)
+                    for (childName in state.children) {
+                        fragmentStates[childName]?.let { child ->
+                            child.maxLifecycle = minLifecycle(child.maxLifecycle, state.maxLifecycle)
+                            child.lifecycle = minLifecycle(child.lifecycle, child.maxLifecycle)
                         }
-                        idx++
                     }
                 }
             }
         }
     }
-
     private fun reverseEntry(entry: BackStackEntry) {
         for (op in entry.ops.reversed()) {
             when (op) {
@@ -521,13 +285,12 @@ class FragmentManager {
                             fragmentStates[frag.name] = snap.copy(
                                 viewModel = snap.viewModel.toMutableMap(),
                                 savedState = snap.savedState.toMutableMap(),
-                                binding = mutableMapOf(), // binding always empty on restore
+                                binding = snap.binding.toMutableMap(),
                                 children = snap.children.toMutableSet()
                             )
                         } else {
                             fragmentStates.getOrPut(frag.name) { FragmentState(frag) }
                         }
-                        allContainersEverUsed.add(op.container)
                     }
                 }
                 is TransactionOp.Remove -> {
@@ -536,7 +299,7 @@ class FragmentManager {
                         fragmentStates[snap.fragment.name] = snap.copy(
                             viewModel = snap.viewModel.toMutableMap(),
                             savedState = snap.savedState.toMutableMap(),
-                            binding = mutableMapOf(),
+                            binding = snap.binding.toMutableMap(),
                             children = snap.children.toMutableSet()
                         )
                         snap.lastContainer?.let { cId ->
@@ -544,48 +307,24 @@ class FragmentManager {
                             container.add(Fragment(snap.fragment.name))
                             allContainersEverUsed.add(cId)
                         }
-                        // restore descendants from captured states
-                        val queue = snap.children.toMutableList()
-                        var idx = 0
-                        while (idx < queue.size) {
-                            val curName = queue[idx]
-                            val curSnap = entry.replacedStates[curName]
-                            if (curSnap != null) {
-                                fragmentStates[curName] = curSnap.copy(
-                                    viewModel = curSnap.viewModel.toMutableMap(),
-                                    savedState = curSnap.savedState.toMutableMap(),
-                                    binding = mutableMapOf(),
-                                    children = curSnap.children.toMutableSet()
-                                )
-                                curSnap.lastContainer?.let { cId ->
-                                    containers.getOrPut(cId) { Container(cId) }.add(Fragment(curName))
-                                    allContainersEverUsed.add(cId)
-                                }
-                                queue.addAll(curSnap.children)
-                            }
-                            idx++
-                        }
                     }
                 }
                 is TransactionOp.Hide -> {
                     fragmentStates[op.fragment.name]?.let {
                         it.hidden = false
-                        it.lifecycle = minLifecycle(Lifecycle.RESUMED, it.maxLifecycle)
-                        it.binding.clear()
+                        it.lifecycle = Lifecycle.RESUMED
                     }
                 }
                 is TransactionOp.Show -> {
                     fragmentStates[op.fragment.name]?.let {
                         it.hidden = true
-                        it.lifecycle = minLifecycle(Lifecycle.STARTED, it.maxLifecycle)
-                        it.binding.clear()
+                        it.lifecycle = Lifecycle.STARTED
                     }
                 }
                 is TransactionOp.Detach -> {
                     fragmentStates[op.fragment.name]?.let {
                         it.detached = false
-                        it.lifecycle = minLifecycle(Lifecycle.RESUMED, it.maxLifecycle)
-                        it.binding.clear()
+                        it.lifecycle = Lifecycle.RESUMED
                         it.lastContainer?.let { lc ->
                             containers.getOrPut(lc) { Container(lc) }.add(op.fragment)
                         }
@@ -595,14 +334,13 @@ class FragmentManager {
                     fragmentStates[op.fragment.name]?.let {
                         it.detached = true
                         it.lifecycle = Lifecycle.CREATED
-                        it.binding.clear()
                         for (c in containers.values) c.remove(op.fragment)
                     }
                 }
                 is TransactionOp.SetMax -> {
                     fragmentStates[op.fragment.name]?.let {
                         it.maxLifecycle = Lifecycle.RESUMED
-                        it.lifecycle = minLifecycle(Lifecycle.RESUMED, it.maxLifecycle)
+                        it.lifecycle = Lifecycle.RESUMED
                     }
                 }
             }

@@ -51,6 +51,8 @@ CASE_NAMES = [
     "replace_child_binding_cleared_on_parent_replace",
     "set_max_cascades_binding_retained",
     "hide_propagates_three_levels",
+    "pop_restore_viewModel_retained",
+    "rotate_child_orphan_dropped",
 ]
 
 

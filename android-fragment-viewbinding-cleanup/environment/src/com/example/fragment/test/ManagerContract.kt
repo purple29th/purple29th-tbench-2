@@ -261,9 +261,39 @@ fun main() {
         val snap = m.snapshot()
         val lines = snap.lines().filter { it.startsWith("fragment=") }
         val allEmpty = lines.all { it.contains("binding={}") }
-        val allHiddenOrParentHidden = snap.contains("hidden=true") // Home hidden
         if (allEmpty) results.add("hide propagates three levels" to "PASS")
         else expect("hide propagates three levels", "all 3 levels binding should be empty after parent hide", snap)
+    }
+
+    run("pop restore viewModel retained") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.addToBackStack("t1", "home"); m.commit("t1")
+        m.putViewModel("Home", "vmK", "vmV")
+        m.save("Home", "sK", "sV")
+        m.putBinding("Home", "bK", "bV")
+        m.begin("t2"); m.replace("t2", "main", "Profile"); m.addToBackStack("t2", "profile"); m.commit("t2")
+        m.pop("profile")
+        val snap = m.snapshot()
+        val hasVm = snap.contains("vmK=vmV")
+        val hasSaved = snap.contains("sK=sV")
+        val bindingEmpty = snap.contains("binding={}") && !snap.contains("bK=bV")
+        val hasHome = snap.contains("fragment=Home")
+        if (hasVm && hasSaved && bindingEmpty && hasHome) results.add("pop restore viewModel retained" to "PASS")
+        else expect("pop restore viewModel retained", "vm and savedState retained, binding empty after pop restore", snap)
+    }
+
+    run("rotate child orphan dropped") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        m.begin("t2"); m.addChild("t2", "Home", "tabs", "Tab1"); m.commit("t2")
+        m.begin("t3"); m.add("t3", "main", "Other"); m.addToBackStack("t3", "bs"); m.commit("t3")
+        m.rotate()
+        val snap = m.snapshot()
+        val hasOther = snap.contains("fragment=Other")
+        val noHome = !snap.contains("fragment=Home")
+        val noTab = !snap.contains("fragment=Tab1")
+        if (hasOther && noHome && noTab) results.add("rotate child orphan dropped" to "PASS")
+        else expect("rotate child orphan dropped", "Other only, Home and Tab1 should be dropped as orphan", snap)
     }
 
     var allPass = true
