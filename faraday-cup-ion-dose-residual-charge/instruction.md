@@ -1,29 +1,29 @@
-I work in ion implant on batch implanters that dope wafers with boron. We have a Faraday cup behind the wafer that measures ion current to get dose. After beam off there is residual current that drains from the cup bias network and cable triboelectric charging. If we mis-measure it, next batch gets wrong dose.
+I run dose QA on high-current boron implanters in the Dresden fab. We implant 300mm wafers for power devices. Behind the wafer there is a graphite Faraday cup with a bias network that measures ion current. The electrometer has a long integration time and cable triboelectric leakage, so after beam off you see a slowly decaying current tail. Dose error if we integrate the wrong part causes Vt shift, and we scrap lots.
 
-Please create a file at /app/solve.py. When we run python /app/solve.py plus a scan file path, your program should print the true residual charge in microcoulombs for the main implant pulse as the last word. We grade within three percent.
+You must write a standalone program saved as /app/solve.py. It is invoked as python /app/solve.py <trace_path> and must print the true residual charge of the main implant pulse in microcoulombs as its last whitespace token. Tolerance is 3% relative. Hidden grading uses traces you never saw with different dose, drift rate, electrometer gain, sample count, interval, baseline temperature, and turbo pump vibration patterns. Do not hardcode numbers from the example. Work on any path given as first argument.
 
-I give you a sample file at /app/data/scene.fcrc to try. Hidden tests use other files you never saw with different charge amounts, drift speeds, gains, and vibration patterns. Do not hardcode sample numbers. Your code must work on any path given as first argument.
+Sample for development is at /app/data/scene.fcrc. You may read it while coding.
 
-My file format is called FCRC, I made it myself in the implant tool. All numbers are little endian:
+File format is .fcrc, custom binary, all little endian:
 
-First four bytes are ascii FCRC.
-Next four bytes are version uint32 value 1.
-Next four bytes are total samples N uint32.
-Next four bytes are data offset uint32 where current data starts.
-Next four bytes are sample interval float32 seconds, for example 0.00085.
-Next four bytes are gain float32 trim.
-Next four bytes are baseline floor uint32 hint, do not trust, real baseline drifts with temperature.
-Header is at least 28 bytes and may have random padding between 28 and data offset. You must use data offset field, do not assume 64. Hidden files use varied offsets 32 40 64 96 128.
-Payload at data offset is N int16 values little endian, each is current in mA times 10. So divide by 10 to get mA.
+- Bytes 0-3 ASCII magic FCRC
+- Bytes 4-7 uint32 version, currently 1
+- Bytes 8-11 uint32 N = total int16 samples
+- Bytes 12-15 uint32 data_offset = byte offset where current samples start
+- Bytes 16-19 float32 sample interval in seconds (e.g. 0.00085), changes per file, must be read
+- Bytes 20-23 float32 analog gain trim
+- Bytes 24-27 uint32 baseline floor hint from firmware, do NOT trust, real baseline drifts with heater and RF
+- Header may have random padding between byte 28 and data_offset, so use data_offset field. Hidden files use offsets 32 40 64 96 128.
+- At data_offset: N little-endian int16 values, each is current in deci-mA: physical mA = value / 10.0
 
-Inside each file there is a slowly drifting background plus noise plus one main implant discharge where current jumps high with long tails from electrometer low-pass smear, plus a few tiny far blips from turbo pump vibration, plus one wide low bump from chamber outgassing that has many samples but small total charge. That wide bump is broad and has many samples but small total charge, so picking the longest cluster by count gives wrong answer. Main event is the one with biggest total charge mass, not biggest count.
+What is inside each trace? A slowly drifting thermal baseline plus sensor noise, one dominant implant pulse that is flat-topped in ideal form but smeared by the electrometer low-pass into a high peak with extended exponential-like tails, a few isolated micro-spikes far away from turbo pump microphonics, and a shallow wide hump from chamber outgassing that is low amplitude but spans many tens of samples. The wide hump contains less total charge than the main pulse despite its length.
 
-Simple cutoff fails here. Low cutoff counts halo plus wide bump and counts too much, about 60 to 90 percent high. High cutoff cuts off low tails that still carry charge and counts too little, about 30 to 55 percent low. No fixed cutoff works because gain and drift change per recipe and per cup. The blur keeps total charge. Area under smeared curve equals ideal count times plateau, so charge is conserved even though peak is lower and wider. True charge is defined as integral of ideal current before blur, in microcoulombs. Only main implant pulse counts, wide outgassing bump and far blips do not. For ideal occupancy, charge equals number of main samples times plateau deci-mA divided by 10 times interval seconds times gain times 1000. So ideal charge = N_main * (plateau/10) * interval * gain * 1000. Because blur conserves total charge, sum of smeared residual equals sum of ideal, you can recover charge by integrating background-subtracted signal over main plus its halo: charge_uC = sum(residual over main+halo)/10 * interval * gain * 1000.
+Why naive thresholding fails? If you include every sample above a low threshold you also pick up the diffuse tail plus the shallow hump and you over-estimate by 60-90%. If you use a high threshold you cut off the genuine charge that lives in the faint tails and you under-estimate by 30-55%. No fixed absolute or relative threshold works across recipes because gain, drift slope, and smear width all change. The electrometer blur does not create or destroy charge, it only spreads it, so total charge is preserved.
 
-Grading is at three percent tolerance, only a genuine precise method passes.
+Your task is to recover the main pulse charge only, excluding the outgassing hump and far spikes. You need to infer the drifting baseline without letting the pulse itself bias you, separate main pulse from unrelated artifacts, estimate the true plateau level that would be seen without blur and without being fooled by noise spikes, and capture the faint tail that belongs to the main pulse until it fades into the noise floor while not accidentally bridging to distant artifacts.
 
-Implementation rules: parse bytes yourself with struct only. Allowed modules struct, sys, math, random, tempfile, re, collections. Banned modules numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, shutil, io, os, pty, importlib, runpy, ctypes. Banned calls eval, exec, compile, __import__, chr, ord, breakpoint, bytes, bytearray. Banned tricks subprocess, os system, os popen, os exec, os fork, os walk, os listdir, os scandir, os open, pty, importlib, runpy, plus any obfuscation that hides paths via chr, bytes fromhex, base64, b64decode, bytearray, etc.
+We grade at 3% relative. Threshold counting is far outside that window.
 
-Print charge as last word float.
+Implementation constraints: parse binary yourself, stdlib only. Allowed imports: struct, sys, math, random, tempfile, re, collections. Forbidden and will make test_from_scratch fail: numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, shutil, io, os, pty, importlib, runpy, ctypes and any other array/imaging/graph lib. Forbidden builtins: eval, exec, compile, __import__, chr, ord, breakpoint, bytes, bytearray. Forbidden runtime: subprocess, os.system, os.popen, os.exec, os.fork, os.walk, os.listdir, os.scandir, os.open, pty, importlib, runpy etc. plus path hiding via chr, bytes.fromhex, base64, b64decode, string concatenation building forbidden paths. Never try to open or list /tests directory, never mention test_outputs, heldout, reference_volume, _gen, GEOM_TRUTH, geometric_truth in solve.py. Must work on random temp path, not hardcoded.
 
-Thanks for helping the implant team, this is needed for dose accuracy.
+Print charge in microcoulombs as final token. Example: 1234.56

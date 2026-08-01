@@ -651,6 +651,56 @@ def test_global_conservation_shortcut_fails_on_wide_bump():
     )
 
 
+def test_count_based_clustering_fails_on_wide_bump():
+    """Wide outgassing hump has more samples than main pulse but less integrated charge.
+    Picking longest by count must fail, ensuring task needs mass-based selection."""
+    cfg = BASE_CONFIGS["heldout_1"]
+    field, true_charge, main_c, wide_c = build_field(cfg)
+
+    def count_based_picker():
+        # replicate background estimation and thresholding but pick by count not mass
+        sv = sorted(field)
+        # median
+        bg = sv[len(sv) // 2]
+        lo = sv[: len(sv) // 2]
+        med_lo = lo[len(lo) // 2]
+        mad = sorted(abs(v - med_lo) for v in lo)[len(lo) // 2]
+        sigma = max(1.0, 1.4826 * mad)
+        r = [v - bg for v in field]
+        thr = 3.5 * sigma
+        n = len(field)
+        visited = [False] * n
+        comps = []
+        for i in range(n):
+            if r[i] <= thr or visited[i]:
+                continue
+            stack = [i]
+            visited[i] = True
+            comp = []
+            mass = 0.0
+            while stack:
+                cur = stack.pop()
+                comp.append(cur)
+                mass += r[cur]
+                for nb in (cur - 1, cur + 1):
+                    if 0 <= nb < n and not visited[nb] and r[nb] > thr:
+                        visited[nb] = True
+                        stack.append(nb)
+            comps.append((comp, mass, len(comp)))
+        if not comps:
+            return 0.0
+        # count-based: longest by number of samples
+        longest = max(comps, key=lambda x: x[2])
+        total_res = sum(r[idx] for idx in longest[0])
+        return total_res / 10.0 * cfg["interval"] * cfg["gain"] * 1000.0
+
+    got = count_based_picker()
+    # count-based should pick wide hump (66+ samples) vs main (46) and give wrong charge
+    assert abs(got - true_charge) > REL_TOL * true_charge, (
+        f"Expected count-based picker to fail on wide bump, got {got:.2f} vs truth {true_charge:.2f}"
+    )
+
+
 def test_cheating_attempt_pathlib_construction_fails():
     cheating_code = """
 import pathlib

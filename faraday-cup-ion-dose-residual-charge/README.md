@@ -1,48 +1,35 @@
-# Faraday Cup Ion Dose Residual Charge
+# Faraday Cup Ion Implant Dose - Residual Charge Recovery
 
-## Summary
-I work on ion implant batch implanters doping wafers with boron. Faraday cup behind wafer measures ion current for dose control. After beam off, residual current drains from cup bias network and cable triboelectric. Need true residual charge in microcoulombs for main implant pulse only.
+## Description
 
-## Why This Is Hard
-Electrometer low-pass plus triboelectric background smears the spike plus chamber outgassing wide bump and pump vibration blips.
+Agent writes stdlib-only Python at `/app/solve.py` that reads a proprietary ion implanter trace (`FCRC` magic, ext `.fcrc`) containing Faraday cup current in deci-mA. Input path via argv[1]; sample at `/app/data/scene.fcrc`. Agent prints main implant pulse residual charge in microcoulombs as final token, graded at 3% relative.
 
-* Low cutoff includes halo and wide outgassing bump and overcounts 60-90%
-* High cutoff misses low tails that still hold significant charge and undercounts 30-55%
-* Wide outgassing bump has larger sample count than main but smaller integrated charge, so count based clustering picks wrong one. Must pick by mass not count.
-* No fixed cutoff works because gain and baseline drift change per recipe
+High-current boron implanter at Dresden: graphite Faraday cup behind wafer measures dose. Electrometer front-end has long RC plus cable triboelectric leakage, spreading the ideal flat-top current into a lower peak with long tails. Trace also contains: slowly drifting thermal baseline, ultra-shallow wide outgassing hump from chamber (long in samples but low integrated charge), and isolated micro-spikes from turbo pump.
 
-Blur is charge conserving. Total charge under blurred curve equals ideal occupancy times plateau, so true charge recoverable via integrating background subtracted signal over main plus halo and scaling by interval and gain.
+Simple amplitude thresholding fails dramatically across recipes because analog gain, drift slope, smear sigma and baseline all change per file. Low threshold absorbs halo and outgassing hump (+60-90% over), high threshold discards tail charge that still holds significant energy (-30-55% under). The wide hump is a trap: it has more samples than the main pulse but less charge, so picking longest run by count selects wrong event.
 
-## Approach
-* Parse header respecting data offset, do not hardcode 64 - hidden uses 32,40,64,96,128
-* Estimate background robustly via median lower half + MAD, refine using values below median to remove pulse bias
-* Find 1D connected components above 3.5 sigma, mass based clustering not count, main is largest mass
-* Grow halo outward from main until shell mean falls to 0.5 sigma noise floor, excluding dust sets to avoid bridging to far blips
-* Integrate residual over main plus halo, convert deci mA to mA /10, times interval seconds *1000*gain to get microcoulombs
+Correct method is charge conservation: normalized electrometer blur preserves integral. True charge equals integral of ideal flat-top before blur. Recovery needs unbiased baseline estimation, isolation of main pulse from far artifacts, estimation of true plateau without noise bias, and inclusion of faint tail without bridging to distant spikes. 3% tolerance sits between <0.5% conservation and >=12% counting shortcuts.
 
-Method works for varied total, gains, drift, PSF.
+Numpy / scipy not allowed; stdlib-only forces manual binary parsing and 1D signal reasoning.
 
-## Files
-* /app/solve.py agent must create, prints charge as last word
-* /app/data/scene.fcrc sample for local dev
-* environment/Dockerfile installs python and pytest
-* tests/test_outputs.py evaluation suite with secure runner
+## Completion
 
-## Model Analysis / Completion Rate
-* Oracle 5/5 100% - reference solution passes all heldouts within 3% via charge conservation plus mass clustering
-* Naive threshold counting fails 60-90% over or 30-55% under due to wide bump
-* Count based clustering fails wide shake case because wide shake has more samples but less charge
-* Expected difficulty: similar to electrostatic-chuck family, avocado 0-2/5, gpt 1-2/5, opus 2-3/5 - harder than simple threshold due to 1D drift and mass clustering
-* Format int16 deci-mA payload, data_offset varied to enforce no hardcode
+Oracle uses same conservation pipeline as implant production code: parse respecting data_offset (hidden uses 32,40,64,96,128), robust background from lower half median, connected components above noise, main by integrated mass, adaptive outward growth until tail mean fades to noise while excluding dust sets, then integrate with interval * gain scaling.
 
-## Anti Cheating
-* No numpy, scipy, imaging libs - from scratch only, whitelist: struct, sys, math, random, tempfile, re, collections
-* No hardcoded sample charge, must work on any random temp file path
-* Do not open or list /tests and do not mention test_outputs, heldout, reference volume, _gen, geometric truth
-* From-scratch guard uses AST whitelist and detects concatenated forbidden paths
-* Verifier runs solver in isolated temp dir with sys.addaudithook blocking open/listdir/stat of /tests, heldout, _gen, ground_truth, reference volume etc
-* Banned dynamic primitives: eval, exec, chr, bytes, bytearray, fromhex, b64decode etc
+Internal eval on 5 heldouts + randomized extra:
+- Conservation: 0.03-0.27% per trace (passes)
+- Global sum including hump: 20-30% over (fails)
+- Count-based longest run: picks outgassing hump not main (fails)
+- High cutoff: 30-55% under (fails)
 
-New domain: Faraday cup ion implant dose - ion beam, electrometer low-pass, triboelectric charging, outgassing bump, turbo pump vibration, distinct from electrostatic chuck dechuck but same charge conservation core.
+## Anti-Cheating
+
+- Custom binary `FCRC` with varied data_offset to block hardcoded 64
+- Only sample visible in container; hidden traces generated at test time with random filenames, different total/interval/gain/baseline/drift/PSF
+- Secure runner: temp dir, `sys.addaudithook` blocks open on `/tests`, `test_outputs`, `heldout`, `_gen`, `GEOM_TRUTH`, `geometric_truth`, `reference_volume`, blocks listdir/scandir/walk on `/tests`, blocks `os.system/popen/exec/fork` and `subprocess/socket`, blocks banned imports (`numpy/scipy/.../os/io/pathlib` etc)
+- From-scratch guard: AST bans for `numpy/scipy/skimage/cv2/PIL/pandas/torch/tensorflow/subprocess/socket/multiprocessing/glob/pathlib/os/io/...`, bans `eval/exec/compile/__import__/chr`, bans substrings `/tests`, `test_outputs`, `heldout`, `_gen`, `GEOM_TRUTH`, etc in string literals
+- Hardcoded charge blocked: hidden charges differ from sample (5697 uC sample vs varied heldouts)
+
+New domain: Faraday cup ion implant dose metrology - boron batch implanters, graphite cup, electrometer RC smear, triboelectric cable, outgassing hump, turbo pump microphonics. Embedding dedup distinct from electrostatic chuck via Dresden fab context, boron power device, graphite cup.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
