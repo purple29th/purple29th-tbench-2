@@ -188,6 +188,40 @@ fun main() {
         else expect("queued result survives rotate if backstacked", "pending or delivered should survive rotate", snap)
     }
 
+    run("anon backstack label") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.addToBackStack("t1", null); m.commit("t1")
+        val snap = m.snapshot()
+        expect("anon backstack label",
+            """
+            container=main fragments=[Home]
+            fragment=Home listeners=[] pending={} delivered={}
+            backstack=[anon]
+            """.trimIndent(),
+            snap)
+    }
+
+    run("multi query blank line") {
+        val m = FragmentManager()
+        m.begin("t1"); m.add("t1", "main", "Home"); m.commit("t1")
+        val snap1 = m.snapshot()
+        m.begin("t2"); m.add("t2", "main", "Profile"); m.commit("t2")
+        val snap2 = m.snapshot()
+        val combined = listOf(snap1, snap2).joinToString("\n")
+        expect("multi query blank line",
+            """
+            container=main fragments=[Home]
+            fragment=Home listeners=[] pending={} delivered={}
+            backstack=[]
+
+            container=main fragments=[Home, Profile]
+            fragment=Home listeners=[] pending={} delivered={}
+            fragment=Profile listeners=[] pending={} delivered={}
+            backstack=[]
+            """.trimIndent(),
+            combined)
+    }
+
     var allPass = true
     for ((name, status) in results) {
         if (status.startsWith("PASS")) println("PASS  $name")

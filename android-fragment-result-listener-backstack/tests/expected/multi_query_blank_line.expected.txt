@@ -1,0 +1,8 @@
+container=main fragments=[Home]
+fragment=Home listeners=[] pending={} delivered={}
+backstack=[]
+
+container=main fragments=[Home, Profile]
+fragment=Home listeners=[] pending={} delivered={}
+fragment=Profile listeners=[] pending={} delivered={}
+backstack=[]

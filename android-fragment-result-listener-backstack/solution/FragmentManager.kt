@@ -242,33 +242,21 @@ class FragmentManager {
                     }
                 }
                 is TransactionOp.SetListener -> {
-                    fragments[op.fragment]?.listeners?.remove(op.key)
-                    // if this listener had delivered a pending, we should restore pending? For simplicity, remove delivered if it came from pending delivery
-                    val fs = fragments[op.fragment]
-                    if (fs != null) {
-                        // if delivered exists and no pending, it might have been from pending->delivered, restore pending
-                        val deliveredVal = fs.delivered[op.key]
-                        if (deliveredVal != null && !fs.pending.containsKey(op.key)) {
-                            // check if this delivery was due to pending: we can heuristic move back to pending if needed
-                            // But contract tests for pending delivery on listener added later pop should revert correctly via reverse of SetListener removing delivered and re-adding pending?
-                            // For this simplified version, on reverse we remove delivered and if there was previously pending, we don't know original pending value.
-                            // Instead, for pending->delivered case, we should move delivered back to pending.
-                            // We have no original pending snapshot, so we move delivered to pending.
-                            fs.pending[op.key] = deliveredVal
-                            fs.delivered.remove(op.key)
-                        }
+                    val fs = fragments[op.fragment] ?: continue
+                    val deliveredVal = fs.delivered[op.key]
+                    if (deliveredVal != null) {
+                        fs.pending[op.key] = deliveredVal
+                        fs.delivered.remove(op.key)
                     }
+                    fs.listeners.remove(op.key)
                 }
                 is TransactionOp.ClearListener -> {
-                    // reverse of clear is re-add listener, but we don't know if pending should stay. For simplicity, re-add.
                     fragments[op.fragment]?.listeners?.add(op.key)
                 }
                 is TransactionOp.SetResult -> {
                     val fs = fragments[op.target] ?: continue
-                    // if result was delivered, remove delivered and restore listener if needed
                     if (fs.delivered.containsKey(op.key)) {
                         fs.delivered.remove(op.key)
-                        // if result was queued via listener, listener was removed on delivery, so restore listener
                         fs.listeners.add(op.key)
                     } else {
                         fs.pending.remove(op.key)

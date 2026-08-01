@@ -47,6 +47,8 @@ CASE_NAMES = [
     "rotate_retains_listeners_and_pending_for_backstacked",
     "rotate_drops_non_backstacked_result",
     "queued_result_survives_rotate_if_backstacked",
+    "anon_backstack_label",
+    "multi_query_blank_line",
 ]
 
 
