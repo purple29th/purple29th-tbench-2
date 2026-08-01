@@ -1,0 +1,3 @@
+container=main fragments=[Profile]
+fragment=Profile parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} binding={} children=[]
+backstack=[profile]

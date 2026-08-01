@@ -1,0 +1,3 @@
+container=main fragments=[Home]
+fragment=Home listeners=[k1] pending={} delivered={}
+backstack=[home, listener]
