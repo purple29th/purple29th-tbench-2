@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/faraday-cup-ion-dose-residual-charge"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "From-scratch Python parser for a custom Faraday cup current trace (.fcrc, magic FCRC) from ion implant dose measurement. Beam current is smeared by electrometer low-pass plus vacuum triboelectric transients. Task asks for true integrated ion dose residual charge in microcoulombs for main implant pulse, ignoring wide outgassing bump and far vibration blips. Bright counting vs mass clustering: wide bump has more samples but less charge. Requires robust background median/MAD, mass-based 1D connected components, filtered plateau, adaptive halo growth to noise floor. 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["faraday-cup", "ion-implant", "dose", "residual-charge", "binary-parsing", "from-scratch", "charge-conservation"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["faraday-cup", "ion-implant", "dose", "residual-charge", "binary-parsing", "from-scratch", "charge-conservation", "mass-clustering"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 210.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
