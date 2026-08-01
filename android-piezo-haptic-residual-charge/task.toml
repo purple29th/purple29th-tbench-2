@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/android-piezo-haptic-residual-charge"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "From-scratch parser for custom piezo haptic actuator residual charge trace (.aphc, magic APHC) in Android flagship haptics. Piezo stack drive is smeared by driver RC plus mechanical creep and RF interference. Traces contain main haptic pop pulse, dual creep humps (piezo creep and elastomer relaxation) long but low charge, and far spikes from LRA cross-talk. Simple threshold fails 65-95% over or 30-50% under. Charge conserved despite blur, needs unbiased baseline and mass-based isolation of main pop from dual humps and spikes. 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["android", "piezo", "haptic", "residual-charge", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["android", "piezo", "haptic", "residual-charge", "binary-parsing", "from-scratch", "charge-conservation"]
+expert_time_estimate_min = 70.0
+junior_time_estimate_min = 230.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
