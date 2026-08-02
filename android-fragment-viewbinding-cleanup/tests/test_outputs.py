@@ -53,6 +53,14 @@ CASE_NAMES = [
     "hide_propagates_three_levels",
     "pop_restore_viewModel_retained",
     "rotate_child_orphan_dropped",
+    # additional coverage per review
+    "remove_clears_descendants",
+    "add_child_ignored_when_parent_detached",
+    "pop_anonymous_uses_last",
+    "rotate_backstacked_replace",
+    "rotate_backstacked_hide",
+    "rotate_backstacked_set_max",
+    "remove_pop_restore",
 ]
 
 

@@ -1,19 +1,18 @@
-I work on the Android shopping app for our flagship store. We have a product listing with nested fragment tabs: main container shows Home, and Home has its own child container tabs with Tab1, Tab1 has Inner for product variants. Each product fragment holds a ViewBinding that wraps the view. Our prod crash reports show memory leaks because binding references are kept after the view is destroyed. I need a correct FragmentManager.
+I am fixing our flagship storefront Android app's product-detail navigation which is OOM-crashing in production because ViewBinding references survive past onDestroyView. The UI uses a root container `main` showing Home, Home owns child container `tabs` showing Tab1, Tab1 owns `inner` showing Inner variant picker for size/color. Each fragment holds a ViewBinding simulation that must be nullified when its view is destroyed, while ViewModel must stay.
 
-The app reads a scenario file at /app/scenario.txt, one operation per line, and writes the visible state to /app/output.txt at each QUERY. Right now contract tests are failing because binding is leaked and backstack pop misbehaves on rotation.
+The runner reads /app/scenario.txt (one op per line) and writes snapshots to /app/output.txt at each QUERY. Current implementation leaks binding on HIDE/DETACH/REMOVE/REPLACE/ROTATE and mishandles named POP (first occurrence vs last) and ROTATE orphan drop. Fix it so contract script passes and scenario runner produces exact output.
 
-Model for this exercise:
+Conceptual model for this exercise (simplified Android-style, not real SDK):
 
-Root containers like main hold root fragments. Child containers like homeTabs hold fragments nested under a parent. Parent can be deep.
-
-Each fragment keeps:
-- parent name or NONE if root
-- hidden bool, detached bool
-- lifecycle enum INITIALIZED, CREATED, VIEW_CREATED, STARTED, RESUMED and maxLifecycle that caps it to min(lifecycle, maxLifecycle)
-- viewModel map: survives ROTATE and POP restore, cleared only on REMOVE and on parent REMOVE, retained when restored via POP after REPLACE, NOT cleared on HIDE/DETACH
-- savedState map: survives ROTATE and POP restore
-- binding map: this is the critical leak-prone one. It simulates ViewBinding. It is created as empty dict when fragment view is created: ADD, ADD_CHILD, REPLACE (new fragment), SHOW (view recreated), ATTACH (view recreated), POP restore (view recreated), ROTATE replay (view recreated empty). It is cleared when view destroyed: HIDE (view destroyed), DETACH (view destroyed), REMOVE (view destroyed plus cleared state), REPLACE (old fragments view destroyed), ROTATE (all live bindings cleared before replay). So after ROTATE, binding is always empty, unlike viewModel and savedState which survive if fragment was part of backstacked transaction.
-- children set: direct child fragment names
+- Root containers like `main` hold root fragments. Child containers like `tabs` and `inner` hold fragments nested under a parent. Nesting can be arbitrarily deep (Home -> Tab1 -> Inner).
+- Each fragment tracks:
+  - parent name or NONE if root
+  - hidden flag, detached flag
+  - lifecycle enum INITIALIZED, CREATED, VIEW_CREATED, STARTED, RESUMED and maxLifecycle cap: effective lifecycle = min(lifecycle, maxLifecycle)
+  - viewModel map: survives ROTATE and POP restore, cleared only on REMOVE and on parent REMOVE, retained when restored via POP after REPLACE, NEVER cleared on HIDE/DETACH — this is the non-leaky store
+  - savedState map: survives ROTATE and POP restore
+  - binding map: the leak-prone ViewBinding simulation. Created as empty dict when view is created: on ADD, ADD_CHILD, REPLACE (new fragment), SHOW (view recreated), ATTACH (view recreated), POP restore (view recreated empty), ROTATE replay (view recreated empty). Cleared when view destroyed: on HIDE (view destroyed), DETACH (view destroyed), REMOVE (view destroyed + state cleared), REPLACE (old fragments view destroyed), ROTATE (all live bindings cleared before replay). After ROTATE binding is always empty, unlike viewModel/savedState which survive if fragment belonged to backstacked txn.
+  - children set: direct child fragment names
 
 Rules you must respect for binding and lifecycle:
 
@@ -21,8 +20,8 @@ Rules you must respect for binding and lifecycle:
 - On ADD_CHILD: child container added to ever-used, parent must exist and not detached otherwise ignore. Child parent set, hidden false, detached false, lifecycle RESUMED capped by max and by parent max and parent hidden (if parent hidden then child STARTED), binding cleared empty, parent children add child, lastContainer remembered, added to child container.
 - On REPLACE container fragment: old fragments in that container plus all their descendants must be removed from containers and from registry, their viewModel, savedState, binding all cleared. Then new fragment added with empty binding like ADD. For backstacked REPLACE, we capture old fragments list per container and full state snapshots of each removed fragment (including viewModel, savedState, binding, children, parent, hidden, max, lastContainer) to allow restore on POP. On POP restore, binding must be empty (view recreated fresh), not restored with old values.
 - On REMOVE fragment: remove fragment and all its descendants recursively from containers and registry, clearing viewModel, savedState, binding. Parent children list updated.
-- On HIDE fragment: hidden true, lifecycle down to min(STARTED, max), binding cleared for fragment and for all descendants recursively (cascade downgrade and binding clear, max cap also applied to descendants)
-- On SHOW fragment: hidden false, lifecycle up to min(RESUMED, max, parentMax) but if parent hidden or detached it stays STARTED, binding recreated as empty for fragment and for children that are not hidden/detached (propagate upgrade + empty binding)
+- On HIDE fragment: hidden true, lifecycle down to min(STARTED, max), binding cleared for fragment and for all descendants recursively (binding clear cascade only, descendant lifecycle and maxLifecycle unchanged). HIDE does NOT downgrade child lifecycle.
+- On SHOW fragment: hidden false, lifecycle up to min(RESUMED, max, parentMax) but if parent hidden or detached it stays STARTED, binding recreated as empty for fragment and for children that are not hidden/detached (propagate empty binding to children, child lifecycle upgraded only if it was STARTED solely due to parent hidden, otherwise unchanged)
 - On DETACH fragment: remove fragment and its children from containers, keep viewModel and savedState (do not clear them), set detached true, lifecycle CREATED, binding cleared for fragment and children, remember lastContainer for each
 - On ATTACH fragment: only if detached, re-add to lastContainer and children to theirs, detached false, lifecycle min(RESUMED or STARTED if hidden, max, parentMax) with parent hidden/detached check, binding recreated empty for fragment and children
 - On SET_MAX fragment state: set maxLifecycle, cap own lifecycle to min(lifecycle, max), cascade to descendants capping their max to min(their max, parent max) and lifecycle to min(lifecycle, new max). Does NOT clear binding — view stays.
