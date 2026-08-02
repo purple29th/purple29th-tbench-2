@@ -82,11 +82,13 @@ BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
-    "_gen",
+    "_gen.py",
     "GEOM_TRUTH",
     "geometric_truth",
     "reference_volume",
 ]
+# NOTE: previously "_gen" was banned causing false positives on ordinary names like is_genuine.
+# Now narrowed to "_gen.py" to block the generator file specifically.
 BANNED_OBFUSCATION_SUBSTRS = [
     "fromhex",
     "b64decode",
@@ -478,7 +480,7 @@ def run_agent_secure(fcrc_bytes, expected_uc, name="case"):
             import sys, os, runpy
             solve_path = sys.argv[1]
             fcrc_path = sys.argv[2]
-            BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "_gen", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
+            BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "_gen.py", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
             def _to_str(p):
                 if isinstance(p, (bytes, bytearray)):
                     try:
