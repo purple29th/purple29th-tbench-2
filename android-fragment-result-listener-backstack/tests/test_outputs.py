@@ -49,6 +49,16 @@ CASE_NAMES = [
     "queued_result_survives_rotate_if_backstacked",
     "anon_backstack_label",
     "multi_query_blank_line",
+    # expanded coverage per review
+    "pending_overwrite",
+    "ignore_missing_fragment",
+    "case_sensitive_pop",
+    "case_sensitive_pop_noop",
+    "multi_container_sorting",
+    "multiple_keys",
+    "remove_pop_restore_result",
+    "rotate_mixed_backstacked_non",
+    "pending_multiple_keys_overwrite",
 ]
 
 

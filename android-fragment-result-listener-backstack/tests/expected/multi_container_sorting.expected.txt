@@ -1,0 +1,7 @@
+container=alpha fragments=[Alpha]
+container=main fragments=[Home]
+container=second fragments=[Other]
+fragment=Alpha listeners=[] pending={} delivered={}
+fragment=Home listeners=[] pending={} delivered={}
+fragment=Other listeners=[] pending={} delivered={}
+backstack=[]
