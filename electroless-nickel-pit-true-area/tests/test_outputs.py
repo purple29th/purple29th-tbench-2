@@ -137,12 +137,12 @@ def geometric_truth_mm2(cfg,v_true):
     return v_true*sx*sy
 
 BASE_CONFIGS={
-    "heldout_1":dict(dims=(66,62),spacing=(0.012,0.012),dtype=16,amp=1100,bg=40,sig=2.2,noise=8,seed=101,object=[("ell",32,30,10,9),("box",44,50,28,33),("box",14,20,28,33)],specks=[(56,8,2.0),(8,56,1.8),(60,60,1.3)]),
-    "heldout_2":dict(dims=(64,64),spacing=(0.015,0.015),dtype=2,amp=1300,bg=60,sig=2.0,noise=10,seed=202,object=[("ell",31,32,11,10),("box",45,52,30,35)],specks=[(55,10,1.9),(10,55,1.6)]),
-    "heldout_3":dict(dims=(70,68),spacing=(0.011,0.011),dtype=16,amp=1050,bg=45,sig=2.4,noise=9,seed=303,object=[("ell",34,33,12,11),("box",48,56,30,35),("box",12,20,30,35),("box",30,35,12,20)],specks=[(60,8,2.0),(8,60,1.7)]),
-    "speck_heavy":dict(dims=(66,62),spacing=(0.012,0.012),dtype=16,amp=1100,bg=40,sig=2.2,noise=8,seed=101,object=[("ell",32,30,10,9),("box",44,50,28,33),("box",14,20,28,33)],specks=[(56,8,4.0),(8,56,3.5),(60,60,3.2)]),
+    "heldout_1":dict(dims=(66,62),spacing=(0.012,0.018),dtype=16,amp=1100,bg=40,sig=2.2,noise=8,seed=101,object=[("ell",32,30,10,9),("box",44,50,28,33),("box",14,20,28,33)],specks=[(56,8,2.0),(8,56,1.8),(60,60,1.3)]),
+    "heldout_2":dict(dims=(64,64),spacing=(0.015,0.022),dtype=2,amp=1300,bg=60,sig=2.0,noise=10,seed=202,object=[("ell",31,32,11,10),("box",45,52,30,35)],specks=[(55,10,1.9),(10,55,1.6)]),
+    "heldout_3":dict(dims=(70,68),spacing=(0.011,0.017),dtype=16,amp=1050,bg=45,sig=2.4,noise=9,seed=303,object=[("ell",34,33,12,11),("box",48,56,30,35),("box",12,20,30,35),("box",30,35,12,20)],specks=[(60,8,2.0),(8,60,1.7)]),
+    "speck_heavy":dict(dims=(66,62),spacing=(0.012,0.018),dtype=16,amp=1100,bg=40,sig=2.2,noise=8,seed=101,object=[("ell",32,30,10,9),("box",44,50,28,33),("box",14,20,28,33)],specks=[(56,8,4.0),(8,56,3.5),(60,60,3.2)]),
 }
-RANDOM_CONFIG=dict(dims=(68,64),spacing=(0.013,0.013),dtype=2,amp=1200,bg=50,sig=2.3,noise=9,seed=404,object=[("ell",33,31,10,9),("box",46,52,29,34),("box",16,22,29,34)],specks=[(58,9,1.9),(9,58,1.7)])
+RANDOM_CONFIG=dict(dims=(68,64),spacing=(0.013,0.019),dtype=2,amp=1200,bg=50,sig=2.3,noise=9,seed=404,object=[("ell",33,31,10,9),("box",46,52,29,34),("box",16,22,29,34)],specks=[(58,9,1.9),(9,58,1.7)])
 
 ALL_TEST_CONFIGS=[("heldout_1",BASE_CONFIGS["heldout_1"]),("heldout_2",BASE_CONFIGS["heldout_2"]),("heldout_3",BASE_CONFIGS["heldout_3"]),("speck_heavy",BASE_CONFIGS["speck_heavy"]),("randomized",RANDOM_CONFIG),]
 
@@ -285,7 +285,7 @@ def test_heldout_secure(cfg_name,cfg):
     assert abs(got-exp_mm2)<=REL_TOL*exp_mm2,(f"{cfg_name}: got {got:.6f} mm2 expected {exp_mm2:.6f} ±{REL_TOL*100}%")
 
 def test_randomized_extra():
-    cfg=dict(dims=(68,62),spacing=(0.0125,0.0125),dtype=16,amp=1150,bg=42,sig=2.3,noise=8,seed=505,object=[("ell",33,31,11,10),("box",46,52,29,34),("box",16,22,29,34)],specks=[(58,9,2.0),(9,58,1.6)])
+    cfg=dict(dims=(68,62),spacing=(0.0125,0.0185),dtype=16,amp=1150,bg=42,sig=2.3,noise=8,seed=505,object=[("ell",33,31,11,10),("box",46,52,29,34),("box",16,22,29,34)],specks=[(58,9,2.0),(9,58,1.6)])
     field,v_true=build_field(cfg)
     enpp_bytes=pack_enpp(cfg,field)
     exp_mm2=geometric_truth_mm2(cfg,v_true)
