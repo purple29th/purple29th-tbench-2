@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/sintered-silver-die-attach-void-subvoxel-volume"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "From-scratch Python parser for custom nano-CT volume (.ssdv, magic SSDV) of solvent outgassing voids in sintered silver die attach for SiC power modules. 160 kV nano-focus tube focal spot plus scintillator spread plus scatter in Ag/Cu creates normalized anisotropic blur conserving total counts but inflating apparent void. Task asks for true sealed void volume mm3. Threshold counting fails ~2x over or ~0.5x under across lots due to halo and thin vent channels. Solution needs robust background median/MAD, largest-mass 26-connected component to remove far organic inclusions, filtered top-K plateau, and adaptive halo growth to noise floor before converting energy to volume using anisotropic voxel pitch from header. 3% tolerance."
+description = "SiC power module line in Penang: silver sinter die attach between MOSFET and DBC copper. Henkel LOCTITE ABLESTIK sinter paste leaves isolated outgassing bubbles during pressure sintering that raise Rth-jc and cause power cycling hot spots. Phoenix nano-focus X-ray CT at 160kV images attach layer but Ag and Cu scatter plus scintillator bloom spreads bubble signal into wide halos. Custom volume format .ssdv (SSDV) holds inverted bright bubbles on silver matrix. Need true bubble volume mm3, not halo size. Thresholding fails because halo doubles apparent volume or thin vent legs cut to half. Must do median background from lower half, MAD noise, keep biggest integrated bright mass with 26-connectivity to drop organic residue specks, estimate plateau via 3x3x3 filtered top-K mean, grow halo to noise floor without bridging far specks, then volume equals energy over plateau times sx times sy times sz per file. 3 percent tolerance, stdlib only."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["sintered-silver", "die-attach", "SiC", "power-module", "outgassing", "industrial-CT", "nano-focus", "subvoxel", "energy-conservation", "from-scratch", "binary-parsing"]
+keywords = ["silver-sinter", "DBC", "SiC-MOSFET", "Rth-jc", "Henkel", "ABLESTIK", "outgassing-bubble", "Phoenix-CT", "true-volume", "from-scratch"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["sintered-silver", "die-attach", "SiC", "power-module", "outgassing", "industrial-CT", "nano-focus", "subvoxel", "energy-conservation", "from-scratch", "binary-parsing", "quality-control"]
+tags = ["silver-sinter", "die-attach", "SiC-MOSFET", "DBC", "Henkel", "power-cycling", "Rth-jc", "outgassing", "true-volume", "from-scratch", "quality-control"]
 expert_time_estimate_min = 70.0
 junior_time_estimate_min = 220.0
 
