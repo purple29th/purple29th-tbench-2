@@ -36,7 +36,8 @@ def _median(sorted_vals):
     )
 
 
-NEIGH26 = [
+# 26-neighbor connectivity for SiC ceramic: includes face, edge, corner
+NEIGH_CERAMIC_26 = [
     (dx, dy, dz)
     for dz in (-1, 0, 1)
     for dy in (-1, 0, 1)
@@ -53,7 +54,9 @@ def object_volume_mm3(path):
         return x + nx * (y + ny * z)
 
     sorted_vox = sorted(voxels)
-    background = _median(sorted_vox)
+    # Ceramic SiC matrix occupies ~70-80% of field, so 40th percentile is more robust
+    # than median which is biased high by large pore plus scatter halo
+    background = sorted_vox[int(n * 0.4)]
     lower_half = sorted_vox[: n // 2]
     med_low = _median(lower_half)
     mad = _median(sorted(abs(v - med_low) for v in lower_half))
@@ -81,7 +84,7 @@ def object_volume_mm3(path):
                     k = idx(x, y, z)
                     comp.append(k)
                     mass += residual[k]
-                    for dx, dy, dz in NEIGH26:
+                    for dx, dy, dz in NEIGH_CERAMIC_26:
                         a, b, c = x + dx, y + dy, z + dz
                         if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
                             kk = idx(a, b, c)
@@ -95,6 +98,7 @@ def object_volume_mm3(path):
     if not best_comp:
         return 0.0
 
+    # Plateau via 3x3x3 mean filtered top 8, robust to detector spikes
     filtered = []
     for j in best_comp:
         x = j % nx
@@ -116,6 +120,7 @@ def object_volume_mm3(path):
     if plateau <= 0:
         return 0.0
 
+    # Halo growth at 0.5 sigma to capture scatter fringe before bridging to specks
     region = set(best_comp)
     frontier = set(best_comp)
     halo_floor = 0.5 * noise_sigma
@@ -125,7 +130,7 @@ def object_volume_mm3(path):
             x = j % nx
             y = (j // nx) % ny
             z = j // (nx * ny)
-            for dx, dy, dz in NEIGH26:
+            for dx, dy, dz in NEIGH_CERAMIC_26:
                 a, b, c = x + dx, y + dy, z + dz
                 if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
                     k = idx(a, b, c)
