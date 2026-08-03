@@ -16,11 +16,11 @@ The .weld container is my own minimal format. All numbers are little endian.
 * Next four bytes are an unsigned int that tells byte offset where the voxel block starts. Do not assume 64, use what header says.
 * From that offset onward lies nx times ny times nz voxel samples stored in announced type, with x changing fastest. For coordinate triple x y z the flat index is x plus nx times quantity y plus ny times z.
 
-Inside each block the material is steel with two pore families.
+Inside each block the material is steel with two pore families that you must separate by shape after forming 26 neighbour connectivity components.
 
-The family that matters for leak is wormhole. These are stitch channels that run for many voxels along the weld, so they are strongly elongated in one or two axes.
+The family that matters for leak is wormhole. These are stitch channels that run for many voxels along the weld. Quantitatively a wormhole component satisfies an explicit elongation test on its axis aligned bounding box. Let dx = max_x - min_x + 1, dy = max_y - min_y + 1, dz = max_z - min_z + 1 for the component voxels, sort the three extents ascending as d0 <= d1 <= d2. A component counts as wormhole when d2 >= 8 and d2 > 1.6 * d0. This captures strongly elongated in one or two axes. If several components satisfy the test, all are counted and their volumes summed.
 
-The family to leave out is gas bubbles. These are compact near spherical artefacts trapped during solidification. They are roughly isotropic. You must drop them by shape. So the test is long versus compact.
+The family to leave out is gas bubbles. These are compact near spherical artefacts trapped during solidification. They are roughly isotropic and fail the elongation test, typically d2 <= 1.6 * d0 or d2 < 8. You must drop them by this shape test. So the decision long versus compact is pinned as longest edge at least 1.6 times shortest and at least 8 voxels long versus more cubic.
 
 A wormhole voxel core is uniformly bright because X ray sees open space. At its skin the value is reduced by partial occupancy plus blur spill. The whole volume sits on a uniform background pedestal with additive sensor speckle. Occasionally one or two isolated bright dots appear far from the weld, just sensor flicker, you must drop those as well using isolation plus 26 neighbour connectivity.
 
