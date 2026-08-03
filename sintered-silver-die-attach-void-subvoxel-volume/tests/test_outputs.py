@@ -238,7 +238,7 @@ def geometric_truth_mm3(cfg, v_true):
 BASE_CONFIGS = {
     "heldout_1": dict(
         dims=(44, 40, 24),
-        spacing=(0.018, 0.018, 0.025),
+        spacing=(0.018, 0.021, 0.025),
         dtype=16,
         amp=1200,
         bg=50,
@@ -255,7 +255,7 @@ BASE_CONFIGS = {
     ),
     "heldout_2": dict(
         dims=(42, 42, 28),
-        spacing=(0.020, 0.020, 0.022),
+        spacing=(0.020, 0.023, 0.022),
         dtype=2,
         amp=1500,
         bg=78,
@@ -272,7 +272,7 @@ BASE_CONFIGS = {
     ),
     "heldout_3": dict(
         dims=(46, 38, 26),
-        spacing=(0.016, 0.016, 0.028),
+        spacing=(0.016, 0.019, 0.028),
         dtype=16,
         amp=1350,
         bg=60,
@@ -290,7 +290,7 @@ BASE_CONFIGS = {
     ),
     "speck_heavy": dict(
         dims=(44, 40, 24),
-        spacing=(0.018, 0.018, 0.025),
+        spacing=(0.018, 0.021, 0.025),
         dtype=16,
         amp=1200,
         bg=50,
@@ -309,7 +309,7 @@ BASE_CONFIGS = {
 
 RANDOM_CONFIG = dict(
     dims=(40, 36, 28),
-    spacing=(0.019, 0.019, 0.024),
+    spacing=(0.019, 0.022, 0.024),
     dtype=2,
     amp=1300,
     bg=65,
@@ -500,7 +500,7 @@ def test_heldout_secure(cfg_name, cfg):
 def test_randomized_extra():
     cfg = dict(
         dims=(42, 36, 26),
-        spacing=(0.017, 0.017, 0.026),
+        spacing=(0.017, 0.021, 0.026),
         dtype=16,
         amp=1180,
         bg=52,
