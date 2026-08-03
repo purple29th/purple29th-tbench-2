@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/electroless-nickel-pit-true-area"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "From-scratch Python parser for custom white light interferometer map (.enpp, magic ENPP) of hydrogen bubble pits in electroless nickel plating. Lens PSF plus stage vibration creates normalized blur conserving total counts but inflating apparent pit area. Task asks true pit area mm2. Threshold counting fails ~2x over or ~0.5x under due to halo and thin undercut lips. Solution needs robust background median/MAD, largest-mass 8-connected component to remove far dust, filtered top-K plateau, adaptive halo growth to noise floor before converting energy to area using anisotropic pixel pitch from header. 3% tolerance."
+description = "Automotive connector QC: electroless Ni-P plating develops isolated hydrogen evolution pits that expose copper and cause red rust in salt spray. Bruker Contour GT-X white light interferometer captures height maps but objective lens Airy disk plus stage jitter spreads pit edges into wide shallow halos. Custom 2D height format .enpp (ENPP) stores height as bright pits on flat nickel. Job is recover true pit area mm2 from blurry map. Counting pixels above level fails because halo doubles size or thin undercut lips cut to half. Need robust median background from lower half, MAD noise, keep main pit by 8-neighbour connectivity choosing component with largest integrated bright residual to drop dust and polish scratches, estimate true pit top via 3x3 local mean top-K, expand halo outward until shell mean drops to noise floor without bridging far specks, then pixel count times sx times sy. Tolerance 3 percent, stdlib only."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["electroless-nickel", "plating-pit", "hydrogen-bubble", "interferometer", "WLI", "true-area", "energy-conservation", "from-scratch", "binary-parsing"]
+keywords = ["electroless-nickel", "Ni-P", "automotive-connector", "hydrogen-pit", "Bruker", "Contour", "WLI", "salt-spray", "red-rust", "true-area", "from-scratch"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["electroless-nickel", "plating-pit", "hydrogen-bubble", "interferometer", "WLI", "true-area", "energy-conservation", "from-scratch", "binary-parsing", "quality-control"]
+tags = ["electroless-nickel", "Ni-P", "automotive-connector", "hydrogen-pit", "Bruker", "WLI", "salt-spray", "corrosion", "true-area", "from-scratch", "quality-control"]
 expert_time_estimate_min = 70.0
 junior_time_estimate_min = 220.0
 
