@@ -61,7 +61,7 @@ def object_volume_mm3(path):
 
     residual = [v - background for v in voxels]
 
-    occ_thr = 4.0 * noise_sigma
+    occ_thr = 12.0 * noise_sigma
     occupied = [r > occ_thr for r in residual]
     seen = bytearray(n)
     best_mass = -1.0
@@ -118,7 +118,7 @@ def object_volume_mm3(path):
 
     region = set(best_comp)
     frontier = set(best_comp)
-    halo_floor = 1.0 * noise_sigma
+    halo_floor = 0.5 * noise_sigma
     for _ in range(40):
         shell = set()
         for j in frontier:

@@ -7,6 +7,7 @@ workstream = "swe_public_repo"
 description = "From-scratch Python parser for a custom cone-beam micro-CT tile scan (.cspv, magic CSPV) of spark-plasma sintered SiC ceramic armor. X-ray source spot, scintillator and Compton scatter create a normalized anisotropic blur that conserves total counts but inflates apparent size. Task asks for true sealed pore volume in mm3. Bright voxel counting fails by ~2x over or ~0.5x under across batches. Solution requires robust background/median/MAD noise, largest-mass 26-connected component to remove powder specks, filtered top-K plateau estimation, and adaptive halo growth to noise floor before converting energy to volume using anisotropic voxel pitch from header. 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["ceramic-armor", "SiC", "spark-plasma-sintering", "micro-CT", "cone-beam", "sealed-porosity", "subvoxel", "energy-conservation", "from-scratch", "binary-parsing"]
+language = "python"
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -32,7 +33,7 @@ cpus = 2
 memory_mb = 4096
 storage_mb = 15360
 gpus = 0
-allow_internet = true
+allow_internet = false
 mcp_servers = []
 
 [verifier.env]
