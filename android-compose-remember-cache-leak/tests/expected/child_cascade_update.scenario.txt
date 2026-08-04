@@ -1,0 +1,6 @@
+MOUNT root NONE k1
+MOUNT child root k1
+REMEMBER_PUT child rc1 childCache
+QUERY
+UPDATE_KEY root k2
+QUERY

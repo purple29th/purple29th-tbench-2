@@ -1,0 +1,5 @@
+MOUNT root NONE k1
+VM_PUT root vm1 val1
+UNMOUNT root
+MOUNT root NONE k2
+QUERY

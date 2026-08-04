@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/android-compose-remember-cache-leak"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Fix a mini Jetpack Compose remember-cache leak: each composable has ViewModel (survives key changes) and remember cache (must be cleared when key changes and when unmounted, cascading to all descendants). Buggy manager leaks remember on UPDATE_KEY and leaks children on UNMOUNT. Contract and 12 hidden scenarios check proper invalidation."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["android", "compose", "remember", "lifecycle", "kotlin", "state"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "bug-fixing"
+category_subdomain = "mobile_android"
+category_usecase = "state_management"
+reward_type = "binary"
+tags = ["android", "compose", "remember", "cache-leak", "viewmodel", "kotlin", "lifecycle"]
+expert_time_estimate_min = 70.0
+junior_time_estimate_min = 220.0
+languages = ["kotlin"]
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]

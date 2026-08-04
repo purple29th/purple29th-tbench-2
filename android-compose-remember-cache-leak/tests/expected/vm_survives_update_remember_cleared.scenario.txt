@@ -1,0 +1,8 @@
+MOUNT root NONE k1
+VM_PUT root vm1 v1
+REMEMBER_PUT root r1 c1
+MOUNT child root k1
+VM_PUT child vmC vC
+REMEMBER_PUT child rC cC
+UPDATE_KEY root k2
+QUERY

@@ -1,0 +1,8 @@
+MOUNT root NONE k1
+MOUNT child root k1
+MOUNT grand child k1
+VM_PUT child vmChild vx
+REMEMBER_PUT grand rg gCache
+QUERY
+UNMOUNT root
+QUERY

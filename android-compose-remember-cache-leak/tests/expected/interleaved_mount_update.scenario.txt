@@ -1,0 +1,11 @@
+MOUNT root NONE k1
+MOUNT a root k1
+MOUNT b root k1
+REMEMBER_PUT a ra ca
+REMEMBER_PUT b rb cb
+VM_PUT root vmRoot vr
+QUERY
+UPDATE_KEY a k2
+QUERY
+UNMOUNT b
+QUERY

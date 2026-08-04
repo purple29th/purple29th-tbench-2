@@ -1,0 +1,5 @@
+node=child parent=root key=k1 viewModel={} remember={rc1=childCache} children=[]
+node=root parent=NONE key=k1 viewModel={} remember={} children=[child]
+
+node=child parent=root key=k1 viewModel={} remember={} children=[]
+node=root parent=NONE key=k2 viewModel={} remember={} children=[child]

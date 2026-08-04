@@ -1,0 +1,5 @@
+MOUNT child missingParent k1
+QUERY
+MOUNT root NONE k1
+MOUNT child root k1
+QUERY

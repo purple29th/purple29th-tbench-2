@@ -1,0 +1,4 @@
+MOUNT root NONE k1
+VM_PUT root vm1 val1
+REMEMBER_PUT root r1 cache1
+QUERY

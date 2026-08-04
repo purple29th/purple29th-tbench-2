@@ -1,0 +1,7 @@
+MOUNT root NONE k1
+VM_PUT root vm1 v1
+MOUNT child root k1
+VM_PUT child vmC vC
+QUERY
+UNMOUNT root
+QUERY

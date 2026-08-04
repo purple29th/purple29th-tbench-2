@@ -1,0 +1,10 @@
+node=a parent=root key=k1 viewModel={} remember={ra=ca} children=[]
+node=b parent=root key=k1 viewModel={} remember={rb=cb} children=[]
+node=root parent=NONE key=k1 viewModel={vmRoot=vr} remember={} children=[a,b]
+
+node=a parent=root key=k2 viewModel={} remember={} children=[]
+node=b parent=root key=k1 viewModel={} remember={rb=cb} children=[]
+node=root parent=NONE key=k1 viewModel={vmRoot=vr} remember={} children=[a,b]
+
+node=a parent=root key=k2 viewModel={} remember={} children=[]
+node=root parent=NONE key=k1 viewModel={vmRoot=vr} remember={} children=[a]
