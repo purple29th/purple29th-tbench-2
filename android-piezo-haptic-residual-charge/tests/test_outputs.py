@@ -40,8 +40,19 @@ BANNED_MODULES = {
     "posixpath",
     "ntpath",
     "genericpath",
+    "shutil",
 }
-BANNED_CALLS = {"eval", "exec", "compile", "__import__", "chr"}
+BANNED_CALLS = {
+    "eval",
+    "exec",
+    "compile",
+    "__import__",
+    "chr",
+    "ord",
+    "breakpoint",
+    "bytes",
+    "bytearray",
+}
 BANNED_ATTRS = {
     "system",
     "popen",
@@ -319,6 +330,40 @@ BASE_CONFIGS = {
         rf_period=225,
         seed=535,
     ),
+    "heldout_96": dict(
+        total=2240,
+        data_offset=96,
+        interval=0.00081,
+        gain=1.22,
+        baseline=108,
+        amp=1320,
+        width=35,
+        psf=4.6,
+        drift=15.0,
+        noise=7.5,
+        wide_width1=94,
+        wide_width2=89,
+        rf_amp=3.4,
+        rf_period=200,
+        seed=636,
+    ),
+    "heldout_128": dict(
+        total=2360,
+        data_offset=128,
+        interval=0.00088,
+        gain=0.92,
+        baseline=112,
+        amp=1260,
+        width=33,
+        psf=4.9,
+        drift=18.0,
+        noise=8.0,
+        wide_width1=91,
+        wide_width2=87,
+        rf_amp=3.7,
+        rf_period=210,
+        seed=737,
+    ),
 }
 
 ALL_TEST_CONFIGS = [
@@ -327,6 +372,8 @@ ALL_TEST_CONFIGS = [
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("heldout_4", BASE_CONFIGS["heldout_4"]),
     ("heldout_extra", BASE_CONFIGS["heldout_extra"]),
+    ("heldout_96", BASE_CONFIGS["heldout_96"]),
+    ("heldout_128", BASE_CONFIGS["heldout_128"]),
 ]
 
 
@@ -379,7 +426,14 @@ def test_from_scratch():
         raise AssertionError("banned import_module usage")
     if "ctypes" in lower_src:
         raise AssertionError("banned ctypes reference")
-    assert "chr(" not in src
+    if "shutil" in lower_src:
+        raise AssertionError("banned shutil reference")
+    # spec says chr ord breakpoint bytes bytearray are forbidden calls
+    assert "chr(" not in src.lower(), "banned chr"
+    assert "ord(" not in src.lower(), "banned ord"
+    assert "breakpoint" not in lower_src, "banned breakpoint"
+    # bytes and bytearray constructors are banned as calls, checked via AST, but also block obfuscated via string
+    # we allow bytes in docstring about magic, but block bytes( constructor via AST already
     assert "base64" not in src.lower()
 
     for node in ast.walk(tree):
