@@ -30,7 +30,7 @@ Each run is k=5 trials. Trial scores 1.0 only if all verifier cases pass.
 | Opus 4.6 (claude-opus-4-8) | measured by platform on submission, expected 2/5 |
 | GPT 5.5 (gpt-5.5) | measured by platform on submission, expected 2/5 |
 
-Calibration target: avocado fails at least once and passes at most once across 5, while gpt/opus pass at least once. Similar to foundry-thermal-subvoxel-void and periscope true volume family.
+Calibration target: avocado fails at least once and passes at most once across 5, while gpt/opus pass at least once. Steel plate inspection has inverted shape and inverse pressure formula.
 
 ## Model Analysis
 
