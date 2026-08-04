@@ -237,3 +237,26 @@ def test_energy_blocks_reproj():
     res = run_sim(config(1.0, 0.05, 25.0, 8.0, 0.0, 0.35, 0.0))
     check_shape(res)
     assert res["energy_drift"] < TOL_E
+
+
+def test_zoom_whirl():
+    # near critical zoom-whirl just outside photon sphere, requires adaptive step and tight conservation
+    res = run_sim(config(1.0, 0.02, 200.0, 7.0, 0.0, 0.42, 0.03))
+    check_shape(res)
+    assert res["reason"] in ("timeout", "captured")
+    assert_cons(res)
+
+
+def test_high_eccentric():
+    # high eccentricity plunge from 30M that grazes near 4M, strong field precession
+    res = run_sim(config(1.0, 0.03, 150.0, 30.0, -0.25, 0.18, 0.02))
+    check_shape(res)
+    assert res["reason"] in ("timeout", "captured", "escaped")
+    assert_cons(res)
+
+
+def test_close_pericenter():
+    # close pericenter at 5M, tests horizon approaching robustness without NaN
+    res = run_sim(config(1.0, 0.02, 80.0, 5.5, -0.1, 0.35, 0.02))
+    check_shape(res)
+    assert_cons(res)

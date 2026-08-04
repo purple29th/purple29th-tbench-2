@@ -8,24 +8,20 @@ Expose a globally callable function run_simulation(config) where config is a nam
 - initial_position numeric vector of four spacetime coordinates t x y z in Cartesian Kerr-Schild
 - initial_velocity numeric vector of four-velocity components in same coordinates
 
-Assume mostly plus metric signature minus plus plus plus and natural units G=c=1.
+Assume mostly plus signature and natural units. The interface basis is strictly pinned to Cartesian Kerr-Schild coordinates t x y z.
 
-You must derive the Schwarzschild metric in Cartesian Kerr-Schild form. The metric can be written as g equals eta plus f times l tensor l where f equals 2 M divided by r and l is null vector with l_t equals 1 and spatial part equals x over r, y over r, z over r, with r equals sqrt of x squared plus y squared plus z squared. Then compute Christoffel symbols from the metric via fourth order central finite differences. Then integrate the geodesic equation du mu over d tau equals minus Gamma mu alpha beta u alpha u beta.
+Objective is to evaluate continuous geodesic motion by integrating with a bespoke high order adaptive integrator you write entirely in base R.
 
-Use a bespoke high order adaptive integrator you write yourself, for example Dormand-Prince RK45 with error control. Do not use external ODE packages.
+You must derive the exact Schwarzschild metric in these regular coordinates and its Christoffels. Then integrate the exact timelike geodesic equation.
 
-You must track invariants at every substep and report max absolute drift from initial:
+You must identify and track the fundamental kinematic and conserved quantities in this setup. There are three: the local velocity norm that must stay minus one, the global conserved energy from stationarity, and the global total angular momentum magnitude squared from spherical symmetry. Evaluate each continuously at every substep and track raw unmodified maximum absolute drift from initial.
 
-- velocity norm u dot u equals g_uv u^u u^v should stay -1 for timelike. Tolerance for passing is 1e-10 absolute.
+Velocity drift tolerance is 1e-10 absolute. Energy tolerance is 1e-6 absolute. Angular momentum magnitude squared tolerance is 1e-8 absolute.
 
-- Killing energy from time translation symmetry E equals minus g_{t nu} u^nu. This is conserved along true geodesic. Tolerance 1e-6.
+Integration must stop early if radial coordinate exceeds 1000 times M as escaped, or falls below 2M as captured, or tau exceeds tau_max as timeout.
 
-- Total angular momentum magnitude squared L2. Compute spatial momentum p_i equals g_{i nu} u^nu, then L equals r cross p, L2 equals dot of L with itself. This is conserved for Schwarzschild due to spherical symmetry. Tolerance 1e-8 for L2 drift.
+Do not cap or re-project state vectors to fake invariants. Harness independently recomputes invariants from your returned final position and final velocity and will catch fake self report.
 
-The loop must terminate early if r exceeds 1000 times M as escaped, or r falls below 2M plus small epsilon 0.1 as captured, or tau exceeds tau_max as timeout. Return reason as string escaped, captured, or timeout.
+Return named list with final_position length 4, final_velocity length 4, termination_reason escaped captured timeout, max_velocity_drift, max_energy_drift, max_angular_momentum_drift.
 
-Do not cap, re-project, or falsify state vectors or drift values to hide error. The harness independently recomputes u dot u and energy and angular momentum from your returned final position and final velocity and will fail if your self reported drifts are low but returned state is not on shell or does not conserve.
-
-When run_simulation is called, evaluate up to tau_max and return a named list with keys final_position numeric length 4, final_velocity length 4, termination_reason string, max_velocity_drift, max_energy_drift, max_angular_momentum_drift.
-
-Write the R script to /app/schwarzschild_orbit.R
+Write to /app/schwarzschild_orbit.R
