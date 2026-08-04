@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/anodized-alumina-fissure-breakdown-voltage"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Anodized aluminum oxide for high voltage capacitor: anodization fissures along field direction cause dielectric breakdown. Micro CT fluorescence scanner writes custom binary AAFV file with magic AAFV, anisotropic pitch, variable data offset 32 to 128, gain trim at offset 40 scaling voltage. Task asks for total breakdown voltage drop in volts as recovered elongated fissure volume mm3 times 0.85 times gain. Round etch pits and far corner dust must be ignored. Two far apart fissures must be summed before voltage conversion. Tolerance 3 percent."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["anodized", "alumina", "fissure", "breakdown", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["anodized", "alumina-fissure", "breakdown-voltage", "binary-parsing", "from-scratch", "intensity-conservation"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
