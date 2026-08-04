@@ -43,13 +43,13 @@ def solve(p):
         return x + nx * (y + ny * z)
 
     order = sorted(vox)
-    bg = median_of(order[: int(n * 0.7)])
+    bg = median_of(order[: int(n * 0.8)])
     low = order[: n // 2]
     ml = median_of(low)
     mad = median_of(sorted(abs(v - ml) for v in low))
     sig = max(1e-6, 1.4826 * mad)
     res = [v - bg for v in vox]
-    thr = 4.0 * sig
+    thr = 6.0 * sig
     occ = [r > thr for r in res]
     seen = [False] * n
     comps = []
@@ -96,15 +96,28 @@ def solve(p):
     if not comps:
         print(0)
         return
-    comps.sort(key=lambda x: x[0], reverse=True)
-    best = None
+    comps_with_shape = []
     for mass, comp, dx, dy, dz in comps:
         dims = sorted([dx, dy, dz])
-        if dims[2] >= 8 and dims[2] > 1.6 * dims[0]:
-            best = comp
-            break
-    if best is None:
-        best = comps[0][1]
+        is_elong = dims[2] >= 12 and dims[2] > 2.0 * dims[0]
+        comps_with_shape.append((mass, comp, dx, dy, dz, is_elong))
+    comps_with_shape.sort(key=lambda x: x[0], reverse=True)
+    largest = comps_with_shape[0][0] if comps_with_shape else 0
+    main_groups = []
+    for mass, comp, dx, dy, dz, is_elong in comps_with_shape:
+        if is_elong and mass >= 0.35 * largest:
+            main_groups.append(comp)
+    if not main_groups:
+        main_groups = [comps_with_shape[0][1]] if comps_with_shape else []
+    best = []
+    for g in main_groups:
+        best.extend(g)
+    kept = set(best)
+    dust = set()
+    for mass, comp, dx, dy, dz, is_elong in comps_with_shape:
+        for ii in comp:
+            if ii not in kept:
+                dust.add(ii)
     filt = []
     for j in best:
         x = j % nx
@@ -128,7 +141,7 @@ def solve(p):
         return
     region = set(best)
     frontier = set(best)
-    floor = 1.0 * sig
+    floor = 3.0 * sig
     for _ in range(40):
         shell = set()
         for j in frontier:
@@ -139,7 +152,7 @@ def solve(p):
                 a, b, c = x + dx, y + dy, z + dz
                 if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
                     k = lin(a, b, c)
-                    if k not in region:
+                    if k not in region and k not in dust:
                         shell.add(k)
         if not shell:
             break

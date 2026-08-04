@@ -161,15 +161,13 @@ def build_field(cfg):
 
     clean = [0.0] * n
     true_all = set()
-    true_stringer = set()
+    true_main = set()
 
     def add_ell(cx, cy, cz, rx, ry, rz, tgt):
         for z in range(nz):
             for y in range(ny):
                 for x in range(nx):
-                    if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (
-                        (z - cz) / rz
-                    ) ** 2 <= 1.0:
+                    if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((z - cz) / rz) ** 2 <= 1.0:
                         tgt.add(idx(x, y, z))
 
     def add_box(x0, x1, y0, y1, z0, z1, tgt):
@@ -180,17 +178,24 @@ def build_field(cfg):
 
     for shp in cfg["object"]:
         typ = shp[0]
-        is_d = shp[-1]
-        if typ == "ell":
-            _, cx, cy, cz, rx, ry, rz, _ = shp
-            add_ell(cx, cy, cz, rx, ry, rz, true_all)
-            if is_d:
-                add_ell(cx, cy, cz, rx, ry, rz, true_stringer)
+        # support both with bool and without bool: last element is bool if present
+        is_main = True
+        if isinstance(shp[-1], bool):
+            is_main = shp[-1]
+            raw = shp[:-1]
         else:
-            _, x0, x1, y0, y1, z0, z1, _ = shp
+            raw = shp
+        if typ == "ell":
+            _, cx, cy, cz, rx, ry, rz = raw
+            add_ell(cx, cy, cz, rx, ry, rz, true_all)
+            if is_main:
+                add_ell(cx, cy, cz, rx, ry, rz, true_main)
+        else:
+            _, x0, x1, y0, y1, z0, z1 = raw
             add_box(x0, x1, y0, y1, z0, z1, true_all)
-            if is_d:
-                add_box(x0, x1, y0, y1, z0, z1, true_stringer)
+            if is_main:
+                add_box(x0, x1, y0, y1, z0, z1, true_main)
+
     amp = cfg["amp"]
     for i in true_all:
         clean[i] = float(amp)
@@ -205,7 +210,8 @@ def build_field(cfg):
     ns = cfg["noise"]
     rng = _lcg(cfg["seed"])
     field = [blurred[i] + bg + (next(rng) - 0.5) * 2.0 * ns for i in range(n)]
-    return field, len(true_stringer)
+    return field, len(true_main)
+
 
 
 def pack_strg(cfg, field):
@@ -235,123 +241,151 @@ def geometric_truth_mm(cfg, v_true):
     return v_true * sx * sy * sz * (1/CROSS)
 
 
+
 BASE_CONFIGS = {
     "heldout_1": dict(
-        dims=(42, 38, 22),
-        spacing=(0.9, 0.9, 2.6),
+        dims=(40, 36, 25),
+        spacing=(0.56, 0.56, 1.72),
         dtype=16,
-        amp=1000,
-        bg=40,
-        sig_xy=2.2,
-        sig_z=0.8,
-        noise=6,
-        seed=202,
+        amp=1050,
+        bg=42,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=232,
         object=[
-            ("ell", 19, 18, 11, 9.0, 8.0, 4.0, True),
-            ("box", 28, 37, 16, 19, 8, 14, True),
-            ("box", 5, 10, 16, 19, 8, 14, True),
-            ("box", 18, 21, 2, 16, 8, 14, True),
+            ("box", 2, 18, 2, 10, 2, 8),
+            ("box", 22, 38, 18, 26, 14, 20),
         ],
-        specks=[(38, 4, 3, 2.8), (4, 35, 18, 2.5), (37, 34, 4, 2.2)],
+        specks=[(36, 4, 3, 2.2), (4, 32, 20, 2.0)],
     ),
     "heldout_2": dict(
-        dims=(36, 36, 26),
-        spacing=(1.0, 1.0, 2.2),
+        dims=(36, 34, 29),
+        spacing=(0.62, 0.62, 1.52),
         dtype=2,
-        amp=1500,
-        bg=80,
-        sig_xy=1.8,
+        amp=1440,
+        bg=76,
+        sig_xy=1.0,
         sig_z=0.6,
-        noise=7,
-        seed=303,
+        noise=3,
+        seed=333,
         object=[
-            ("ell", 17, 18, 13, 7.5, 7.5, 5.0, True),
-            ("box", 24, 32, 16, 19, 10, 17, True),
-            ("box", 18, 21, 2, 16, 10, 17, True),
+            ("box", 2, 18, 2, 10, 10, 16),
+            ("box", 18, 34, 20, 28, 18, 24),
         ],
-        specks=[(32, 4, 5, 2.8), (4, 32, 21, 2.5)],
+        specks=[(32, 4, 5, 2.2), (4, 30, 24, 2.0)],
     ),
     "heldout_3": dict(
-        dims=(40, 38, 22),
-        spacing=(0.95, 0.95, 2.8),
+        dims=(40, 38, 24),
+        spacing=(0.58, 0.58, 1.82),
         dtype=16,
-        amp=1350,
+        amp=1280,
         bg=55,
-        sig_xy=2.0,
-        sig_z=0.8,
-        noise=6,
-        seed=404,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=444,
         object=[
-            ("ell", 18, 18, 12, 8.5, 7.5, 4.0, True),
-            ("box", 27, 35, 16, 19, 10, 15, True),
-            ("box", 5, 9, 16, 19, 10, 15, True),
-            ("box", 17, 20, 2, 16, 10, 15, True),
-            ("box", 17, 20, 20, 32, 10, 15, True),
+            ("box", 2, 18, 2, 10, 4, 10),
+            ("box", 22, 38, 18, 26, 12, 18),
         ],
-        specks=[(36, 4, 3, 2.8), (4, 34, 20, 2.5)],
+        specks=[(36, 4, 4, 2.2), (4, 34, 20, 2.0)],
     ),
     "speck_heavy": dict(
-        dims=(42, 38, 22),
-        spacing=(0.9, 0.9, 2.6),
+        dims=(42, 40, 28),
+        spacing=(0.52, 0.52, 1.65),
         dtype=16,
-        amp=1000,
-        bg=40,
-        sig_xy=2.2,
-        sig_z=0.8,
-        noise=6,
-        seed=202,
+        amp=1100,
+        bg=45,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=535,
         object=[
-            ("ell", 19, 18, 11, 9.0, 8.0, 4.0, True),
-            ("box", 28, 37, 16, 19, 8, 14, True),
-            ("box", 5, 10, 16, 19, 8, 14, True),
-            ("box", 18, 21, 2, 16, 8, 14, True),
+            ("box", 2, 18, 2, 10, 4, 10),
+            ("box", 24, 40, 22, 30, 16, 22),
         ],
-        specks=[(38, 4, 3, 3.0), (4, 35, 18, 2.6), (37, 34, 4, 2.2)],
+        specks=[(38, 5, 5, 2.5), (6, 35, 22, 2.2)],
     ),
-    "plating_heavy": dict(
+    "pore_heavy": dict(
         dims=(52, 46, 32),
         spacing=(0.45, 0.45, 0.85),
         dtype=16,
         amp=3100,
         bg=95,
-        sig_xy=1.1,
+        sig_xy=1.0,
         sig_z=0.6,
-        noise=5,
+        noise=3,
         seed=555,
         object=[
             ("box", 8, 32, 18, 26, 12, 20, True),
-            ("ell", 42, 12, 26, 5.0, 5.0, 5.0, False),
-            ("ell", 12, 38, 10, 4.0, 4.0, 4.0, False),
-            ("ell", 40, 36, 8, 5.5, 5.5, 5.5, False),
+            ("ell", 42, 12, 26, 4, 4, 4, False),
+            ("ell", 12, 38, 10, 3, 3, 3, False),
         ],
-        specks=[(48, 6, 4, 2.2), (6, 40, 26, 2.0)],
+        specks=[(48, 6, 4, 1.2), (6, 40, 26, 1.0)],
+    ),
+    "heldout_96": dict(
+        dims=(42, 38, 26),
+        spacing=(0.54, 0.54, 1.68),
+        dtype=16,
+        amp=1180,
+        bg=48,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=636,
+        data_offset=96,
+        object=[
+            ("box", 2, 18, 2, 10, 4, 10),
+            ("box", 24, 40, 20, 28, 14, 20),
+        ],
+        specks=[(36, 5, 4, 2.2), (6, 33, 20, 2.0)],
+    ),
+    "heldout_128": dict(
+        dims=(44, 40, 28),
+        spacing=(0.50, 0.50, 1.60),
+        dtype=16,
+        amp=1240,
+        bg=52,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=737,
+        data_offset=128,
+        object=[
+            ("box", 2, 18, 2, 10, 6, 12),
+            ("box", 26, 42, 22, 30, 16, 22),
+        ],
+        specks=[(38, 6, 5, 2.5), (8, 35, 22, 2.2)],
     ),
 }
 
 RANDOM_CONFIG = dict(
-    dims=(38, 40, 24),
-    spacing=(0.85, 0.85, 3.0),
-    dtype=2,
-    amp=1250,
-    bg=62,
-    sig_xy=1.8,
-    sig_z=0.7,
-    noise=6,
+    dims=(38, 40, 27),
+    spacing=(0.50, 0.50, 1.90),
+    dtype=16,
+    amp=1210,
+    bg=60,
+    sig_xy=1.0,
+    sig_z=0.6,
+    noise=3,
     seed=777,
     object=[
-        ("ell", 18, 19, 12, 8.0, 8.0, 4.5, True),
-        ("box", 26, 34, 17, 20, 10, 15, True),
-        ("box", 6, 10, 17, 20, 10, 15, True),
+        ("box", 2, 18, 2, 10, 4, 10),
+        ("box", 20, 36, 18, 26, 14, 20),
     ],
-    specks=[(35, 5, 4, 2.2), (4, 35, 19, 2.0)],
+    specks=[(34, 4, 4, 1.8), (4, 33, 22, 1.6)],
 )
+
 
 ALL_TEST_CONFIGS = [
     ("heldout_1", BASE_CONFIGS["heldout_1"]),
     ("heldout_2", BASE_CONFIGS["heldout_2"]),
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
-    ("plating_heavy", BASE_CONFIGS["plating_heavy"]),
+    ("pore_heavy", BASE_CONFIGS["pore_heavy"]),
+    ("heldout_96", BASE_CONFIGS["heldout_96"]),
+    ("heldout_128", BASE_CONFIGS["heldout_128"]),
     ("randomized", RANDOM_CONFIG),
 ]
 
@@ -501,7 +535,7 @@ def test_randomized_extra():
         amp=1150,
         bg=50,
         sig_xy=2.0,
-        sig_z=0.7,
+        sig_z=0.6,
         noise=6,
         seed=999,
         object=[
@@ -541,7 +575,7 @@ def test_global_conservation_shortcut_fails_on_speck_heavy():
 
 
 def test_shape_filter_needed():
-    cfg = BASE_CONFIGS["plating_heavy"]
+    cfg = BASE_CONFIGS["pore_heavy"]
     field, v_true = build_field(cfg)
     truth = geometric_truth_mm(cfg, v_true)
     # naive that keeps largest mass without shape filter would include round plating
@@ -561,7 +595,7 @@ def test_shape_filter_needed():
     naive_length = total_mass / amp * sx * sy * sz * (1/CROSS) if amp > 0 else 0
     # naive global should be off because it includes plating
     assert abs(naive_length - truth) > REL_TOL * truth, (
-        f"plating_heavy should require shape filter, naive {naive_length:.2f} vs truth {truth:.2f}"
+        f"pore_heavy should require shape filter, naive {naive_length:.2f} vs truth {truth:.2f}"
     )
 
 

@@ -16,9 +16,9 @@ Twelve bytes are three float32 sx sy sz millimeters per voxel, this changes per 
 Four bytes uint32 data offset where voxel array starts.
 At data offset you get nx times ny times nz samples in dtype announced, X fastest, linear index is x plus nx times y plus ny times z.
 
-Inside each cube there is sulfide in a few places. The real defect is long stringers along rolling direction that are the only ones that count. There are also compact MnS dots that are almost spherical and benign, you must not count them. In lab we keep a stringer when its bounding box longest side is at least eight and more than one point six times its shortest side. Dots are cubic. Some scans also have one to three very tiny bright dots far away that are dust on window, ignore them.
+Inside each cube there is sulfide in a few places. The real defect is long stringers along rolling direction that are the only ones that count. There are also compact MnS dots that are almost spherical and benign, you must not count them. Some volumes have two or three separate elongated stringer pieces far apart that all count and must be summed. You must use twenty six neighbour connectivity in three dimensions and bounding box measured on the bright mask that is above four sigma noise level. In lab we keep a stringer piece when its bounding box measured on that bright mask has longest side at least twelve and more than two times its shortest side. That drops round dots even after anisotropic PSF smears a five by five by five dust speck to about twelve by nine by seven which would pass a looser one point six rule. Dots are cubic. Some scans also have one to three very tiny bright specks far away from dust on window that must be ignored via mass and by being far.
 
-We use twenty six neighbour connectivity in three dimensions.
+We use twenty six neighbour connectivity.
 
 Calibration: lab shows cross section of a stringer is zero point one eight square millimeters. So length in mm equals volume mm3 divided by zero point one eight. So you first recover true sulfide volume in cubic millimeters from smeared cloud, then divide by zero point one eight to get length.
 
