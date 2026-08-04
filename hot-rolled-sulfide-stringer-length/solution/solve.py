@@ -49,7 +49,7 @@ def solve(p):
     mad = median_of(sorted(abs(v - ml) for v in low))
     sig = max(1e-6, 1.4826 * mad)
     res = [v - bg for v in vox]
-    thr = 6.0 * sig
+    thr = 8.0 * sig
     occ = [r > thr for r in res]
     seen = [False] * n
     comps = []
@@ -134,14 +134,14 @@ def solve(p):
                         cnt += 1
         filt.append(acc / cnt if cnt else 0)
     filt.sort(reverse=True)
-    top = filt[: max(1, min(4, len(filt)))]
+    top = filt[: max(1, min(1, len(filt)))]
     plat = sum(top) / len(top) if top else 0
     if plat <= 0:
         print(0)
         return
     region = set(best)
     frontier = set(best)
-    floor = 3.0 * sig
+    floor = 4.0 * sig
     for _ in range(40):
         shell = set()
         for j in frontier:
