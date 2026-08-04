@@ -1,7 +1,7 @@
-"""Secure verifier for /app/solve.py - battery dendrite charge load.
+"""Secure verifier for /app/solve.py - hot rolled sulfide stringer length.
 
-Fluorescence diffusion + lens PSF spreads lithium signal but conserves total energy.
-Threshold fails 80-130% over / 30-50% under. True charge recoverable via intensity conservation + shape discrimination.
+Fluorescence from MnS stringers in steel plate is smeared by diffusion plus lens PSF but conserves energy.
+Threshold fails 80-130% over or 30-50% under. True length recoverable via intensity conservation plus shape filter that keeps elongated stringers along rolling direction vs round dots.
 """
 
 import ast
@@ -87,10 +87,10 @@ BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
-    "_gen",
+    "tests/_gen",
     "GEOM_TRUTH",
     "geometric_truth",
-    "reference_charge",
+    "reference_length",
 ]
 
 MAGIC = b"STRG"
@@ -161,7 +161,7 @@ def build_field(cfg):
 
     clean = [0.0] * n
     true_all = set()
-    true_dend = set()
+    true_stringer = set()
 
     def add_ell(cx, cy, cz, rx, ry, rz, tgt):
         for z in range(nz):
@@ -185,12 +185,12 @@ def build_field(cfg):
             _, cx, cy, cz, rx, ry, rz, _ = shp
             add_ell(cx, cy, cz, rx, ry, rz, true_all)
             if is_d:
-                add_ell(cx, cy, cz, rx, ry, rz, true_dend)
+                add_ell(cx, cy, cz, rx, ry, rz, true_stringer)
         else:
             _, x0, x1, y0, y1, z0, z1, _ = shp
             add_box(x0, x1, y0, y1, z0, z1, true_all)
             if is_d:
-                add_box(x0, x1, y0, y1, z0, z1, true_dend)
+                add_box(x0, x1, y0, y1, z0, z1, true_stringer)
     amp = cfg["amp"]
     for i in true_all:
         clean[i] = float(amp)
@@ -199,13 +199,13 @@ def build_field(cfg):
             for y in range(ny):
                 for x in range(nx):
                     if (x - sx0) ** 2 + (y - sy0) ** 2 + (z - sz0) ** 2 <= sr * sr:
-                        clean[idx(x, y, z)] = float(amp)
+                        clean[idx(x, y, z)] = float(amp) * 0.92
     blurred = _blur_separable(clean, nx, ny, nz, cfg["sig_xy"], cfg["sig_z"])
     bg = cfg["bg"]
     ns = cfg["noise"]
     rng = _lcg(cfg["seed"])
     field = [blurred[i] + bg + (next(rng) - 0.5) * 2.0 * ns for i in range(n)]
-    return field, len(true_dend)
+    return field, len(true_stringer)
 
 
 def pack_strg(cfg, field):
@@ -252,7 +252,7 @@ BASE_CONFIGS = {
             ("box", 5, 10, 16, 19, 8, 14, True),
             ("box", 18, 21, 2, 16, 8, 14, True),
         ],
-        specks=[(38, 4, 3, 1.8), (4, 35, 18, 1.4), (37, 34, 4, 1.2)],
+        specks=[(38, 4, 3, 2.8), (4, 35, 18, 2.5), (37, 34, 4, 2.2)],
     ),
     "heldout_2": dict(
         dims=(36, 36, 26),
@@ -269,7 +269,7 @@ BASE_CONFIGS = {
             ("box", 24, 32, 16, 19, 10, 17, True),
             ("box", 18, 21, 2, 16, 10, 17, True),
         ],
-        specks=[(32, 4, 5, 1.5), (4, 32, 21, 1.2)],
+        specks=[(32, 4, 5, 2.8), (4, 32, 21, 2.5)],
     ),
     "heldout_3": dict(
         dims=(40, 38, 22),
@@ -288,7 +288,7 @@ BASE_CONFIGS = {
             ("box", 17, 20, 2, 16, 10, 15, True),
             ("box", 17, 20, 20, 32, 10, 15, True),
         ],
-        specks=[(36, 4, 3, 1.6), (4, 34, 18, 1.3)],
+        specks=[(36, 4, 3, 2.8), (4, 34, 20, 2.5)],
     ),
     "speck_heavy": dict(
         dims=(42, 38, 22),
@@ -324,7 +324,7 @@ BASE_CONFIGS = {
             ("ell", 12, 38, 10, 4.0, 4.0, 4.0, False),
             ("ell", 40, 36, 8, 5.5, 5.5, 5.5, False),
         ],
-        specks=[(48, 6, 4, 1.2), (6, 40, 26, 1.0)],
+        specks=[(48, 6, 4, 2.2), (6, 40, 26, 2.0)],
     ),
 }
 
@@ -343,7 +343,7 @@ RANDOM_CONFIG = dict(
         ("box", 26, 34, 17, 20, 10, 15, True),
         ("box", 6, 10, 17, 20, 10, 15, True),
     ],
-    specks=[(35, 5, 4, 1.4), (4, 35, 19, 1.2)],
+    specks=[(35, 5, 4, 2.2), (4, 35, 19, 2.0)],
 )
 
 ALL_TEST_CONFIGS = [
@@ -358,7 +358,7 @@ ALL_TEST_CONFIGS = [
 SECURE_RUNNER_CODE = r"""
 import sys, os, runpy
 solve_path=sys.argv[1]; strg_path=sys.argv[2]
-BLOCKED_SUBSTRS=["/tests","test_outputs","heldout","_gen","GEOM_TRUTH","geometric_truth","reference_charge"]
+BLOCKED_SUBSTRS=["/tests","test_outputs","heldout","_gen","GEOM_TRUTH","geometric_truth","reference_length"]
 def is_blocked(p):
     s=str(p)
     for b in BLOCKED_SUBSTRS:
@@ -402,7 +402,7 @@ runpy.run_path(solve_path, run_name="__main__")
 """
 
 
-def run_agent_secure(strg_bytes, expected_mC, name="case"):
+def run_agent_secure(strg_bytes, expected_mm, name="case"):
     assert os.path.exists(SCRIPT), f"{SCRIPT} missing"
     with tempfile.TemporaryDirectory() as td:
         strg_path = os.path.join(td, f"input_{os.urandom(4).hex()}.strg")
@@ -419,7 +419,7 @@ def run_agent_secure(strg_bytes, expected_mC, name="case"):
             cwd=td,
         )
         assert proc.returncode == 0, (
-            f"fail {name} (expected {expected_mC:.2f} mC)\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+            f"fail {name} (expected {expected_mm:.2f} mC)\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         )
         lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
         assert lines, f"no output for {name}"
@@ -489,7 +489,7 @@ def test_heldout_secure(cfg_name, cfg):
     exp_mm = geometric_truth_mm(cfg, v_true)
     got = run_agent_secure(strg_bytes, exp_mm, name=cfg_name)
     assert abs(got - exp_mm) <= REL_TOL * exp_mm, (
-        f"{cfg_name}: got {got:.4f} mC expected {exp_mm:.4f} ±{REL_TOL * 100}%"
+        f"{cfg_name}: got {got:.4f} mm expected {exp_mm:.4f} ±{REL_TOL * 100}%"
     )
 
 
@@ -509,7 +509,7 @@ def test_randomized_extra():
             ("box", 27, 35, 16, 19, 10, 15, True),
             ("box", 5, 9, 16, 19, 10, 15, True),
         ],
-        specks=[(36, 4, 3, 1.6), (4, 34, 18, 1.3)],
+        specks=[(36, 4, 3, 2.8), (4, 34, 20, 2.5)],
     )
     field, v_true = build_field(cfg)
     strg_bytes = pack_strg(cfg, field)
@@ -558,10 +558,10 @@ def test_shape_filter_needed():
     amp = sum(topk) / len(topk) if topk else 1
     sx, sy, sz = cfg["spacing"]
     total_mass = sum(v for v in r if v > 0)
-    naive_charge = total_mass / amp * sx * sy * sz * (1/CROSS) if amp > 0 else 0
+    naive_length = total_mass / amp * sx * sy * sz * (1/CROSS) if amp > 0 else 0
     # naive global should be off because it includes plating
-    assert abs(naive_charge - truth) > REL_TOL * truth, (
-        f"plating_heavy should require shape filter, naive {naive_charge:.2f} vs truth {truth:.2f}"
+    assert abs(naive_length - truth) > REL_TOL * truth, (
+        f"plating_heavy should require shape filter, naive {naive_length:.2f} vs truth {truth:.2f}"
     )
 
 
