@@ -3,7 +3,7 @@ import struct
 import sys
 
 MAGIC = b"INKW"
-RHO = 0.85
+RHO = 2.5
 
 NEIGH8 = [(dx,dy) for dy in (-1,0,1) for dx in (-1,0,1) if dx or dy]
 
@@ -119,8 +119,8 @@ def solve(p):
         frontier=shell
     tot=sum(res[k] for k in region)
     area=tot/plat * sx * sy if plat else 0
-    mass=area * RHO * gain
-    print(mass)
+    span=area * RHO * gain
+    print(span)
 
 if __name__=="__main__":
     solve(sys.argv[1] if len(sys.argv)>1 else "/app/data/scene.inkw")

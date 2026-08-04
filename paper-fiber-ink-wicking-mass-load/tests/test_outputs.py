@@ -1,8 +1,8 @@
-"""Secure verifier for paper-fiber-ink-wicking-mass-load .inkw - ink mass via conservation plus gain"""
+"""Secure verifier for paper-fiber-ink-wicking-mass-load .inkw - feathering span length via area conservation plus gain"""
 import ast, math, os, re, struct, subprocess, sys, tempfile, textwrap, pytest
 SCRIPT = os.environ.get("SOLVE_PATH", "/app/solve.py")
 REL_TOL = 0.03
-RHO = 0.85
+RHO = 2.5
 BANNED_MODULES = {"numpy","scipy","skimage","cv2","PIL","Pillow","networkx","igraph","imageio","pandas","torch","tensorflow","subprocess","importlib","runpy","ctypes","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","shutil"}
 BANNED_CALLS = {"eval","exec","compile","__import__","chr","ord","breakpoint","bytes","bytearray"}
 BANNED_ATTRS = {"system","popen","exec","execl","execle","execlp","execlpe","execv","execve","execvp","execvpe","spawnl","spawnle","spawnlp","spawnlpe","spawnv","spawnve","spawnvp","spawnvpe","posix_spawn","posix_spawnp","fork","forkpty","walk","listdir","scandir","rglob","__subclasses__","__builtins__","__code__","__globals__","__getattribute__","modules","import_module"}
@@ -263,7 +263,7 @@ def test_heldout_secure(cfg_name,cfg):
     b=pack_inkw(cfg,field)
     exp=geometric_truth_mg(cfg,v_true)
     got=run_agent_secure(b,exp,name=cfg_name)
-    assert abs(got-exp) <= REL_TOL*exp, f"{cfg_name}: got {got:.4f} mg expected {exp:.4f} ±{REL_TOL*100}%"
+    assert abs(got-exp) <= REL_TOL*exp, f"{cfg_name}: got {got:.4f} mm expected {exp:.4f} ±{REL_TOL*100}%"
 def test_randomized_extra():
     cfg=dict(dims=(38,40),spacing=(0.13,0.13),dtype=16,amp=1150,bg=60,sig=0.8,noise=3,seed=999,gain=0.88,
         object=[("box",6,24,12,20,True),("box",24,42,20,28,True),("ell",76,8,4,4,False)],

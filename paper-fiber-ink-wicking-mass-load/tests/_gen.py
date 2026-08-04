@@ -8,7 +8,7 @@ import struct
 import sys
 
 MAGIC = b"INKW"
-RHO = 0.85
+RHO = 2.5
 
 
 def _gauss_kernel1d(sigma, radius):
@@ -161,4 +161,4 @@ if __name__ == "__main__":
     outdir = sys.argv[1] if len(sys.argv) > 1 else "."
     truths = generate_all(outdir)
     for name, t in truths.items():
-        print(f"{name}: truth = {t:.4f} mg -> {outdir}/{name}.inkw")
+        print(f"{name}: truth = {t:.4f} mm -> {outdir}/{name}.inkw")
