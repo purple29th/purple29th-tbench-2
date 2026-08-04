@@ -17,7 +17,7 @@ This explains why naive counting that keeps elongated stringers fails stringer h
 * /app/solve.py you write, last token is pressure kPa
 * /app/data/scene.hprr sample around seven kPa truth
 * environment/Dockerfile installs pytest and copies sample
-* solution/solve.py oracle reference with distinct code vs diecast and periscope, no sister refs
+* solution/solve.py oracle reference with bespoke code
 * tests/_gen.py generates scene only to avoid stale divergence
 * tests/test_outputs.py secure verifier generating at runtime with random temp names like input_9f3a.hprr and random filenames, includes speck heavy, stringer heavy, 96, 128 data offset, randomized
 
@@ -32,7 +32,7 @@ Each run is k=5 trials. Trial scores 1.0 only if all verifier cases pass.
 | Opus 4.6 (claude-opus-4-8) | measured by platform on submission, expected 2/5 |
 | GPT 5.5 (gpt-5.5) | measured by platform on submission, expected 1-2/5 |
 
-Calibration target: avocado fails at least once and passes at most once, while gpt opus pass at least once. Similar to foundry thermal void and periscope true volume but with inverted shape and inverse pressure.
+Calibration target: avocado fails at least once and passes at most once, while gpt opus pass at least once. Billet hydrogen inspection has inverted shape and inverse pressure formula.
 
 ## Model Analysis
 
