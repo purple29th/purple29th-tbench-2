@@ -1,37 +1,31 @@
 # euv-pellicle-carbon-mass-load
 
-## What this task is
-I inspect EUV pellicles that protect reticles in lithography scanners. During exposure the pellicle slowly grows carbon soot from cracked hydrocarbons. The soot absorbs EUV and heats, so we need to know total carbon mass in micrograms on the freestanding membrane.
+I look after reticle pellicles in the EUV scanner fleet. The pellicle is a ten nanometer freestanding film that shields the reticle. Under thirteen point five nanometer light, residual hydrocarbons crack and plate as amorphous carbon veins that darken the film and raise temperature. My job uses fluorescence that makes carbon shine, stored as .epcm with four byte tag EPCM. Carrier scattering in the detector and the imaging lens spread the shine far beyond the true soot.
 
-Imaging is with X-ray fluorescence that lights up carbon. The data is custom binary .epcm with magic EPCM. Diffusion in the scintillator plus lens point spread smears the soot signal far beyond the true carbon core. The job is to recover hidden carbon mass in ug.
+Why counting by brightness is hopeless. If I set a permissive level I pick up the whole skirt and my estimate nearly doubles. If I set a strict level I lose the hairline tips that never reach full brightness and I lose about a third to half. The background level, gain, and scatter width change every scan, so a single fixed level never works.
 
-## Why precision matters
-Simple brightness cut fails badly. Low level pulls in the whole aureole and overcounts near double. High level misses thin feathered soot edges that never get fully bright and undercounts by third to half. Background brightness gain and diffusion width vary per file so no single level works.
+What saves us is energy preservation. The optics do not create fluorescence, they only relocate it. So adding up all background removed glow over vein plus its faint aureole and dividing by the true vein interior brightness gives true voxel count even though blurred.
 
-Blur does not create photons, it only moves them, so total energy is conserved over soot plus its skirt. That lets us recover true metal via sum over skirt divided by true core level.
+How the hidden evaluation is built to punish shortcuts. Volumes contain long branching carbon veins that follow crazing lines on the membrane. Those are the only carbon that counts for replacement decision. There are also compact airborne fallout dots that are almost spherical and must be ignored, plus window dust balls far away. Veins are stretched, fallout is compact. I use bounding box to tell them apart, stretched when longest side at least eight and more than one point six times shortest.
 
-Correct approach must:
-* read header with data offset not hardcoded
-* get background from median and noise from lower half MAD
-* find main carbon via 26 connectivity seeded at 4 sigma, keep elongated streaks along pellicle crazing where longest at least 8 and more than 1.6 times shortest, drop near cubic airborne particles
-* get core level via 3 by 3 by 3 local mean smoothed peak using top four average not raw max
-* expand outward shell by shell until mean shell residual falls to noise floor while skipping artefact voxels
-* compute voxel count as total residual divided by core level, volume via sx sy sz, mass via 2.1 ug per mm3 calibration
+A correct program must:
+* read magic EPCM and parse little endian header with data offset not assumed sixty four
+* get clean border background from median of whole stack and noise scale from median absolute deviation of lower half
+* seed bright voxels above four sigma and grow twenty six connected components by flood fill, pick the crazing veins via stretch test
+* get vein interior level via three by three by three neighbourhood smoothing then mean of top four inside main veins, not raw maximum that is noise spiked
+* expand region outward layer by layer until average layer glow drops to about noise floor, skipping artefact voxels so you do not jump into a dust ball
+* turn integrated glow into voxel count, then into cubic millimeters with sx sy sz from header, then into micrograms with two point one microgram per cubic millimeter lab factor
 
-## Files
-* /app/solve.py you write, last token is mass ug
-* /app/data/scene.epcm sample
-* environment/Dockerfile installs pytest and copies sample
-* tests secure verifier generates volumes at runtime in temp dirs with random names
+Files you will see:
+* /app/solve.py is what you have to write, last printed token is mass in ug
+* /app/data/scene.epcm is an example you can open locally
+* Dockerfile installs pytest and copies example
+* tests generate new volumes at runtime in temp directories with random names like input_a3f9.epcm, truth computed geometrically outside sandbox
 
-## Pass criteria
-Error less than 3 percent on heldouts including speck heavy where large dust balls add more than 3 percent energy if not removed and particle heavy where round airborne particles outweigh thin soot tips. Naive whole volume energy sum fails speck heavy. Largest mass without shape check fails particle heavy.
+Pass when error under three percent on cases that include speck heavy where large window dust contributes more than three percent extra glow if not removed, and particle heavy where compact fallout dots outweigh thin vein tips. Whole stack energy sum fails speck heavy. Mass only without stretch test fails particle heavy.
 
-## Difficulty
-* Oracle 100 percent via conservation plus shape plus halo
-* Naive threshold 0 percent 80 to 130 over or 30 to 50 under
-* Global without filter 0 on speck heavy
-* Expected similar to foundry thermal void: gpt 2 out of 5, opus 2 out of 5, avocado 0 to 1 out of 5
+Difficulty target is similar to foundry thermal void but in lithography domain: oracle near one percent, fixed level zero, global without filter zero on speck heavy, expected gpt two of five, opus two of five, avocado zero to one of five.
 
-## Anti cheating
-Stdlib only struct sys math random tempfile re. No numpy scipy imaging graph libs, no os io pathlib etc. No hardcoded sample mass. Secure runner audit hook blocks /tests test_outputs heldout _gen GEOM_TRUTH etc.
+No numpy scipy skimage cv2 PIL etc, only struct sys math random tempfile re.
+
+Author Tosin Daniel Jimoh purple29th at meta.com
