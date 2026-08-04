@@ -1,6 +1,6 @@
 I work on laser powder bed fusion builds checking spatter defects. During printing the laser ejects hot spatter that gets trapped as elongated inclusions along gas flow that cause cracks. We inspect builds with X-ray CT fluorescence where spatter glows bright, but diffusion plus lens smear makes the glow look much bigger than true spatter.
 
-I need a small tool that tells me total spatter mass in milligrams for the main elongated spatter.
+I need a small tool that tells me total spatter mass in milligrams for all elongated spatter that are the real defects. Some volumes have two or three separate elongated pieces far apart that all count, you must sum them.
 
 Please make a file at /app/solve.py. We call it like python /app/solve.py path to scan and we read final printed token as answer.
 
@@ -24,9 +24,9 @@ Calibration: lab shows density of solidified spatter is three point eight millig
 
 I tried naive brightness levels and they are hopeless. If I am generous and count everything slightly above background my mass nearly doubles. If I am strict and only count very bright voxels I lose thin tails and I lose third to half. Each file has different background gain and scatter width, so no fixed level works.
 
-What does work is energy preservation. Scatter does not create signal, it only moves it. So adding up background removed glow over spatter plus faint skirt and dividing by true interior brightness gives true voxel count. To make that work you need clean background from seventy percent lower median and noise from median absolute deviation of lower half, you need to seed bright voxels above four sigma and grow twenty six connected blobs, keep stretched spatter via stretch test and drop compact pores, you need robust interior level by smoothing each candidate with three by three by three neighbourhood mean then averaging top four inside main defect, and you need to grow outward shell by shell until average shell glow falls to about noise floor, skipping artefact voxels.
+Energy is preserved despite smear. Total excess stays same, so bright counting fails but a conservation idea can work if you handle background bias that is pulled by the defect, the noise floor that varies per build, the far dust that must be ignored, and the interior level hidden by blur. You also must avoid counting skirt as background and avoid jumping to distant specks, and you must sum all separate elongated pieces not just the biggest.
 
-If you do those steps you land within a percent, grading allows three percent.
+If you get background and interior right you land within a percent, grading allows three percent.
 
 Coding rules. You must parse bytes yourself, only stdlib. You can use struct sys math random tempfile re. You cannot use numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath or any array imaging or graph library. Banned calls include eval exec compile __import__ chr. Banned tricks include subprocess os system popen exec fork walk listdir scandir open pty importlib runpy ctypes filesystem listing or hiding forbidden file names with chr bytes fromhex base64 b64decode bytearray tricks. Do not try to open or list tests folder. Do not reference test_outputs heldout reference_charge _gen GEOM_TRUTH geometric_truth in solver. Your solver must work on any random temp path.
 

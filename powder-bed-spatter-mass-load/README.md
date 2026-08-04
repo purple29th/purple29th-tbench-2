@@ -8,7 +8,7 @@ This task measures total spatter mass in milligrams for qualification. Simple le
 
 Energy preservation saves us. Optics do not create photons, they only move them. So sum of background removed glow over spatter plus its faint skirt divided by true core level gives true voxel count. Calibration: density of solidified spatter is 3.8 milligrams per cubic millimeter, so mass mg equals volume mm3 times 3.8.
 
-A correct solver must read header with data offset not hardcoded, get border background from seventy percent lower median and noise from lower half MAD, seed bright voxels above four sigma and grow twenty six connected blobs, keep elongated spatter along gas flow where longest at least eight and more than one point six times shortest and drop compact gas pores that are cubic, get core level via three by three by three smoothed top four mean, expand outward until mean shell drops to noise floor while skipping artefacts.
+A correct solver must handle data offset, background bias, detector noise, and distinguish elongated spatter that follows gas flow from compact pores plus far dust specks. Some volumes have two or three separate elongated pieces far apart that all count and must be summed, so keeping only biggest blob fails. Core level and skirt handling must be robust to blur.
 
 ## Files
 

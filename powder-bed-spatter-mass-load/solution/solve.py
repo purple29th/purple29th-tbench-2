@@ -33,9 +33,13 @@ def parse_epcm(path):
     return nx, ny, nz, float(sx), float(sy), float(sz), [float(v) for v in vals]
 
 
-def _median(s):
-    m = len(s)
-    return s[m // 2] if m % 2 else 0.5 * (s[m // 2 - 1] + s[m // 2])
+def _median(sorted_vals):
+    n = len(sorted_vals)
+    return (
+        sorted_vals[n // 2]
+        if n % 2
+        else 0.5 * (sorted_vals[n // 2 - 1] + sorted_vals[n // 2])
+    )
 
 
 def mass_from_path(path):
@@ -45,16 +49,16 @@ def mass_from_path(path):
     def idx(x, y, z):
         return x + nx * (y + ny * z)
 
-    sorted_vox = sorted(vox)
-    background = _median(sorted_vox)
-    lower = sorted_vox[: n // 2]
+    ordered = sorted(vox)
+    background = _median(ordered[: int(n * 0.7)])
+    lower = ordered[: n // 2]
     med_low = _median(lower)
     mad = _median(sorted(abs(v - med_low) for v in lower))
     noise_sigma = max(1e-6, 1.4826 * mad)
     residual = [v - background for v in vox]
     occ_thr = 4.0 * noise_sigma
     occupied = [r > occ_thr for r in residual]
-    seen = bytearray(n)
+    seen = [False] * n
     components = []
     for z0 in range(nz):
         for y0 in range(ny):
@@ -63,7 +67,7 @@ def mass_from_path(path):
                 if not occupied[s] or seen[s]:
                     continue
                 stack = [(x0, y0, z0)]
-                seen[s] = 1
+                seen[s] = True
                 comp = []
                 mass = 0.0
                 min_x = max_x = x0
@@ -74,63 +78,53 @@ def mass_from_path(path):
                     k = idx(x, y, z)
                     comp.append(k)
                     mass += residual[k]
-                    if x < min_x:
-                        min_x = x
-                    if x > max_x:
-                        max_x = x
-                    if y < min_y:
-                        min_y = y
-                    if y > max_y:
-                        max_y = y
-                    if z < min_z:
-                        min_z = z
-                    if z > max_z:
-                        max_z = z
+                    min_x = min(min_x, x)
+                    max_x = max(max_x, x)
+                    min_y = min(min_y, y)
+                    max_y = max(max_y, y)
+                    min_z = min(min_z, z)
+                    max_z = max(max_z, z)
                     for dx_, dy_, dz_ in NEIGH26:
                         a, b, c = x + dx_, y + dy_, z + dz_
                         if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
                             kk = idx(a, b, c)
                             if occupied[kk] and not seen[kk]:
-                                seen[kk] = 1
+                                seen[kk] = True
                                 stack.append((a, b, c))
                 dx_ = max_x - min_x + 1
                 dy_ = max_y - min_y + 1
                 dz_ = max_z - min_z + 1
-                components.append((mass, comp, dx_, dy_, dz_))
+                dims = sorted([dx_, dy_, dz_])
+                is_elong = dims[2] >= 8 and dims[2] > 1.6 * dims[0]
+                components.append((mass, comp, dx_, dy_, dz_, is_elong))
     if not components:
         return 0.0
-    c_sorted = sorted(components, key=lambda x: x[0], reverse=True)
-    best = None
-    for mass, comp, dx_, dy_, dz_ in c_sorted:
-        dims = sorted([dx_, dy_, dz_])
-        if dims[2] >= 8 and dims[2] > 1.6 * dims[0]:
-            best = comp
-            break
-    if best is None:
-        best = c_sorted[0][1]
-    filtered = []
-    for j in best:
-        x = j % nx
-        y = (j // nx) % ny
-        z = j // (nx * ny)
-        acc = 0.0
-        cnt = 0
-        for dz_ in (-1, 0, 1):
-            for dy_ in (-1, 0, 1):
-                for dx_ in (-1, 0, 1):
-                    a, b, c = x + dx_, y + dy_, z + dz_
-                    if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
-                        acc += residual[idx(a, b, c)]
-                        cnt += 1
-        filtered.append(acc / cnt)
-    filtered.sort(reverse=True)
-    topk = filtered[: max(1, min(4, len(filtered)))]
-    plateau = sum(topk) / len(topk) if topk else 0
+    components.sort(key=lambda x: x[0], reverse=True)
+    largest = components[0][0] if components else 0
+    main_groups = []
+    for mass, comp, _, _, _, is_elong in components:
+        if is_elong and mass >= 0.35 * largest:
+            main_groups.append(comp)
+    if not main_groups:
+        main_groups = [components[0][1]]
+    main = []
+    for g in main_groups:
+        main.extend(g)
+    kept = set(main)
+    dust = set()
+    for _, comp, _, _, _, _ in components:
+        for ii in comp:
+            if ii not in kept:
+                dust.add(ii)
+    peak = [residual[j] for j in main]
+    peak.sort(reverse=True)
+    top = peak[: max(1, min(4, len(peak)))]
+    plateau = sum(top) / len(top) if top else 0
     if plateau <= 0:
         return 0.0
-    region = set(best)
-    frontier = set(best)
-    halo_floor = 1.0 * noise_sigma
+    region = set(main)
+    frontier = set(main)
+    floor = 1.0 * noise_sigma
     for _ in range(40):
         shell = set()
         for j in frontier:
@@ -141,11 +135,11 @@ def mass_from_path(path):
                 a, b, c = x + dx_, y + dy_, z + dz_
                 if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
                     k = idx(a, b, c)
-                    if k not in region:
+                    if k not in region and k not in dust:
                         shell.add(k)
         if not shell:
             break
-        if sum(residual[j] for j in shell) / len(shell) <= halo_floor:
+        if sum(residual[j] for j in shell) / len(shell) <= floor:
             break
         region |= shell
         frontier = shell

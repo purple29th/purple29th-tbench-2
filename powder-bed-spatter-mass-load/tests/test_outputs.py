@@ -1,7 +1,7 @@
-"""Secure verifier for /app/solve.py - battery dendrite mass load.
+"""Secure verifier for /app/solve.py - powder bed spatter mass load.
 
-Fluorescence diffusion + lens PSF spreads lithium signal but conserves total energy.
-Threshold fails 80-130% over / 30-50% under. True mass recoverable via intensity conservation + shape discrimination.
+Spatter fluorescence from LPBF is smeared by diffusion plus lens PSF but conserves energy.
+Threshold fails 80-130% over or 30-50% under. True mass needs intensity conservation plus shape filter that keeps elongated spatter along gas flow vs round pores.
 """
 
 import ast
@@ -87,7 +87,7 @@ BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
-    "_gen",
+    "tests/_gen",
     "GEOM_TRUTH",
     "geometric_truth",
     "reference_mass",
@@ -161,7 +161,7 @@ def build_field(cfg):
 
     clean = [0.0] * n
     true_all = set()
-    true_dend = set()
+    true_spatter = set()
 
     def add_ell(cx, cy, cz, rx, ry, rz, tgt):
         for z in range(nz):
@@ -185,12 +185,12 @@ def build_field(cfg):
             _, cx, cy, cz, rx, ry, rz, _ = shp
             add_ell(cx, cy, cz, rx, ry, rz, true_all)
             if is_d:
-                add_ell(cx, cy, cz, rx, ry, rz, true_dend)
+                add_ell(cx, cy, cz, rx, ry, rz, true_spatter)
         else:
             _, x0, x1, y0, y1, z0, z1, _ = shp
             add_box(x0, x1, y0, y1, z0, z1, true_all)
             if is_d:
-                add_box(x0, x1, y0, y1, z0, z1, true_dend)
+                add_box(x0, x1, y0, y1, z0, z1, true_spatter)
     amp = cfg["amp"]
     for i in true_all:
         clean[i] = float(amp)
@@ -205,7 +205,7 @@ def build_field(cfg):
     ns = cfg["noise"]
     rng = _lcg(cfg["seed"])
     field = [blurred[i] + bg + (next(rng) - 0.5) * 2.0 * ns for i in range(n)]
-    return field, len(true_dend)
+    return field, len(true_spatter)
 
 
 def pack_spat(cfg, field):
@@ -308,7 +308,7 @@ BASE_CONFIGS = {
         ],
         specks=[(38, 4, 3, 3.0), (4, 35, 18, 2.6), (37, 34, 4, 2.2)],
     ),
-    "plating_heavy": dict(
+    "pore_heavy": dict(
         dims=(52, 46, 32),
         spacing=(0.45, 0.45, 0.85),
         dtype=16,
@@ -351,14 +351,14 @@ ALL_TEST_CONFIGS = [
     ("heldout_2", BASE_CONFIGS["heldout_2"]),
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
-    ("plating_heavy", BASE_CONFIGS["plating_heavy"]),
+    ("pore_heavy", BASE_CONFIGS["pore_heavy"]),
     ("randomized", RANDOM_CONFIG),
 ]
 
 SECURE_RUNNER_CODE = r"""
 import sys, os, runpy
 solve_path=sys.argv[1]; spat_path=sys.argv[2]
-BLOCKED_SUBSTRS=["/tests","test_outputs","heldout","_gen","GEOM_TRUTH","geometric_truth","reference_mass"]
+BLOCKED_SUBSTRS=["/tests","test_outputs","heldout","tests/_gen","GEOM_TRUTH","geometric_truth","reference_mass"]
 def is_blocked(p):
     s=str(p)
     for b in BLOCKED_SUBSTRS:
@@ -541,7 +541,7 @@ def test_global_conservation_shortcut_fails_on_speck_heavy():
 
 
 def test_shape_filter_needed():
-    cfg = BASE_CONFIGS["plating_heavy"]
+    cfg = BASE_CONFIGS["pore_heavy"]
     field, v_true = build_field(cfg)
     truth = geometric_truth_mg(cfg, v_true)
     # naive that keeps largest mass without shape filter would include round plating
@@ -561,7 +561,7 @@ def test_shape_filter_needed():
     naive_mass = total_mass / amp * sx * sy * sz * RHO if amp > 0 else 0
     # naive global should be off because it includes plating
     assert abs(naive_mass - truth) > REL_TOL * truth, (
-        f"plating_heavy should require shape filter, naive {naive_mass:.2f} vs truth {truth:.2f}"
+        f"pore_heavy should require shape filter, naive {naive_mass:.2f} vs truth {truth:.2f}"
     )
 
 
