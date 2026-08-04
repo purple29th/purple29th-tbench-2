@@ -6,23 +6,17 @@ Please make a file at /app/solve.py. We call it like python /app/solve.py path t
 
 There is one example volume you can try at /app/data/scene.capv inside container. That is just for you to debug. Hidden evaluation uses completely different volumes I made with new sizes spacings defect thickness brightness diffusion and pitch passed as random temp file names. So you cannot hardcode numbers from example. If you hardcode example you will fail hidden.
 
-File layout capv. My own tiny format, everything little endian.
+Container layout capv is little endian with tag CAPV. Byte ranges: zero to three tag CAPV, four to seven version uint32, eight to eleven dtype id where two is int16 and sixteen is float32, twelve to twenty three three uint32 nx ny nz, twenty four to thirty five three float32 sx sy sz that are anisotropic pitch and vary per board, so you must read, thirty six to thirty nine uint32 data offset that is varied thirty two forty forty eight sixty four eighty ninety six one twenty eight so you must respect, forty to forty three float32 gain trim that scales capacitance and varies zero point eight five to one point three five per file. Remaining bytes up to data offset are zero padding. At data offset you have nx times ny times nz samples in dtype declared, x fastest so linear is x plus nx times y plus ny times z.
 
-Our scanner writes a custom container with extension capv. All numbers are little endian. File begins with four ascii bytes CAPV as tag. Then uint32 version. Then uint32 dtype id where two means voxels are int16 and sixteen means voxels are float32. Then three uint32 nx ny nz counts per axis. Then three float32 sx sy sz millimeters per voxel anisotropic and change per board, you must read them. Then uint32 data offset that tells where voxel payload begins and varied so it can be thirty two forty forty eight sixty four eighty ninety six one twenty eight, so please respect field. Then float32 gain trim at offset forty that multiplies capacitance and varies zero point eight five to one point three five per file and must be read and applied, sample file has gain one so effect hidden but hidden uses non unit gain. Then the rest up to data offset is padding.
+What should be counted. Inside each cube there is missing prepreg resin in several spots. Voids that matter are elongated resin starvation along trace that run along weave, those count for pF. Round lamination bubbles from lamination are near spherical and must be ignored. Some boards have two separate elongated voids far apart that both count and must be summed for total volume before pF conversion. So keeping only biggest fails.
 
-At data offset you get nx times ny times nz samples in dtype announced, X fastest, linear index is x plus nx times y plus ny times z.
+How I decide shape in lab. I first build bright mask where residual above five sigma after background removal. I measure bounding box on that mask. I keep a void when its box has longest at least twelve and more than two times shortest and at most thirty five, which keeps long weave voids and drops compact bubbles that are at most one point six times shortest. That is ordinary PCB check.
 
-Inside each cube there is missing resin in a few places. The voids that count are elongated voids that run along trace direction that are the only voids that count. There are also round lamination bubbles that are near spherical and must be ignored. Some volumes have two separate elongated voids far apart that both count and must be summed for total volume. You must use twenty six neighbour connectivity and bounding box measured on bright mask above five sigma noise level. In lab we keep a void when its bounding box measured on that bright mask has longest side at least twelve and more than two times shortest side and at most thirty five. That keeps elongated and drops round where longest at most one point six times shortest.
+Calibration. Lab measured that each cubic millimeter of missing resin adds zero point nine two picofarads times gain trim. So pF equals volume mm3 times zero point nine two times gain. You first recover true void volume from smeared cloud, then compute pF.
 
-Some scans also have one to three very tiny bright specks far away from dust on window that must be ignored.
+Simple threshold is useless. Low level swallows whole aureole and my pF roughly doubles. High level clips thin tails along weave that are dim due to partial volume and I lose third to half. Each board has different background, gain, scatter.
 
-We use twenty six neighbour connectivity.
-
-Calibration: lab shows each cubic millimeter of missing resin adds zero point nine two picofarads times gain trim. So capacitance in pF equals volume mm3 times zero point nine two times gain. You first recover true void volume from smeared cloud, then compute capacitance.
-
-Naive levels are hopeless. If I am generous and count everything slightly above background my volume balloons and my capacitance nearly doubles. If I am strict and only count very bright voxels I lose thin tails and I lose third to half. Each file has different background gain and scatter width.
-
-Energy preservation works. Total glow over void plus faint skirt divided by true interior brightness gives true voxel count.
+What does work is that total excess glow over void plus its faint skirt divided by core brightness equals true voxel count, energy preserved.
 
 If you get background and interior right you land within a percent, grading allows three percent.
 
