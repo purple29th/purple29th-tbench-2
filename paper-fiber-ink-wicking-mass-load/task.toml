@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/paper-fiber-ink-wicking-mass-load"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Coated paper at 120gsm for inkjet photo: cellulose fibers calendered and kaolin coated, dye wicks along fiber creating ragged blot. Scanner writes own binary inkw tag INKW with gain trim at forty that must be read. Total feathering span mm equals recovered area divided by fiber width zero point four times gain. Round water droplets and corner dust must be ignored, two irregular pools far apart must be summed, data offset varied thirty two to one twenty eight, three percent."
+description = "Mill QC for 120gsm photo rag inkjet paper with calendered cellulose base and kaolin clay blade coating. We print a black dye patch, capillary wicking along fiber axis makes a ragged feathered blot whose fiber direction span correlates with Cobb sizing and sheet caliper. A UV fluorescence microscope writes a custom 2D container with fourcc INKW, pixel pitch sx sy, variable payload start, and a post coat calibration multiplier at file offset forty that scales mm result and is non unity for hidden cases like offset ninety six. Evaluation asks for total wicking span in mm computed as recovered pooled area over zero point four mm fiber repeat times multiplier, ignoring circular condensation beads and far corner window dust, summing two distant feathered blots when present, tolerance three percent."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["paper", "ink-wicking", "binary-parsing", "from-scratch"]
 
