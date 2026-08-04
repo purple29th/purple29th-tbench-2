@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/paper-fiber-ink-wicking-mass-load"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Paper fiber ink wicking mass: quality control for coated paper where ink bleeds along fibers. Custom INKW map magic INKW holds fluorescence where ink sits but capillary bleed smears. Need total ink mass in mg as area 0.85 mg per mm2 times gain from header. Only main irregular ink pool counts vs round water droplets to ignore plus far dust. 3 percent tolerance, data offset varied."
+description = "Coated paper at 120gsm for inkjet photo: cellulose fibers are calendered and kaolin coated, dye wicks along fiber axis creating ragged feathered blot. Scanner writes own binary inkw tag INKW with gain trim at forty and fiber orientation angle at forty four that must be read. Total dye mass in mg equals recovered fiber driven area times zero point eight five times gain. Round water droplets from condensation and corner window dust must be ignored, two irregular pools far apart must be summed, data offset thirty two to one twenty eight varied, three percent."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["paper", "ink-wicking", "binary-parsing", "from-scratch"]
 
