@@ -98,7 +98,7 @@ def charge_from_path(path):
     if best is None:
         best = c_sorted[0]
     mass_best, comp_best, _, _ = best
-    # plateau via 3x3 filtered top 8
+    # plateau via 3x3 filtered top 4 mean (more robust for thin patches with heavy blur, avoids undercount)
     filtered = []
     for j in comp_best:
         x = j % nx
@@ -113,7 +113,7 @@ def charge_from_path(path):
                     cnt += 1
         filtered.append(acc / cnt)
     filtered.sort(reverse=True)
-    topk = filtered[: max(1, min(8, len(filtered)))]
+    topk = filtered[: max(1, min(4, len(filtered)))]
     plateau = sum(topk) / len(topk) if topk else 0
     if plateau <= 0:
         return 0.0

@@ -22,7 +22,11 @@ Calibration lab shows each square mm of charged patch holds 1.5 nC. So charge in
 
 Threshold counting cannot be precise. Low cutoff includes huge halo and overcounts by seventy to one hundred twenty percent. High cutoff misses thin feathered edges that never get bright enough and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change.
 
-Blur spreads energy but does not create or destroy charge. That physics makes precise recovery possible. True pixels equals sum of background subtracted intensity over patch plus halo divided by plateau intensity. You must infer background from border isolate main patch from round artefacts and specks estimate plateau from most concentrated region and grow halo until shell mean hits noise floor.
+Blur spreads energy but does not create or destroy charge. That physics makes precise recovery possible. True pixels equals sum of background subtracted intensity over patch plus halo divided by plateau intensity. What I do in lab is first get background from border median and noise from lower half median absolute deviation. Then I find the main patch by looking for bright connected regions with eight neighbours and keeping the one where longest side is at least ten and more than one point six times shortest. That keeps the long draw direction patch and drops the round static dots. Small far dust specks are just tiny isolated blobs far from main.
+
+For plateau I do not take raw max because noise can spike. I smooth each candidate pixel with three by three local mean and then take the mean of the top four smoothed values inside the main patch. That gives true core intensity without being fooled by noise and works even when the patch is thin and has no fully flat top.
+
+Then I grow outward from the main patch shell by shell. Each shell is all eight neighbours of current frontier that are not yet in region. I stop when mean shell residual falls to about one times noise sigma. That collects the faint skirt without jumping into a speck. Then total energy divided by plateau gives number of true pixels. Multiply by sx sy and by one point five to get nC.
 
 Simple shortcuts fail by large margin. Grading at three percent tolerance only genuine precise method passes.
 
