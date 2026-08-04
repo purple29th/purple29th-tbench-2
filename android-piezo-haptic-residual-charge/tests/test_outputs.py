@@ -93,10 +93,13 @@ BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
-    "_gen",
+    "tests/_gen",
     "GEOM_TRUTH",
     "geometric_truth",
     "reference_volume",
+    "reference_charge",
+    "reference_mass",
+    "ground_truth",
 ]
 BANNED_OBFUSCATION_SUBSTRS = [
     "fromhex",
@@ -570,7 +573,7 @@ def run_agent_secure(aphc_bytes, expected_uc, name="case"):
             import sys, os, runpy
             solve_path = sys.argv[1]
             aphc_path = sys.argv[2]
-            BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "_gen", "GEOM_TRUTH", "geometric_truth", "reference_volume"]
+            BLOCKED_SUBSTRS = ["/tests", "test_outputs", "heldout", "tests/_gen", "GEOM_TRUTH", "geometric_truth", "reference_volume", "reference_mass", "reference_charge", "ground_truth"]
             def _to_str(p):
                 if isinstance(p, (bytes, bytearray)):
                     try:
@@ -620,8 +623,15 @@ def run_agent_secure(aphc_bytes, expected_uc, name="case"):
                         pass
                     if _to_str(path) in ("", "/", "/tests", "/tests/data"):
                         raise RuntimeError(f"Blocked listing of sensitive dir: {{path}}")
+                elif event in ("os.link", "os.symlink"):
+                    path = args[0] if args else ""
+                    if is_blocked(path):
+                        raise RuntimeError(f"Blocked link access to sensitive: {{path}}")
+                    if len(args) > 1 and is_blocked(args[1]):
+                        raise RuntimeError(f"Blocked link dest sensitive: {{args[1]}}")
+                    raise RuntimeError(f"Blocked {{event}} link creation to avoid hardlink bypass")
                 elif event.startswith("os."):
-                    banned = {{"os.system","os.popen","os.spawnl","os.spawnle","os.spawnlp","os.spawnlpe","os.spawnv","os.spawnve","os.spawnvp","os.spawnvpe","os.exec","os.execl","os.execle","os.execlp","os.execlpe","os.execv","os.execve","os.execvp","os.execvpe","os.posix_spawn","os.posix_spawnp","os.fork","os.forkpty"}}
+                    banned = {{"os.system","os.popen","os.spawnl","os.spawnle","os.spawnlp","os.spawnlpe","os.spawnv","os.spawnve","os.spawnvp","os.spawnvpe","os.exec","os.execl","os.execle","os.execlp","os.execlpe","os.execv","os.execve","os.execvp","os.execvpe","os.posix_spawn","os.posix_spawnp","os.fork","os.forkpty","os.link","os.symlink"}}
                     if event in banned:
                         raise RuntimeError(f"Blocked {{event}}")
                 elif event.startswith("subprocess."):
@@ -631,7 +641,7 @@ def run_agent_secure(aphc_bytes, expected_uc, name="case"):
                 elif event == "import":
                     mod = args[0] if args else ""
                     base = mod.split(".")[0]
-                    banned_imports = {{"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","ctypes","importlib","runpy"}}
+                    banned_imports = {{"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","shutil","ctypes","importlib","runpy"}}
                     if base in banned_imports:
                         raise RuntimeError(f"Blocked import {{mod}}")
             sys.addaudithook(audit_hook)
@@ -647,26 +657,41 @@ def run_agent_secure(aphc_bytes, expected_uc, name="case"):
             pass
 
         demote_fn = None
-        try:
-            pw = pwd.getpwnam("aphc_restricted_user")
+        # If we are not root locally, skip priv drop to allow local pytest, but in cloud verifier we are root and must drop
+        if os.geteuid() != 0:
+            demote_fn = None
+        else:
+            try:
+                pw = pwd.getpwnam("aphc_restricted_user")
 
-            def _demote():
-                try:
+                def _demote():
                     os.setgid(pw.pw_gid)
                     try:
                         os.setgroups([])
                     except Exception:
                         pass
                     os.setuid(pw.pw_uid)
+                    if os.geteuid() == 0:
+                        raise RuntimeError(
+                            "Failed to drop to restricted user, still root"
+                        )
                     os.umask(0o077)
-                except Exception:
-                    pass
 
-            demote_fn = _demote
-        except KeyError:
-            demote_fn = None
-        except Exception:
-            demote_fn = None
+                demote_fn = _demote
+            except KeyError:
+
+                def _demote_missing():
+                    raise RuntimeError(
+                        "Restricted user aphc_restricted_user missing, test.sh did not create, failing closed"
+                    )
+
+                demote_fn = _demote_missing
+            except Exception as e:
+
+                def _demote_error():
+                    raise RuntimeError(f"Error getting restricted user: {e}")
+
+                demote_fn = _demote_error
 
         proc = subprocess.run(
             ["python3", secure_path, SCRIPT, aphc_path],
@@ -740,10 +765,14 @@ def test_global_conservation_shortcut_fails_on_wide_bump():
         gain = cfg["gain"]
         return total / 10.0 * interval * gain * 1000.0 if amp > 0 else 0
 
-    got = naive_global()
-    assert abs(got - true_charge) > REL_TOL * true_charge, (
-        f"Expected naive global to fail on wide bump, got {got:.2f} vs truth {true_charge:.2f}"
+    naive = naive_global()
+    assert abs(naive - true_charge) > REL_TOL * true_charge, (
+        f"Expected naive global to fail on wide bump, got {naive:.2f} vs truth {true_charge:.2f}"
     )
+    # also ensure correct solver passes this config
+    aphc_bytes = pack_aphc(cfg, field)
+    got = run_agent_secure(aphc_bytes, true_charge, name="heldout_1_global_check")
+    assert abs(got - true_charge) <= REL_TOL * true_charge
 
 
 def test_count_based_clustering_fails_on_wide_bump():
@@ -784,10 +813,13 @@ def test_count_based_clustering_fails_on_wide_bump():
         total_res = sum(r[idx] for idx in longest[0])
         return total_res / 10.0 * cfg["interval"] * cfg["gain"] * 1000.0
 
-    got = count_based_picker()
-    assert abs(got - true_charge) > REL_TOL * true_charge, (
-        f"Expected count-based to fail, got {got:.2f} vs truth {true_charge:.2f}"
+    naive = count_based_picker()
+    assert abs(naive - true_charge) > REL_TOL * true_charge, (
+        f"Expected count-based to fail, got {naive:.2f} vs truth {true_charge:.2f}"
     )
+    aphc_bytes = pack_aphc(cfg, field)
+    got = run_agent_secure(aphc_bytes, true_charge, name="heldout_1_count_check")
+    assert abs(got - true_charge) <= REL_TOL * true_charge
 
 
 def test_dual_wide_bump_count_trap():
@@ -799,30 +831,7 @@ def test_dual_wide_bump_count_trap():
     assert ww1 + ww2 > main_w + 30, (
         f"dual wide trap not set: {ww1}+{ww2} vs main {main_w}"
     )
-
-
-def test_cheating_attempt_pathlib_construction_fails():
-    cheating_code = """
-import pathlib
-p = pathlib.Path("/") / "tests" / "test_outputs.py"
-print(p.read_text()[:10])
-"""
-    tree = ast.parse(cheating_code)
-    banned_import_found = False
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for a in node.names:
-                if a.name.split(".")[0] in BANNED_MODULES:
-                    banned_import_found = True
-        elif isinstance(node, ast.ImportFrom):
-            if (node.module or "").split(".")[0] in BANNED_MODULES:
-                banned_import_found = True
-    assert banned_import_found, "cheating pathlib import should be banned"
-
-
-def test_cheating_attempt_chr_construction_fails():
-    cheating_code = "print(chr(47)+chr(116)+chr(101)+chr(115)+chr(116)+chr(115))"
-    tree = ast.parse(cheating_code)
-    src = cheating_code
-    low = src.lower()
-    assert "chr(" in low, "chr construction should be flagged"
+    # also ensure correct solver does not pick sum of wides but picks main by mass
+    aphc_bytes = pack_aphc(cfg, field)
+    got = run_agent_secure(aphc_bytes, true_charge, name="heldout_2_dual_check")
+    assert abs(got - true_charge) <= REL_TOL * true_charge
