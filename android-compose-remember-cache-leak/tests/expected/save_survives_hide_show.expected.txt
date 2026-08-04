@@ -1,0 +1,8 @@
+node=child parent=root key=k1 viewModel={} remember={rc=cc} saved={sC=svC} children=[]
+node=root parent=NONE key=k1 viewModel={} remember={r1=c1} saved={s1=sv1} children=[child]
+
+node=child parent=root key=k1 viewModel={} remember={} saved={sC=svC} children=[] hidden
+node=root parent=NONE key=k1 viewModel={} remember={} saved={s1=sv1} children=[child] hidden
+
+node=child parent=root key=k1 viewModel={} remember={} saved={sC=svC} children=[]
+node=root parent=NONE key=k1 viewModel={} remember={} saved={s1=sv1} children=[child]

@@ -1,0 +1,10 @@
+BEGIN t1
+MOUNT t1 child root k1
+MOUNT t1 root NONE k1
+COMMIT t1
+QUERY
+BEGIN t2
+MOUNT t2 root NONE k1
+MOUNT t2 child root k1
+COMMIT t2
+QUERY

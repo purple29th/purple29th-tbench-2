@@ -1,0 +1,17 @@
+BEGIN t1
+MOUNT t1 root NONE k1
+MOUNT t1 child root k1
+COMMIT t1
+SAVE root s1 sv1
+SAVE child sC svC
+REMEMBER_PUT root r1 c1
+REMEMBER_PUT child rc cc
+QUERY
+BEGIN t2
+HIDE t2 root
+COMMIT t2
+QUERY
+BEGIN t3
+SHOW t3 root
+COMMIT t3
+QUERY

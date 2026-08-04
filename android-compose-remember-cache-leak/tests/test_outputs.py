@@ -49,6 +49,9 @@ CASE_NAMES = [
     "rotate_clears_remember",
     "parent_in_same_txn",
     "backstack_pop",
+    "save_survives_hide_show",
+    "parent_after_child_ignored",
+    "save_survives_rotate",
 ]
 
 

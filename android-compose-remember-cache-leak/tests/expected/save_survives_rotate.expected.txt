@@ -1,0 +1,3 @@
+node=root parent=NONE key=k1 viewModel={vm1=v1} remember={r1=c1} saved={s1=sv1} children=[]
+
+node=root parent=NONE key=k1 viewModel={vm1=v1} remember={} saved={s1=sv1} children=[]

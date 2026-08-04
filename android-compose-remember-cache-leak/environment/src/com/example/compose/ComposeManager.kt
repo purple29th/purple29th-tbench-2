@@ -43,7 +43,6 @@ class ComposeManager {
         txns[tid]?.add(TxnOp.Unmount(id))
     }
 
-    // immediate ops
     fun vmPut(id: String, k: String, v: String) {
         nodes[id]?.viewModel?.put(k, v)
     }
@@ -54,28 +53,16 @@ class ComposeManager {
         nodes[id]?.saved?.put(k, v)
     }
 
-    // direct mount for old-style without txn (for backward compat, immediate)
-    fun mountImmediate(id: String, parent: String, key: String) {
-        if (nodes.containsKey(id)) return
-        if (parent != "NONE" && !nodes.containsKey(parent)) return
-        val p = if (parent == "NONE") null else parent
-        val node = ComposeNode(id, p, key)
-        nodes[id] = node
-        if (p != null) nodes[p]?.children?.add(id)
-    }
-
     fun commit(tid: String) {
         val ops = txns.remove(tid) ?: return
         val name = backstackNames.remove(tid)
         if (name != null) {
-            // save snapshot before
-            val snap = deepCopy(nodes)
+                val snap = deepCopy(nodes)
             backstack.add(Pair(name, snap))
         }
         for (op in ops) {
             when (op) {
                 is TxnOp.Mount -> {
-                    // BUG: does not consider parent that was mounted earlier in same txn as existing? Actually we check nodes.containsKey which includes earlier mounts in same txn now, so parent check will succeed for same txn mounts, so this part is actually correct. But other bugs remain.
                     if (nodes.containsKey(op.id)) continue
                     if (op.parent != "NONE" && !nodes.containsKey(op.parent)) continue
                     val p = if (op.parent == "NONE") null else op.parent
@@ -86,13 +73,11 @@ class ComposeManager {
                 is TxnOp.UpdateKey -> {
                     val node = nodes[op.id] ?: continue
                     if (node.key == op.newKey) continue
-                    // BUG: only clears self, not descendants
                     node.remember.clear()
                     node.key = op.newKey
                 }
                 is TxnOp.Hide -> {
                     val node = nodes[op.id] ?: continue
-                    // BUG: only hides self, not descendants, and does not clear remember for descendants
                     node.remember.clear()
                     node.hidden = true
                 }
@@ -101,7 +86,6 @@ class ComposeManager {
                     node.hidden = false
                 }
                 is TxnOp.Unmount -> {
-                    // BUG: only removes self, not descendants
                     val node = nodes[op.id] ?: continue
                     val parent = node.parent
                     if (parent != null) nodes[parent]?.children?.remove(op.id)
@@ -122,17 +106,14 @@ class ComposeManager {
         val idx = backstack.indexOfLast { it.first == name }
         if (idx == -1) return
         val (_, snap) = backstack[idx]
-        // remove from idx onwards
         while (backstack.size > idx) backstack.removeAt(backstack.size - 1)
         nodes.clear()
         nodes.putAll(deepCopy(snap))
     }
 
     fun rotate() {
-        // BUG: should clear remember for all but also unhide? We clear remember but forget to unhide children correctly? Actually we clear but keep hidden flag incorrectly?
         for (n in nodes.values) {
             n.remember.clear()
-            // BUG: does not clear hidden flag, so hidden stays hidden after rotate (should unhide)
         }
     }
 
