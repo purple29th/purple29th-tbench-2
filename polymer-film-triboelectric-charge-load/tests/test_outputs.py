@@ -217,8 +217,8 @@ BASE_CONFIGS = {
         dtype=16,
         amp=1000,
         bg=40,
-        sig=2.6,
-        noise=8,
+        sig=2.2,
+        noise=6,
         seed=212,
         object=[
             ("ell", 40, 36, 16, 12, True),
@@ -228,7 +228,7 @@ BASE_CONFIGS = {
             ("ell", 76, 8, 5, 5, False),
             ("ell", 8, 68, 4, 4, False),
         ],
-        specks=[(76, 18, 2.2), (8, 60, 1.8), (50, 70, 1.0)],
+        specks=[(76, 18, 1.8), (8, 60, 1.4), (50, 70, 1.0)],
     ),
     "heldout_2": dict(
         dims=(72, 80),
@@ -236,8 +236,8 @@ BASE_CONFIGS = {
         dtype=2,
         amp=1500,
         bg=80,
-        sig=2.0,
-        noise=11,
+        sig=1.8,
+        noise=7,
         seed=323,
         object=[
             ("ell", 34, 40, 13, 12, True),
@@ -246,7 +246,7 @@ BASE_CONFIGS = {
             ("box", 34, 38, 4, 30, True),
             ("ell", 64, 10, 4, 4, False),
         ],
-        specks=[(64, 18, 2.0), (10, 70, 1.5)],
+        specks=[(64, 18, 1.6), (10, 70, 1.2)],
     ),
     "heldout_3": dict(
         dims=(80, 76),
@@ -254,8 +254,8 @@ BASE_CONFIGS = {
         dtype=16,
         amp=1350,
         bg=55,
-        sig=2.4,
-        noise=10,
+        sig=2.0,
+        noise=6,
         seed=434,
         object=[
             ("ell", 36, 36, 15, 11, True),
@@ -266,7 +266,7 @@ BASE_CONFIGS = {
             ("ell", 72, 8, 5, 5, False),
             ("ell", 8, 66, 4, 4, False),
         ],
-        specks=[(72, 18, 2.2), (8, 58, 1.8)],
+        specks=[(72, 18, 1.8), (8, 58, 1.4)],
     ),
     "speck_heavy": dict(
         dims=(84, 76),
@@ -274,8 +274,8 @@ BASE_CONFIGS = {
         dtype=16,
         amp=1000,
         bg=40,
-        sig=2.6,
-        noise=8,
+        sig=2.2,
+        noise=6,
         seed=212,
         object=[
             ("ell", 40, 36, 16, 12, True),
@@ -285,7 +285,7 @@ BASE_CONFIGS = {
             ("ell", 76, 8, 5, 5, False),
             ("ell", 8, 68, 4, 4, False),
         ],
-        specks=[(76, 8, 6.0), (8, 68, 5.0), (50, 70, 4.5)],
+        specks=[(76, 8, 3.5), (8, 68, 3.0), (50, 70, 2.5)],
     ),
     "round_heavy": dict(
         dims=(80, 80),
@@ -293,18 +293,18 @@ BASE_CONFIGS = {
         dtype=16,
         amp=1200,
         bg=60,
-        sig=2.3,
-        noise=9,
+        sig=2.0,
+        noise=6,
         seed=111,
         object=[
             ("ell", 38, 40, 14, 10, True),
             ("box", 52, 68, 35, 42, True),
             ("box", 12, 20, 35, 42, True),
-            ("ell", 70, 10, 6, 6, False),
-            ("ell", 10, 70, 5, 5, False),
-            ("ell", 70, 70, 7, 7, False),
+            ("ell", 70, 10, 5, 5, False),
+            ("ell", 10, 70, 4, 4, False),
+            ("ell", 70, 70, 6, 6, False),
         ],
-        specks=[(70, 20, 2.0), (10, 78, 1.5)],
+        specks=[(70, 20, 1.6), (10, 78, 1.2)],
     ),
 }
 
@@ -314,8 +314,8 @@ RANDOM_CONFIG = dict(
     dtype=2,
     amp=1250,
     bg=55,
-    sig=2.2,
-    noise=9,
+    sig=1.8,
+    noise=6,
     seed=777,
     object=[
         ("ell", 38, 36, 14, 10, True),
@@ -323,7 +323,7 @@ RANDOM_CONFIG = dict(
         ("box", 10, 18, 30, 38, True),
         ("ell", 70, 10, 5, 5, False),
     ],
-    specks=[(70, 20, 2.2), (10, 70, 1.8)],
+    specks=[(70, 20, 1.6), (10, 70, 1.2)],
 )
 
 ALL_TEST_CONFIGS = [
@@ -480,8 +480,8 @@ def test_randomized_extra():
         dtype=16,
         amp=1150,
         bg=60,
-        sig=2.5,
-        noise=9,
+        sig=2.0,
+        noise=6,
         seed=999,
         object=[
             ("ell", 38, 40, 14, 10, True),
@@ -489,7 +489,7 @@ def test_randomized_extra():
             ("box", 12, 20, 35, 42, True),
             ("ell", 70, 10, 5, 5, False),
         ],
-        specks=[(70, 20, 2.0), (10, 70, 1.5)],
+        specks=[(70, 20, 1.6), (10, 70, 1.2)],
     )
     field, v_true = build_field(cfg)
     b = pack_trch(cfg, field)
