@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/polymer-film-triboelectric-charge-load"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Write from-scratch Python script parsing custom 2D triboelectric charge map (.trch) of polymer film and reporting total patch charge in nC. Contact charging plus detector PSF smears signal, thresholding fails 70-120% over or 30-50% under, must use intensity conservation plus shape discrimination to exclude round static artefacts and far dust specks. Graded 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["polymer", "triboelectric", "charge", "film", "static", "surface", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["triboelectric", "polymer-film", "surface-charge", "static", "charge-patch", "intensity-conservation", "from-scratch", "binary-parsing"]
+expert_time_estimate_min = 50.0
+junior_time_estimate_min = 180.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
