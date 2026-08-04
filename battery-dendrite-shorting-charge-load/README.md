@@ -33,4 +33,4 @@ Test suite generates volumes at runtime in temp dirs with random names input_<he
 * You must work on any temp path, not hardcode scene
 
 ## Creation notes
-Built as sister to polymer tribo charge task but 3D and mC domain, different from previous mm3 void tasks by asking for charge and by using battery cycling narrative with separator pierce. Reference solution is in solution/solve.py.
+Battery safety domain with pouch cell teardown, polyethylene separator pierce, lithium inventory tracking, X-ray fluorescence of trapped metal, calibration 2.8 mC per mm3, mass based main needle isolation and halo growth. Reference solution in solution/solve.py.
