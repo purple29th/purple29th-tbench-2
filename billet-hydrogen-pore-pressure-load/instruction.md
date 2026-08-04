@@ -1,8 +1,8 @@
 I work on continuous cast aluminum billet inspection. Hydrogen from humidity gets into the melt and during solidification it forms round sealed pores that hold pressurized gas. When we extrude, those pores open as surface blisters that fail QA. I need to know internal gas pressure in kilopascals to decide which billets need degas.
 
-We image hydrogen with fluorescence where pores glow bright, but diffusion in the scintillator plus lens smear makes the glow look much bigger than true pore.
+We image hydrogen with fluorescence where pores glow bright, but diffusion in the scintillator plus lens smear makes the glow look much bigger than true pore, so counting bright voxels gives double volume.
 
-I need a small tool that tells me total gas pressure in kPa for all round pores together. Some volumes have two separate round pores far apart that all count, you must sum their volumes first then convert to pressure.
+I need a small tool that tells me total gas pressure in kPa for all round pores together. Pressure depends on total volume, so if you sum correctly you get pressure. Some volumes have two separate round pores far apart that all count, you must sum their volumes first then convert to pressure via constant divided by volume.
 
 Please make a file at /app/solve.py. We call it like python /app/solve.py path to scan and we read final printed token as answer.
 
@@ -18,7 +18,7 @@ Twelve bytes are three float32 sx sy sz millimeters per voxel, this changes per 
 Four bytes uint32 data offset where voxel array starts.
 At data offset you get nx times ny times nz samples in dtype announced, X fastest, linear index is x plus nx times y plus ny times z.
 
-Inside each cube there is hydrogen in a few places. The pores that count are round sealed pores that are near spherical from hydrogen, those are the only pores that count. There are also elongated manganese sulfide stringers that are long along casting direction and must be ignored. Some volumes have two separate round pores far apart that all count and must be summed for total volume. You must use twenty six neighbour connectivity and bounding box measured on bright mask above four sigma noise level. In our lab we keep a pore when its bounding box measured on that bright mask has longest side at most twenty eight and longest at most two point five times shortest side. That keeps round pores even after anisotropic PSF smears a five by five by five pore to about twenty by fifteen by ten, and drops stretched sulfide stringers where longest at least twelve and more than three times shortest which become twenty by six by six after smear. That is inverted versus many tasks that kept elongated. Some scans also have one to three very tiny bright specks far away from dust on window that must be ignored.
+Inside each cube there is hydrogen in a few places. The pores that count are round sealed pores that are near spherical from hydrogen, those are the only pores that count. There are also elongated manganese sulfide stringers that are long along casting direction and must be ignored. Some volumes have two separate round pores far apart that all count and must be summed for total volume. You must use twenty six neighbour connectivity and bounding box measured on bright mask above eight sigma noise level. In our lab we keep a pore when its bounding box measured on that bright mask has longest side at most thirty five and longest at most three times shortest side. That keeps round pores even after anisotropic PSF smears a five by five by five pore to about twenty by fifteen by ten, and drops stretched sulfide stringers where longest at least twelve and more than three times shortest which become twenty by six by six after smear. That is inverted versus many tasks that kept elongated. Some scans also have one to three very tiny bright specks far away from dust on window that must be ignored.
 
 We use twenty six neighbour connectivity.
 
