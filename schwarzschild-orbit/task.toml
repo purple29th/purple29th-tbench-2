@@ -1,0 +1,39 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/schwarzschild-orbit"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Pure base R Schwarzschild timelike geodesic integrator in Cartesian Kerr-Schild coordinates: derive Schwarzschild metric g=eta+f l l with f=2M/r, compute Christoffels via 4th-order finite differences, integrate geodesic du^mu/dtau=-Gamma^mu_ab u^a u^b with adaptive Dormand-Prince RK45, conserve u.u to 1e-10 and Killing energy and angular momentum magnitude to 1e-8, return final position velocity and drifts, terminate escaped r>1000M or captured r<2M or timeout."
+language = "r"
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["physics", "general-relativity", "r", "schwarzschild", "geodesic", "kerr-schild", "conservation", "numerical-integration"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "scientific-computing"
+languages = ["r"]
+tags = ["physics", "general-relativity", "schwarzschild", "geodesic", "kerr-schild", "conservation", "numerical-integration"]
+expert_time_estimate_min = 140.0
+junior_time_estimate_min = 420.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 600.0
+
+[environment]
+build_timeout_sec = 600.0
+cpus = 1
+memory_mb = 2048
+storage_mb = 10240
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
