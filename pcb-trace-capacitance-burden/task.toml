@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/pcb-trace-capacitance-burden"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "PCB trace capacitance burden: high-speed differential pair over FR4 has tiny voids in prepreg that raise capacitance. Custom CAPV volume magic CAPV holds fluorescence where resin is missing but smear spreads. Need total added capacitance in pF as volume 0.92 pF per mm3 times gain trim from header. Only elongated voids along trace count vs round lamination bubbles to ignore plus far dust. 3 percent tolerance, data offset varied."
+description = "We validate 112Gbps PAM4 differential pairs on datacenter boards. Resin starvation in FR4 prepreg between P and N appears as bright voxels in our own capv container that starts with tag CAPV and carries a gain trim float at offset forty that must scale the result. The effective extra capacitance in pF comes from recovered void volume times zero point nine two times gain, but only elongated resin voids that track the weave count, round lamination bubbles and corner dust must be ignored, three percent tolerance and offset field varied thirty two to one twenty eight."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["pcb", "capacitance", "binary-parsing", "from-scratch"]
 
