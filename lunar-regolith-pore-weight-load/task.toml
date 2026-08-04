@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/lunar-regolith-pore-weight-load"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Lunar ISRU sintered regolith for habitat bricks: hydrogen reduction leaves round sealed pores with trapped gas that affect launch weight and thermal conductivity. Helium ion microscope writes custom binary LRPW file magic LRPW with anisotropic pitch, variable data offset 32 to 128, gain trim at offset 40 scaling weight. Task asks for total weight in micro Newtons under lunar gravity as recovered round pore volume mm3 times density 1.5 mg per mm3 times lunar g 1.62 times gain, i.e. volume times 2.43 times gain. Elongated sinter necks along heat flow and far dust must be ignored. Two far apart round pores must be summed. Tolerance 3 percent."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["lunar", "regolith", "pore-weight", "gravity", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["lunar", "regolith-pore", "weight-load", "gravity", "binary-parsing", "from-scratch", "intensity-conservation"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
