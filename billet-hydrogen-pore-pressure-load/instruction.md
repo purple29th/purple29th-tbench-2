@@ -8,15 +8,7 @@ Please make a file at /app/solve.py. We call it like python /app/solve.py path t
 
 There is one example volume you can try at /app/data/scene.hprr inside container. That is just for you to debug. Hidden evaluation uses completely different volumes I made with new sizes spacings defect thickness brightness diffusion and pitch passed as random temp file names. So you cannot hardcode numbers from example. If you hardcode example you will fail hidden.
 
-File layout hprr. My own tiny format, everything little endian.
-
-Four bytes ascii HPPR.
-Four bytes uint32 version.
-Four bytes uint32 dtype code. Two means int16 voxels, sixteen means float32 voxels.
-Twelve bytes are three uint32 nx ny nz counts per axis.
-Twelve bytes are three float32 sx sy sz millimeters per voxel, this changes per file so you must read it.
-Four bytes uint32 data offset where voxel array starts.
-At data offset you get nx times ny times nz samples in dtype announced, X fastest, linear index is x plus nx times y plus ny times z.
+Our scanner writes a custom container with extension hprr. All numbers are little endian in file. The file begins with four ascii bytes HPPR that act as tag. Then we have a uint32 version field. Then a uint32 dtype id where two means voxels are int16 and sixteen means voxels are float32. Then three uint32 giving nx ny nz voxel counts per axis. Then three float32 sx sy sz that are millimeters per voxel and are anisotropic and change per billet heat, you must read them from header, not assume constant. Then a uint32 data offset that tells where the voxel payload begins and our writer uses varied padding so offset can be thirty two forty forty eight sixty four eighty ninety six one twenty eight, so please respect the field. After that offset you have nx times ny times nz samples in the dtype declared, x is fastest so linear equals x plus nx times y plus ny times z.
 
 Inside each cube there is hydrogen in a few places. The pores that count are round sealed pores that are near spherical from hydrogen, those are the only pores that count. There are also elongated manganese sulfide stringers that are long along casting direction and must be ignored. Some volumes have two separate round pores far apart that all count and must be summed for total volume. You must use twenty six neighbour connectivity and bounding box measured on bright mask above eight sigma noise level. In our lab we keep a pore when its bounding box measured on that bright mask has longest side at most thirty five and longest at most three times shortest side. That keeps round pores even after anisotropic PSF smears a five by five by five pore to about twenty by fifteen by ten, and drops stretched sulfide stringers where longest at least twelve and more than three times shortest which become twenty by six by six after smear. That is inverted versus many tasks that kept elongated. Some scans also have one to three very tiny bright specks far away from dust on window that must be ignored.
 
