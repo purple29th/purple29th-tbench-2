@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/periscope-prism-glue-void-true-volume"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Periscope telephoto prism glue void true volume: micro-focus 160kV cone beam CT of prism to barrel UV adhesive pocket. Glass prism creates finite spot plus scintillator bleed plus internal scatter that smears bubble but preserves integral. Custom volume .apcv magic APCV anisotropic sx sy sz dtype int16 float32. One main sealed pocket plus one to two sub mm dust specks far away to ignore. Fixed cutoffs overestimate near double by halo or underestimate half by missing thin chamfer tails. Need conservation via median background lower half MAD noise, 26-connectivity largest mass, 3x3x3 top four plateau, halo growth to noise floor. 3 percent tolerance. Data offset varied 32 40 48 64 80 96 128."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["periscope", "prism", "glue-void", "micro-CT", "true-volume", "energy-conservation", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["periscope", "prism", "glue-void", "micro-CT", "true-volume", "energy-conservation", "from-scratch", "camera-module", "optics"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 210.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
