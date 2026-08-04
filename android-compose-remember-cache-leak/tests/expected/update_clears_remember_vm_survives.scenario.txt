@@ -1,5 +1,9 @@
-MOUNT root NONE k1
+BEGIN t1
+MOUNT t1 root NONE k1
+COMMIT t1
 VM_PUT root vm1 val1
 REMEMBER_PUT root r1 cache1
-UPDATE_KEY root k2
+BEGIN t2
+UPDATE_KEY t2 root k2
+COMMIT t2
 QUERY

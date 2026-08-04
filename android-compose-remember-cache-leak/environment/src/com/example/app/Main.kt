@@ -12,24 +12,66 @@ fun main() {
         if (line.isEmpty() || line.startsWith("#")) continue
         val parts = line.split(" ")
         when (parts[0]) {
+            "BEGIN" -> if (parts.size >= 2) manager.begin(parts[1])
+            "ADD_TO_BACKSTACK" -> if (parts.size >= 3) manager.addToBackstack(parts[1], parts[2])
+            "COMMIT" -> if (parts.size >= 2) manager.commit(parts[1])
+            "POP" -> manager.pop(if (parts.size >= 2) parts[1] else "NONE")
             "MOUNT" -> {
-                if (parts.size >= 4) manager.mount(parts[1], parts[2], parts[3])
+                if (parts.size == 4) {
+                    // old style without txn: MOUNT id parent key -> treat as immediate via transactional hack: begin auto commit
+                    val tempTxn = "auto_" + parts[1]
+                    manager.begin(tempTxn)
+                    manager.mount(tempTxn, parts[1], parts[2], parts[3])
+                    manager.commit(tempTxn)
+                } else if (parts.size >= 5) {
+                    manager.mount(parts[1], parts[2], parts[3], parts[4])
+                }
             }
             "UPDATE_KEY" -> {
-                if (parts.size >= 3) manager.updateKey(parts[1], parts[2])
+                if (parts.size == 3) {
+                    val tempTxn = "auto_" + parts[1] + "_upd"
+                    manager.begin(tempTxn)
+                    manager.updateKey(tempTxn, parts[1], parts[2])
+                    manager.commit(tempTxn)
+                } else if (parts.size >= 4) {
+                    manager.updateKey(parts[1], parts[2], parts[3])
+                }
             }
-            "VM_PUT" -> {
-                if (parts.size >= 4) manager.vmPut(parts[1], parts[2], parts[3])
+            "HIDE" -> {
+                if (parts.size == 2) {
+                    val tempTxn = "auto_hide_" + parts[1]
+                    manager.begin(tempTxn)
+                    manager.hide(tempTxn, parts[1])
+                    manager.commit(tempTxn)
+                } else if (parts.size >= 3) {
+                    manager.hide(parts[1], parts[2])
+                }
             }
-            "REMEMBER_PUT" -> {
-                if (parts.size >= 4) manager.rememberPut(parts[1], parts[2], parts[3])
+            "SHOW" -> {
+                if (parts.size == 2) {
+                    val tempTxn = "auto_show_" + parts[1]
+                    manager.begin(tempTxn)
+                    manager.show(tempTxn, parts[1])
+                    manager.commit(tempTxn)
+                } else if (parts.size >= 3) {
+                    manager.show(parts[1], parts[2])
+                }
             }
             "UNMOUNT" -> {
-                if (parts.size >= 2) manager.unmount(parts[1])
+                if (parts.size == 2) {
+                    val tempTxn = "auto_unmount_" + parts[1]
+                    manager.begin(tempTxn)
+                    manager.unmount(tempTxn, parts[1])
+                    manager.commit(tempTxn)
+                } else if (parts.size >= 3) {
+                    manager.unmount(parts[1], parts[2])
+                }
             }
-            "QUERY" -> {
-                snapshots.add(manager.snapshot())
-            }
+            "VM_PUT" -> if (parts.size >= 4) manager.vmPut(parts[1], parts[2], parts[3])
+            "REMEMBER_PUT" -> if (parts.size >= 4) manager.rememberPut(parts[1], parts[2], parts[3])
+            "SAVE" -> if (parts.size >= 4) manager.savePut(parts[1], parts[2], parts[3])
+            "ROTATE" -> manager.rotate()
+            "QUERY" -> snapshots.add(manager.snapshot())
         }
     }
     val out = snapshots.joinToString("\n\n")

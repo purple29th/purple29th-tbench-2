@@ -1,4 +1,4 @@
 
 
-node=child parent=root key=k1 viewModel={} remember={} children=[]
-node=root parent=NONE key=k1 viewModel={} remember={} children=[child]
+node=child parent=root key=k1 viewModel={} remember={} saved={} children=[]
+node=root parent=NONE key=k1 viewModel={} remember={} saved={} children=[child]

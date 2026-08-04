@@ -1,0 +1,5 @@
+node=childSameTxn parent=parent2 key=kc viewModel={} remember={} saved={} children=[]
+node=parent2 parent=NONE key=kp viewModel={} remember={} saved={} children=[childSameTxn]
+
+node=childSameTxn parent=parent2 key=kc viewModel={} remember={} saved={} children=[]
+node=parent2 parent=NONE key=kp viewModel={} remember={} saved={} children=[childSameTxn]

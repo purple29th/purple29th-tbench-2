@@ -1,5 +1,9 @@
-MOUNT child missingParent k1
+BEGIN t1
+MOUNT t1 child missingParent k1
+COMMIT t1
 QUERY
-MOUNT root NONE k1
-MOUNT child root k1
+BEGIN t2
+MOUNT t2 root NONE k1
+MOUNT t2 child root k1
+COMMIT t2
 QUERY

@@ -1,0 +1,9 @@
+BEGIN t1
+MOUNT t1 parent2 NONE kp
+MOUNT t1 childSameTxn parent2 kc
+COMMIT t1
+QUERY
+BEGIN t2
+MOUNT t2 orphan missing kc
+COMMIT t2
+QUERY

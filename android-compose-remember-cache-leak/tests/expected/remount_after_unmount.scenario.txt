@@ -1,5 +1,11 @@
-MOUNT root NONE k1
+BEGIN t1
+MOUNT t1 root NONE k1
+COMMIT t1
 VM_PUT root vm1 val1
-UNMOUNT root
-MOUNT root NONE k2
+BEGIN t2
+UNMOUNT t2 root
+COMMIT t2
+BEGIN t3
+MOUNT t3 root NONE k2
+COMMIT t3
 QUERY

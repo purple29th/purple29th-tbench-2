@@ -1,8 +1,12 @@
-MOUNT root NONE k1
-MOUNT child root k1
-MOUNT grand child k1
-MOUNT great grand k1
+BEGIN t1
+MOUNT t1 root NONE k1
+MOUNT t1 child root k1
+MOUNT t1 grand child k1
+MOUNT t1 great grand k1
+COMMIT t1
 REMEMBER_PUT great rgreat cacheGreat
 QUERY
-UPDATE_KEY root k2
+BEGIN t2
+UPDATE_KEY t2 root k2
+COMMIT t2
 QUERY

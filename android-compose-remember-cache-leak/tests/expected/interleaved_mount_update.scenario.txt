@@ -1,11 +1,17 @@
-MOUNT root NONE k1
-MOUNT a root k1
-MOUNT b root k1
+BEGIN t1
+MOUNT t1 root NONE k1
+MOUNT t1 a root k1
+MOUNT t1 b root k1
+COMMIT t1
 REMEMBER_PUT a ra ca
 REMEMBER_PUT b rb cb
 VM_PUT root vmRoot vr
 QUERY
-UPDATE_KEY a k2
+BEGIN t2
+UPDATE_KEY t2 a k2
+COMMIT t2
 QUERY
-UNMOUNT b
+BEGIN t3
+UNMOUNT t3 b
+COMMIT t3
 QUERY

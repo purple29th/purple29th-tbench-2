@@ -1,4 +1,7 @@
-MOUNT root NONE k1
+BEGIN t1
+MOUNT t1 root NONE k1
+ADD_TO_BACKSTACK t1 main
+COMMIT t1
 VM_PUT root vm1 val1
 REMEMBER_PUT root r1 cache1
 QUERY

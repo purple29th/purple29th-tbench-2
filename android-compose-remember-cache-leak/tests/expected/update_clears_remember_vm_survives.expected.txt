@@ -1,1 +1,1 @@
-node=root parent=NONE key=k2 viewModel={vm1=val1} remember={} children=[]
+node=root parent=NONE key=k2 viewModel={vm1=val1} remember={} saved={} children=[]

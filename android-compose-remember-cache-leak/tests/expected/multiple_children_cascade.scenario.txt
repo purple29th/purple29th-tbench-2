@@ -1,8 +1,12 @@
-MOUNT root NONE k1
-MOUNT child1 root k1
-MOUNT child2 root k1
+BEGIN t1
+MOUNT t1 root NONE k1
+MOUNT t1 child1 root k1
+MOUNT t1 child2 root k1
+COMMIT t1
 REMEMBER_PUT child1 r1 c1
 REMEMBER_PUT child2 r2 c2
 QUERY
-UPDATE_KEY root k2
+BEGIN t2
+UPDATE_KEY t2 root k2
+COMMIT t2
 QUERY

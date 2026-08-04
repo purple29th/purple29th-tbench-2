@@ -1,0 +1,15 @@
+BEGIN t1
+MOUNT t1 root NONE k1
+ADD_TO_BACKSTACK t1 first
+COMMIT t1
+VM_PUT root vm1 v1
+QUERY
+BEGIN t2
+MOUNT t2 child root k1
+ADD_TO_BACKSTACK t2 second
+COMMIT t2
+QUERY
+POP second
+QUERY
+POP first
+QUERY

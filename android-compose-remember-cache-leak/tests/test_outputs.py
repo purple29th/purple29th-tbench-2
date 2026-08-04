@@ -45,6 +45,10 @@ CASE_NAMES = [
     "mount_ignored_missing_parent",
     "multiple_children_cascade",
     "interleaved_mount_update",
+    "hide_show_cascade",
+    "rotate_clears_remember",
+    "parent_in_same_txn",
+    "backstack_pop",
 ]
 
 

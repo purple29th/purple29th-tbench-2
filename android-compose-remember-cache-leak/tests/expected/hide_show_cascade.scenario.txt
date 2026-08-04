@@ -2,11 +2,14 @@ BEGIN t1
 MOUNT t1 root NONE k1
 MOUNT t1 child root k1
 COMMIT t1
-VM_PUT root vm1 v1
 REMEMBER_PUT root r1 c1
-VM_PUT child vmC vC
-REMEMBER_PUT child rC cC
+REMEMBER_PUT child rc cc
+QUERY
 BEGIN t2
-UPDATE_KEY t2 root k2
+HIDE t2 root
 COMMIT t2
+QUERY
+BEGIN t3
+SHOW t3 root
+COMMIT t3
 QUERY
