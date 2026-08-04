@@ -171,10 +171,10 @@ def check_shape(res):
 
 TOL_UU = 1e-10
 TOL_E = 1e-6
-TOL_L2 = 1e-8
+TOL_L2 = 1e-9
 INDEP_TOL_UU = 1e-9
 INDEP_TOL_E = 1e-6
-INDEP_TOL_L2 = 1e-7
+INDEP_TOL_L2 = 1e-9
 
 
 def assert_cons(res):
@@ -187,12 +187,12 @@ def assert_cons(res):
 
 
 def test_shape():
-    res = run_sim(config(1.0, 0.05, 10.0, 10.0, 0.0, 0.3, 0.0))
+    res = run_sim(config(1.0, 0.8, 30.0, 10.0, 0.0, 0.3, 0.0))
     check_shape(res)
 
 
 def test_conserves_bound():
-    res = run_sim(config(1.0, 0.05, 40.0, 10.0, 0.0, 0.30, 0.02))
+    res = run_sim(config(1.0, 0.8, 100.0, 10.0, 0.0, 0.30, 0.02))
     check_shape(res)
     assert res["reason"] == "timeout"
     assert_cons(res)
@@ -213,35 +213,35 @@ def test_capture():
 
 
 def test_off_equatorial():
-    res = run_sim(config(1.0, 0.05, 40.0, 10.0, 0.1, 0.25, 0.15))
+    res = run_sim(config(1.0, 0.8, 100.0, 10.0, 0.1, 0.25, 0.15))
     check_shape(res)
     assert res["reason"] == "timeout"
     assert_cons(res)
 
 
 def test_nonunit_mass():
-    res = run_sim(config(2.0, 0.05, 30.0, 12.0, 0.0, 0.32, 0.04))
+    res = run_sim(config(2.0, 0.8, 80.0, 12.0, 0.0, 0.32, 0.04))
     check_shape(res)
     assert res["reason"] == "timeout"
     assert_cons(res)
 
 
 def test_polar():
-    res = run_sim(config(1.0, 0.03, 40.0, 9.0, 0.0, 0.05, 0.32))
+    res = run_sim(config(1.0, 0.8, 80.0, 9.0, 0.0, 0.05, 0.32))
     check_shape(res)
     assert res["reason"] == "timeout"
     assert_cons(res)
 
 
 def test_energy_blocks_reproj():
-    res = run_sim(config(1.0, 0.05, 25.0, 8.0, 0.0, 0.35, 0.0))
+    res = run_sim(config(1.0, 0.8, 60.0, 8.0, 0.0, 0.35, 0.0))
     check_shape(res)
     assert res["energy_drift"] < TOL_E
 
 
 def test_zoom_whirl():
     # near critical zoom-whirl just outside photon sphere, requires adaptive step and tight conservation
-    res = run_sim(config(1.0, 0.02, 200.0, 7.0, 0.0, 0.42, 0.03))
+    res = run_sim(config(1.0, 0.8, 200.0, 7.0, 0.0, 0.42, 0.03))
     check_shape(res)
     assert res["reason"] in ("timeout", "captured")
     assert_cons(res)
@@ -249,7 +249,7 @@ def test_zoom_whirl():
 
 def test_high_eccentric():
     # high eccentricity plunge from 30M that grazes near 4M, strong field precession
-    res = run_sim(config(1.0, 0.03, 150.0, 30.0, -0.25, 0.18, 0.02))
+    res = run_sim(config(1.0, 0.8, 150.0, 30.0, -0.25, 0.18, 0.02))
     check_shape(res)
     assert res["reason"] in ("timeout", "captured", "escaped")
     assert_cons(res)
@@ -257,6 +257,6 @@ def test_high_eccentric():
 
 def test_close_pericenter():
     # close pericenter at 5M, tests horizon approaching robustness without NaN
-    res = run_sim(config(1.0, 0.02, 80.0, 5.5, -0.1, 0.35, 0.02))
+    res = run_sim(config(1.0, 0.5, 80.0, 4.5, -0.15, 0.38, 0.02))
     check_shape(res)
     assert_cons(res)

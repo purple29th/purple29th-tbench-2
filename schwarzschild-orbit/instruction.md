@@ -16,7 +16,7 @@ You must derive the exact Schwarzschild metric in these regular coordinates and 
 
 You must identify and track the fundamental kinematic and conserved quantities in this setup. There are three: the local velocity norm that must stay minus one, the global conserved energy from stationarity, and the global total angular momentum magnitude squared from spherical symmetry. Evaluate each continuously at every substep and track raw unmodified maximum absolute drift from initial.
 
-Velocity drift tolerance is 1e-10 absolute. Energy tolerance is 1e-6 absolute. Angular momentum magnitude squared tolerance is 1e-8 absolute.
+Velocity drift tolerance is 1e-10 absolute. Energy tolerance is 1e-6 absolute. Angular momentum magnitude squared tolerance is 1e-9 absolute. The harness independently recomputes these and also checks with 1e-9 for angular momentum.
 
 Integration must stop early if radial coordinate exceeds 1000 times M as escaped, or falls below 2M as captured, or tau exceeds tau_max as timeout.
 
