@@ -1,7 +1,7 @@
 schema_version = "1.1"
 
 [task]
-name = "codimango/lunar-regolith-pore-weight-load"
+name = "codimango/lunar-pore-weight-load"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
 description = "Lunar ISRU sintered regolith for habitat bricks: hydrogen reduction leaves round sealed pores with trapped gas that affect launch weight and thermal conductivity. Helium ion microscope writes custom binary LRPW file magic LRPW with anisotropic pitch, variable data offset 32 to 128, gain trim at offset 40 scaling weight. Task asks for total weight in micro Newtons under lunar gravity as recovered round pore volume mm3 times density 1.5 mg per mm3 times lunar g 1.62 times gain, i.e. volume times 2.43 times gain. Elongated sinter necks along heat flow and far dust must be ignored. Two far apart round pores must be summed. Tolerance 3 percent."

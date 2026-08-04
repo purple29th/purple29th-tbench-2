@@ -1,7 +1,7 @@
 schema_version = "1.1"
 
 [task]
-name = "codimango/anodized-alumina-fissure-breakdown-voltage"
+name = "codimango/alumina-fissure-breakdown"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
 description = "Anodized aluminum oxide for high voltage capacitor: anodization fissures along field direction cause dielectric breakdown. Micro CT fluorescence scanner writes custom binary AAFV file with magic AAFV, anisotropic pitch, variable data offset 32 to 128, gain trim at offset 40 scaling voltage. Task asks for total breakdown voltage drop in volts as recovered elongated fissure volume mm3 times 0.85 times gain. Round etch pits and far corner dust must be ignored. Two far apart fissures must be summed before voltage conversion. Tolerance 3 percent."
