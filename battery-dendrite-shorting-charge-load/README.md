@@ -1,43 +1,36 @@
 # battery-dendrite-shorting-charge-load
 
-## Summary
-Battery failure analysis via X-ray fluorescence separator imaging. Lithium dendrites grow across separator and trap metallic lithium, creating shorting risk. Custom binary `.ldch` (magic `LDCH`) holds 3D fluorescence volume where dendrite signal is smeared by diffusion plus lens PSF. Task: recover total trapped charge in milliCoulombs (mC).
+## What this task is about
+I inspect lithium ion pouch cells after fast charge cycling. Metallic lithium plates as dendrites that pierce the polyethylene separator and trap charge that can drive internal shorts. Imaging is done with X-ray fluorescence that lights up trapped lithium metal. The fluorescence volume is stored in custom binary .ldch with magic LDCH. Because carrier diffusion in the scintillator plus the optics point spread function smears intensity, the glow is spread far beyond the metal core. We need total trapped charge in milliCoulombs as safety metric, not the blurred blob size.
 
-This is a precision measurement task where threshold counting fails 80-130% over or 30-50% under. Only intensity conservation with shape discrimination passes within 3% tolerance.
+## Why this is not the usual volume task
+The output asked is charge in mC. Lab calibration gives 2.8 mC per cubic mm of solid lithium dendrite. So we first recover hidden metal volume via energy conservation, then multiply by calibration to get charge. Grader checks charge, which couples voxel count, anisotropic spacing sx sy sz, and calibration. This is battery safety domain, not MEMS acoustic leak. The artefacts are round lithium plating islands that form on anode surface and are harmless for short risk, plus far dust specks. Only elongated branching dendrites that cross the separator count.
 
-## Why Creative (Not Volume/Area)
-Output is charge load in mC, not geometric volume in mm³ or area in mm². Calibration 2.8 mC per mm³ converts recovered volume to charge, but grading checks charge directly. This evaluates same physics (energy conservation) in a different domain (battery safety) with additional shape discrimination (elongated dendrites vs round plating artefacts).
+## How the hidden test is designed
+This is a precision recovery problem where simple brightness binning is off by a lot. If you pick a low brightness level you swallow the whole smeared aureole and you overcount by nearly double. If you pick a high level you lose the needle tips that never reach full brightness and you undercount by third to half. The brightness, diffusion width, and spacing vary per file so no single level ever works. The smear does not create photons, it only relocates them, so total energy is conserved over dendrite plus its faint skirt.
 
-## Approach
-Similar to precision void tasks but with Li dendrite specifics:
-* Parse header respecting data_offset (do not hardcode 64 for future proofing, though current gen uses 64)
-* Keep main elongated dendrite structures, ignore round plating artefacts via aspect ratio filter (longest >=8 voxels and >1.6x shortest)
-* Estimate background from border voxels far from dendrite via median
-* Estimate plateau from core flat region via top percentile mean
-* Integrate halo with conservation until shell mean hits noise floor, without merging plating specks
-* Charge = voxel_count * sx*sy*sz * 2.8 mC/mm³
+A correct solver must:
+* read header with data offset not hardcoded
+* find main metal via 26 connectivity after 4 sigma seeding
+* distinguish shapes: keep structures where longest side at least 8 and 1.6 times shortest (branching dendrites), discard near cubic plating islands
+* get clean background from median of whole volume and noise scale from lower half MAD
+* get true core intensity from 3 by 3 by 3 smoothed peak using top eight average, not raw max
+* expand from main metal outward shell by shell until mean shell residual falls to noise floor, skipping artefact voxels so you do not bridge into a speck
+* compute voxel count as integrated residual divided by core intensity, then physical volume via sx sy sz, then charge via 2.8 factor
 
-Method works for varied dimensions, spacings, brightness, blur widths, and densities.
+Test suite generates volumes at runtime in temp dirs with random names input_<hex>.ldch, truth computed geometrically from true dendrite set outside solver sandbox. It includes speck heavy where large dust balls add more than three percent energy if not removed, and plating heavy where round plating islands outweigh dendrite tips. Naive whole volume energy sum fails speck heavy. Largest mass without shape check fails plating heavy.
 
-## Files
-* `/app/solve.py` - agent must create, prints charge mC as last word
-* `/app/data/scene.ldch` - sample for local dev
-* `environment/Dockerfile` - installs python and pytest
-* `tests/test_outputs.py` - evaluation suite with secure runtime generation
+## Files to look at
+* /app/solve.py is what you must write, final printed token is charge
+* /app/data/scene.ldch is example for development
+* environment/Dockerfile installs pytest and copies example
+* tests/test_outputs.py is secure verifier
 
-## Completion Criteria
-Tests pass when charge error <3% on heldouts including speck-heavy and plating-artefact cases. Threshold counting fails all heldouts. Global conservation without speck/plating removal fails speck-heavy by >3% because detached dust/plating contributes extra energy. Largest-mass shortcut without shape filter fails plating-heavy where round artefacts outweigh thin dendrite tips.
+## Expected behavior
+* Oracle reference that does the steps above lands within one percent, grading tolerance three percent, so it passes all
+* Fixed level, Otsu, half max fail all heldouts
+* No numpy scipy imaging graph libs, stdlib struct sys math random tempfile re only, plus guards on os io pathlib etc
+* You must work on any temp path, not hardcode scene
 
-## Expected Difficulty
-* Oracle 100% - reference solution via conservation + shape filter + halo growth
-* Naive threshold 0% - 80-130% over / 30-50% under
-* Global conservation without filtering 0% on speck_heavy/plating cases
-* Expected similar to foundry-thermal and pcb-undercut: gpt 1-2/5, opus 2/5, avocado 0-1/5
-
-## Anti-Cheating
-* No numpy/scipy/imaging libs - from scratch only
-* No hardcoded sample charge, must work on random temp file paths
-* Do not open/list /tests
-* From-scratch guard bans os, io, pathlib etc
-* Secure verifier generates heldouts at runtime in temp dir with random filenames and runs solver in isolated sandbox with audit hook blocking /tests, test_outputs, heldout, _gen etc
-* Banned import check via AST
+## Creation notes
+Built as sister to polymer tribo charge task but 3D and mC domain, different from previous mm3 void tasks by asking for charge and by using battery cycling narrative with separator pierce. Reference solution is in solution/solve.py.

@@ -1,31 +1,33 @@
-I work in battery failure analysis checking separator shorts. Lithium dendrites grow across the separator and trap metallic lithium that glows bright when we image with X-ray fluorescence. The problem is fluorescence diffusion plus the detector lens point spread smears the glow everywhere so the bright blob looks much larger and fuzzier than the true metallic lithium that creates shorting risk.
+I run the post cycling teardown lab for pouch cells. After a bunch of fast charge cycles the polyethylene separator is full of metallic lithium that grew as thin needles. Those needles pierce the separator and lock away inventory that should have cycled. My imaging setup uses fluorescence of trapped lithium. The physics of scintillator diffusion and the camera point spread means every needle is smeared into a big fuzzy cloud. What you see is not the metal, it is the cloud.
 
-I need a program that reports total trapped lithium charge in milliCoulombs for safety grading. Precision matters because we classify cells for field risk.
+I need you to write me a tiny standalone tool that tells me how much charge is actually locked in the main branching needles, so we can rank cells for field safety. The number I want is total trapped charge in milliCoulombs.
 
-Please save your program as /app/solve.py. We will run it as python /app/solve.py with the scan path as first argument and we take the last word it prints as the charge.
+Please make a file at /app/solve.py. We call it like python /app/solve.py path to scan and we read the final printed token as the answer.
 
-You have one example scan for local testing at /app/data/scene.ldch. You can read it while developing but hidden grading uses different scans you never saw with different dimensions spacings brightness dendrite thickness and voxel pitch passed as random temp files. Do not hardcode numbers or paths from the example. Your solver must work on any file path given as first argument. Hardcoding sample charge will fail hidden checks.
+There is a single example volume you can try at /app/data/scene.ldch inside the container. That is just for you to debug. The hidden evaluation uses completely different volumes I made with new sizes spacings needle thickness brightness diffusion and pitch, passed as random temp file names. So you cannot hardcode numbers from the example. If you hardcode the example charge you will fail the hidden files.
 
-What is ldch. Our own binary for lithium dendrite charge volumes. Everything little endian.
+File layout ldch. I made my own tiny container for this job. Everything is little endian.
 
-Offset 0 magic LDCH four ascii bytes.
-Offset 4 version uint32.
-Offset 8 dtype code uint32. 2 means int16 voxels 16 means float32 voxels.
-Offset 12 three uint32 nx ny nz voxel counts per axis.
-Offset 24 three float32 sx sy sz mm per voxel per axis. These change per file and must be read from header.
-Offset 36 uint32 data offset where voxel values start.
-After data offset nx times ny times nz values in announced dtype x fastest so index for x y z is x plus nx times y plus ny times z.
+Start four bytes ascii LDCH.
+Next four bytes uint32 version.
+Next four bytes uint32 dtype code. 2 means int16 voxels 16 means float32 voxels.
+Next twelve bytes are three uint32 nx ny nz counts per axis.
+Next twelve bytes are three float32 sx sy sz millimeters per voxel per axis. This changes every file so you must read it.
+Next four bytes uint32 data offset where the voxel array begins.
+At data offset you get nx times ny times nz samples in the dtype announced. X is fastest so linear index for x y z is x plus nx times y plus ny times z.
 
-Each volume contains lithium dendrites that are elongated and branching along separator and they are the only structures that count for shorting charge plus some round lithium plating artefacts that are near spherical and must be ignored. You can tell them apart by shape elongated if longest dimension at least 1.6 times shortest and at least 8 voxels long plating artefacts are round cubic. Also there are one to three tiny bright specks far away from dust that must be ignored. Keep only main elongated dendrite structures using 26 neighbour connectivity plus shape filtering.
+Inside each cube there is lithium metal in a few places. The real hazard is the long branching needles that cross the separator. Those are the only metal that counts for the charge I want. There are also round plating islands that sit flat on the anode surface. They are almost spherical and they are benign, you must not count them. They look round versus the needles look stretched. Rule of thumb we use in lab is a needle has longest bounding side at least eight voxels and more than one point six times its shortest side. Plating islands are cubic. In some scans there are also one to three very small bright specks far away that are dust on the window, ignore them.
 
-Calibration lab shows each cubic mm of dendrite holds 2.8 mC of trapped charge. So charge in mC equals dendrite volume mm3 times 2.8. Dendrite volume itself must be recovered despite blur.
+Connectivity is twenty six neighbours in three dimensions.
 
-Threshold counting cannot be precise. Low cutoff includes huge halo and overcounts by eighty to one hundred thirty percent. High cutoff misses thin dendrite tips that never get bright enough and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change.
+Lab calibration: after we dissolve a known needle volume we measured that each cubic millimeter of solid lithium holds two point eight milliCoulombs of cyclable charge. So to get charge you first recover true metal volume in cubic millimeters from the smeared fluorescence, then multiply by two point eight.
 
-Blur spreads energy but does not create or destroy signal. That physics makes precise recovery possible. True voxels equals sum of background subtracted intensity over dendrite plus halo divided by plateau intensity. Must infer ambient background from border estimate plateau from most concentrated region and grow halo until shell mean hits noise floor without merging plating artefacts.
+Why simple brightness cut does not work. I tried. If I take a permissive dark level I pick up the whole skirt around every needle and my volume balloons to almost double. If I take a strict bright level I lose the thin tips that never get time to become fully bright and I lose a third to a half of the metal. Because each file has different background brightness, gain, and diffusion width, no single level works for all files. The needle interior is flat and bright but blur hides it.
 
-Simple shortcuts fail by large margin. Grading at three percent tolerance only genuine precise method passes.
+The good news is blur does not create or destroy total fluorescence, it just moves it around. So total background subtracted signal over needle plus its faint skirt divided by true core intensity gives number of true voxels, even when blurred. To use that you need to get an unbiased background estimate from border region, isolate the main branching needles from far dust and round islands using mass and shape, get a robust core intensity from the most concentrated spot without being fooled by noise using three by three by three local smoothing plus top eight mean, and then expand outward step by step until the shell average falls to about the noise floor, being careful not to jump into a dust ball.
 
-Implementation constraints parse bytes yourself using only standard library. Allowed stdlib modules include struct sys math random tempfile re. The following are banned and will be rejected by test from scratch. numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath plus any array imaging or graph helper library. Banned calls include eval exec compile __import__ chr. Banned runtime tricks include subprocess os system popen exec fork walk listdir scandir open pty importlib runpy ctypes filesystem listing and any obfuscation that hides paths using chr bytes fromhex base64 b64decode bytearray bytes tricks or string concatenation that builds forbidden paths. Do not attempt to open or list the tests directory and do not reference test_outputs heldout reference_charge _gen GEOM_TRUTH or geometric_truth in your solver source. Your solver must work on random temporary files not hardcoded paths.
+If you get those steps right you land within a percent. If you shortcut you are tens of percent off. Grading expects within three percent.
 
-Print charge in mC as last word.
+Coding rules. You must parse the bytes yourself, stdlib only. You can use struct sys math random tempfile re. You cannot use numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath or any similar array imaging or graph library. Banned calls are eval exec compile __import__ chr. Banned tricks are subprocess os system popen exec fork walk listdir scandir open pty importlib runpy ctypes filesystem listing or trying to hide forbidden file names using chr bytes fromhex base64 b64decode bytearray tricks or string games. Do not try to open or list the tests folder. Do not mention or look for test_outputs heldout reference_charge _gen GEOM_TRUTH geometric_truth in your solver code. Your solver has to work on any random temp path they give, not a fixed path.
+
+Print the charge in mC as the last thing you print.

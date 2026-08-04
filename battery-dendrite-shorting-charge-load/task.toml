@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/battery-dendrite-shorting-charge-load"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script that parses a custom X-ray fluorescence volume (.ldch) of lithium dendrites in battery separator and reports total trapped charge in mC. Fluorescence blur spreads signal, thresholding fails 80-130% over or 30-50% under, must use intensity conservation plus shape discrimination to exclude round plating artefacts and far dust specks. Graded at 3% tolerance."
+description = "Pouch cell teardown: parse custom LDCH fluorescence cube of lithium needles piercing polyethylene separator and compute locked charge in mC. Needle metal glows bright but scintillator diffusion smears it. Simple level selection balloons volume or loses tips. Correct via background median, 26-connectivity branching needle isolation using aspect filter longest>=8 and >1.6x shortest to drop round plating islands and far dust, smoothed 3x3x3 top-eight core intensity, shell expansion to noise floor, then volume via sx sy sz times 2.8 mC per mm3. 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["battery", "lithium", "dendrite", "short", "charge", "x-ray", "fluorescence", "binary-parsing", "from-scratch"]
 
