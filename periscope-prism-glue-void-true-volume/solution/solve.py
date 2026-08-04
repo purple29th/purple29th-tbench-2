@@ -56,9 +56,8 @@ def recover_volume(file_path):
         return x + nx * (y + ny * z)
 
     ordered = sorted(voxels)
-    # background from 70 percent lower to avoid bubble bias but not underestimate like median of below
-    lower_70 = ordered[: int(total * 0.7)]
-    background = median_sorted(lower_70)
+    lower_80 = ordered[: int(total * 0.8)]
+    background = median_sorted(lower_80)
     lower_half = ordered[: total // 2]
     med_low = median_sorted(lower_half)
     mad = median_sorted(sorted(abs(v - med_low) for v in lower_half))
