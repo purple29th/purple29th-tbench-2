@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/billet-hydrogen-pore-pressure-load"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Billet hydrogen pore pressure: hydrogen gas diffused into continuously cast aluminum billet forms round sealed pores with pressurized gas. Custom HPPR volume magic HPPR holds fluorescence where hydrogen glows but smear spreads. Need internal gas pressure in kPa as nRT over recovered true volume. One to three sub mm dust specks plus elongated MnS stringers to ignore, only round pores count. Pressure equals constant 780 over volume, volume via conservation 3% tolerance, data offset varied."
+description = "Continuous cast aluminum billet QA for hydrogen porosity. Hydrogen from humidity forms round sealed pores with pressurized gas that blister during extrusion. A micro CT fluorescence scanner writes a custom binary HPPR file with magic HPPR, anisotropic voxel pitch, variable data offset 32 to 128, and dtype int16 or float32. Fluorescence is smeared by scintillator diffusion and lens point spread, but total energy is conserved. The task asks for internal gas pressure in kPa computed as 780 divided by total recovered round pore volume in mm3 using ideal gas law. Only round hydrogen pores count. Elongated MnS stringers along casting and far corner dust specks must be ignored. Two far apart round pores must be summed before pressure conversion. Tolerance 3 percent."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["billet", "hydrogen", "pore-pressure", "binary-parsing", "from-scratch"]
 
