@@ -672,3 +672,67 @@ def test_pixel_count_vs_mass_ranking():
     area_main = v_main * sx * sy
     area_dust = cnt_dust * sx * sy
     assert abs(area_main - area_dust) > REL_TOL * area_main
+
+
+def test_pixel_count_shortcut_fails_on_scratch():
+    """Naive that picks largest component by pixel count fails when dust has more pixels than pit."""
+    cfg = SCRATCH_CONFIGS["scratch_shallow"]
+    field, v_true = build_field(cfg)
+    truth = geometric_truth_mm2(cfg, v_true)
+    nx, ny = cfg["dims"]
+    sx, sy = cfg["spacing"]
+    n = nx * ny
+
+    def idx(x, y):
+        return x + nx * y
+
+    # naive background as lower-half median, similar to buggy baseline
+    entries = sorted(field)
+    lower_vals = entries[: n // 2]
+    bg = lower_vals[len(lower_vals) // 2] if lower_vals else 0
+
+    resid = [v - bg for v in field]
+    # simple MAD noise from lower residuals
+    lower_res = [v - bg for v in lower_vals]
+    lower_res_sorted = sorted(lower_res)
+    med_low = lower_res_sorted[len(lower_res_sorted) // 2] if lower_res_sorted else 0
+    abs_dev = sorted(abs(r - med_low) for r in lower_res)
+    mad = abs_dev[len(abs_dev) // 2] if abs_dev else 1
+    noise_sigma = max(1e-6, 1.4826 * mad)
+
+    thr = 4.0 * noise_sigma
+    occupied = [r > thr for r in resid]
+
+    seen = bytearray(n)
+    best_cnt = -1
+    best = None
+    NEIGH8 = [(dx, dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy]
+    for y0 in range(ny):
+        for x0 in range(nx):
+            k = idx(x0, y0)
+            if not occupied[k] or seen[k]:
+                continue
+            stack = [(x0, y0)]
+            seen[k] = 1
+            comp = []
+            while stack:
+                x, y = stack.pop()
+                kk = idx(x, y)
+                comp.append(kk)
+                for dx, dy in NEIGH8:
+                    xx, yy = x + dx, y + dy
+                    if 0 <= xx < nx and 0 <= yy < ny:
+                        nidx = idx(xx, yy)
+                        if occupied[nidx] and not seen[nidx]:
+                            seen[nidx] = 1
+                            stack.append((xx, yy))
+            if len(comp) > best_cnt:
+                best_cnt = len(comp)
+                best = comp
+
+    assert best is not None, "naive found no component"
+    naive_area = len(best) * sx * sy
+    # This count-based area should be far from truth because dust count > main count
+    assert abs(naive_area - truth) > REL_TOL * truth, (
+        f"Expected pixel-count shortcut to fail on scratch_shallow, got {naive_area:.5f} vs truth {truth:.5f}"
+    )
