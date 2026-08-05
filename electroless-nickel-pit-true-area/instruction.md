@@ -23,3 +23,4 @@ We check within three percent relative error. Naive thresholds are ten percent o
 Rules. Parse with struct only. Allowed imports are struct sys math random tempfile re. Do not use numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath or any array or imaging or graph helper. Do not use eval exec compile __import__ chr. Do not use subprocess or system or popen or fork or walk or listdir or open of tests directory. Never mention tests directory or test_outputs or heldout or reference_volume or GEOM_TRUTH or geometric_truth inside solve.py. Your program must work on any temporary file path.
 
 Last line print area mm2 as final token, like 12.345
+
