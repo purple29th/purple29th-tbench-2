@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/electroless-nickel-pit-true-area"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Automotive connector QC: electroless Ni-P plating develops isolated hydrogen evolution pits that expose copper and cause red rust in salt spray. Bruker Contour GT-X white light interferometer captures height maps but objective lens Airy disk plus stage jitter spreads pit edges into wide shallow halos. Custom 2D height format .enpp (ENPP) stores height as bright pits on flat nickel. Job is recover true pit area mm2 from blurry map. Counting pixels above level fails because halo doubles size or thin undercut lips cut to half. Need robust median background from lower half, MAD noise, keep main pit by 8-neighbour connectivity choosing component with largest integrated bright residual to drop dust and polish scratches, estimate true pit top via 3x3 local mean top-K, expand halo outward until shell mean drops to noise floor without bridging far specks, then pixel count times sx times sy. Tolerance 3 percent, stdlib only."
+description = "Car connector Ni-P plating pit true area from white light interferometer map smeared by optics, dust and shallow scratch far must be ignored, true area recoverable because blur preserves total brightness, grading 3 percent."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["electroless-nickel", "Ni-P", "automotive-connector", "hydrogen-pit", "Bruker", "Contour", "WLI", "salt-spray", "red-rust", "true-area", "from-scratch"]
 
