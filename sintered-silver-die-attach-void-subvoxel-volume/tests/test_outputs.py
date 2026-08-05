@@ -176,7 +176,9 @@ def build_field(cfg):
         for z in range(nz):
             for y in range(ny):
                 for x in range(nx):
-                    if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((z - cz) / rz) ** 2 <= 1.0:
+                    if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (
+                        (z - cz) / rz
+                    ) ** 2 <= 1.0:
                         true_set.add(idx(x, y, z))
 
     def add_box(x0, x1, y0, y1, z0, z1):
@@ -474,7 +476,9 @@ def test_from_scratch():
             low = node.value.lower()
             for banned in BANNED_SUBSTRINGS_SRC:
                 if banned.lower() in low:
-                    pytest.fail(f"banned substring in string literal: {banned} in {node.value!r}")
+                    pytest.fail(
+                        f"banned substring in string literal: {banned} in {node.value!r}"
+                    )
     compact = re.sub(r"\s+", "", src)
     compact_low = compact.lower()
     for tok in BANNED_SUBSTRINGS_SRC:
@@ -541,4 +545,87 @@ def test_global_conservation_shortcut_fails_on_speck_heavy():
     got = naive_global()
     assert abs(got - truth) > REL_TOL * truth, (
         f"Expected naive global to fail on speck_heavy, got {got:.5f} vs truth {truth:.5f}"
+    )
+
+
+def test_pixel_count_shortcut_fails_on_main():
+    """Naive that counts voxels and picks largest by count fails — dust can have more voxels than pit."""
+    cfg = dict(
+        dims=(50, 48, 28),
+        spacing=(0.018, 0.020, 0.022),
+        dtype=16,
+        amp=1100,
+        bg=45,
+        sig_xy=2.0,
+        sig_z=0.8,
+        noise=8,
+        seed=909,
+        object=[
+            ("ell", 24, 24, 14, 10.0, 9.0, 5.0),
+            ("box", 32, 44, 18, 24, 12, 8),
+        ],
+        # large faint speck radius 12 with low effective bright residual vs main
+        specks=[(12, 12, 6, 12.0), (38, 6, 4, 2.0)],
+    )
+    field, v_true = build_field(cfg)
+    truth = geometric_truth_mm3(cfg, v_true)
+    nx, ny, nz = cfg["dims"]
+    sx, sy, sz = cfg["spacing"]
+
+    def idx(x, y, z):
+        return x + nx * (y + ny * z)
+
+    # naive background via lower-half median
+    sv = sorted(field)
+    lower = sv[: len(sv) // 2]
+    bg = lower[len(lower) // 2] if lower else 0
+    resid = [v - bg for v in field]
+    # noise via MAD on lower
+    lower_res = sorted([v - bg for v in lower])
+    med_low = lower_res[len(lower_res) // 2] if lower_res else 0
+    abs_dev = sorted(abs(r - med_low) for r in lower_res)
+    mad = abs_dev[len(abs_dev) // 2] if abs_dev else 1
+    sigma = max(1e-6, 1.4826 * mad)
+    thr = 4.0 * sigma
+    occ = [r > thr for r in resid]
+
+    seen = bytearray(len(field))
+    best_cnt = -1
+    best = None
+    NEIGH = [
+        (dx, dy, dz)
+        for dz in (-1, 0, 1)
+        for dy in (-1, 0, 1)
+        for dx in (-1, 0, 1)
+        if dx or dy or dz
+    ]
+    for z0 in range(nz):
+        for y0 in range(ny):
+            for x0 in range(nx):
+                k = idx(x0, y0, z0)
+                if not occ[k] or seen[k]:
+                    continue
+                stack = [(x0, y0, z0)]
+                seen[k] = 1
+                comp = []
+                while stack:
+                    x, y, z = stack.pop()
+                    kk = idx(x, y, z)
+                    comp.append(kk)
+                    for dx, dy, dz in NEIGH:
+                        xx, yy, zz = x + dx, y + dy, z + dz
+                        if 0 <= xx < nx and 0 <= yy < ny and 0 <= zz < nz:
+                            nn = idx(xx, yy, zz)
+                            if occ[nn] and not seen[nn]:
+                                seen[nn] = 1
+                                stack.append((xx, yy, zz))
+                if len(comp) > best_cnt:
+                    best_cnt = len(comp)
+                    best = comp
+
+    assert best is not None
+    naive_vol = len(best) * sx * sy * sz
+    # count-based should be far from truth because large faint speck has many voxels
+    assert abs(naive_vol - truth) > REL_TOL * truth, (
+        f"Expected pixel-count to fail, got {naive_vol:.5f} vs truth {truth:.5f}"
     )
