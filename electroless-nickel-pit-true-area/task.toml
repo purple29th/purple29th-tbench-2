@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/electroless-nickel-pit-true-area"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Car connector Ni-P plating pit true area from white light interferometer map smeared by optics, dust and shallow scratch far must be ignored, true area recoverable because blur preserves total brightness, grading 3 percent."
+description = "Automotive copper pin Ni-P hydrogen pit: true area mm2 via WLI smear, dust specks and shallow scratch far rejected, area = integrated brightness / peak"
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["electroless-nickel", "Ni-P", "automotive-connector", "hydrogen-pit", "Bruker", "Contour", "WLI", "salt-spray", "red-rust", "true-area", "from-scratch"]
 
