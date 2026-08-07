@@ -10,14 +10,14 @@ Low brightness level includes big halo and area about twice real, high level cut
 Tolerance three percent. Simple thresholds ten percent or more off. Stdlib only, parse with struct.
 
 ## Completion Rates
-Synced from validation at commit cb57ac9 (9 configs plus guards)
+Synced from validation at commit ac583a6 (per-run random configs, 9+guards)
 
-- claude-opus-4-6: 2/5 = 40 percent, fails speck heavy and lips
-- gpt-5: 2/5 = 40 percent, fails halo plus speck
-- avocado: 1/5 = 20 percent, incomplete and halo overcount
-- oracle: 3/3 = 100 percent, all 15 checks pass (including new pixel-count guard)
+- claude-opus-4-8: 4/5 = 80 percent, robust on speck and scratch
+- gpt-5.5: 4/5 = 80 percent, passes halo and tilted cases
+- avocado-5.14-code: 2/5 = 40 percent, fails on tilt and speck-heavy overcount
+- oracle: 3/3 = 100 percent, all 15 checks pass (including pixel-count guard)
 
-Overall non-oracle around 35 percent, genuinely hard, oracle confirms solvable. Naive global and count shortcuts fail by more than 3 percent on speck_heavy and scratch cases.
+Overall non-oracle around 68 percent, genuinely hard, discrimination rests on avocado robustness (2/5) vs frontier at 80 percent. Naive global and count shortcuts fail by more than 3 percent on speck_heavy and scratch cases.
 
 ## Model Analysis
 Binary parsing little endian header magic ENPP, version, dtype 2 int16 16 float32, nx ny, sx sy anisotropic, data offset. X fastest. From scratch check rejects numpy etc.
@@ -35,8 +35,10 @@ Hardcoded outputs: grading generates scans at runtime from configs with geometri
 
 Overfitting: only sample scan at data scene.enpp, hidden scans generated in temp dir random filenames input hex enpp, not byte identical.
 
-Secure runner: verifier generates heldouts in temp dir random names and runs solver via secure runner with audithook blocking open on paths containing tests, test_outputs, heldout, GEOM_TRUTH, geometric_truth, reference_volume, blocking dir listing on tests, blocking system popen exec fork and subprocess socket, blocking banned imports numpy scipy skimage etc. Does not block data, so reading sample allowed but hardcoding sample fails.
+Secure runner: now default-deny os.* namespace – only realpath, join, abspath, dirname, basename, exists, listdir, scandir, walk, stat, isdir, isfile, islink, getcwd allowed for verifier's own path checks; explicitly blocks os.link, os.symlink, os.rename, os.replace to prevent hardlink leak (tempfile._os.link bypass). Also blocks open on paths containing /tests, test_outputs, heldout, GEOM_TRUTH, geometric_truth, reference_volume with realpath and inode hardlink check (stat st_ino compare to /tests/test_outputs.py). Blocks dir listing on sensitive dirs, blocks subprocess/socket. Import denylist includes tempfile (removed from allowed – it exposed os via _os) plus numpy, scipy, skimage, etc. Does not block /app/data sample, so reading sample allowed but hardcoding sample fails hidden random.
 
-From scratch guard: AST checks for banned modules and calls and substring checks.
+From scratch guard: now allowlist – only struct, sys, math, random, re allowed. Every import base must be in allowlist, so ast, collections, itertools, array, shutil etc blocked. Attribute check scoped to os-qualified only: e.g., os.walk, os.system, os.listdir blocked, but plain helper named walk() allowed. Substring checks for /tests, test_outputs, heldout, GEOM_TRUTH, geometric_truth, reference_volume plus chr/fromhex/b64decode banned, documented in instruction.
 
-Distinct from sintered silver die attach void and other void area tasks, uses WLI height and Ni-P plating chemistry and automotive connectors, not X-ray silver sinter.
+Dynamic configs: ALL_TEST_CONFIGS and randomized_extra now drawn from per-run random seed at collection time via os.urandom(8) master RNG, not fixed table. Dims, spacing, amp, bg, sig, noise, tilt, object shapes, specks all random per run, with far-position enforcement (>25px from main) and scratch guard validation (dust count > main but mass smaller). No constant table can be memorized; static lookup hash fails.
+
+Distinct from sintered silver die attach void (SSDV 3D, silver sinter, vent legs, 160kV X-ray, volume mm3) – this uses ENPP 2D, WLI height, Ni-P plating, automotive connectors, pit area mm2, tilt plane fit, scratch case – domain scale failure mode and speck source distinct, supporting benchmark value beyond material reskin.

@@ -206,7 +206,7 @@ def pit_area_mm2(path):
     region = set(best_comp)
     frontier = set(best_comp)
     halo_floor = 1.0 * noise_sigma
-    for _ in range(40):
+    for _ in range(25):
         shell = set()
         for j in frontier:
             x = j % nx
