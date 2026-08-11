@@ -14,14 +14,30 @@ def run_app(scenario_text):
     SCENARIO_PATH.write_text(scenario_text)
     if OUTPUT_PATH.exists():
         OUTPUT_PATH.unlink()
+    # Build fresh jar from agent sources to avoid stale build cache, then run fixed main class directly
+    # Do not use /app/src/run.sh at verify time because it is agent-controlled and could read /tests/expected
+    build_result = subprocess.run(
+        ["bash", "/app/src/build.sh"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert build_result.returncode == 0, (
+        f"build.sh failed:\nSTDOUT:\n{build_result.stdout}\nSTDERR:\n{build_result.stderr}"
+    )
     result = subprocess.run(
-        ["bash", "/app/src/run.sh"],
+        [
+            "java",
+            "-cp",
+            "build/app.jar:/opt/kotlinc/lib/kotlin-stdlib.jar",
+            "com.example.app.MainKt",
+        ],
         capture_output=True,
         text=True,
         timeout=120,
     )
     assert result.returncode == 0, (
-        f"run.sh failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        f"MainKt failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
     assert OUTPUT_PATH.exists(), "Agent must produce /app/output.txt"
     return OUTPUT_PATH.read_text()

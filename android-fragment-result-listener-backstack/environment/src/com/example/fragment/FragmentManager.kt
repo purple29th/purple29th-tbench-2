@@ -17,67 +17,97 @@ class FragmentManager {
     }
 
     fun begin(txnId: String) { openTransactions[txnId] = Transaction(txnId) }
+
     fun add(txnId: String, container: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Add(container, Fragment(fragment)))
     }
+
     fun replace(txnId: String, container: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Replace(container, Fragment(fragment)))
     }
+
     fun remove(txnId: String, fragment: String) {
         openTransactions[txnId]?.addOp(TransactionOp.Remove(Fragment(fragment)))
     }
+
     fun setResultListener(txnId: String, fragment: String, key: String) {
         openTransactions[txnId]?.addOp(TransactionOp.SetListener(fragment, key))
     }
+
     fun clearResultListener(txnId: String, fragment: String, key: String) {
         openTransactions[txnId]?.addOp(TransactionOp.ClearListener(fragment, key))
     }
+
     fun setResult(txnId: String, target: String, key: String, value: String) {
         openTransactions[txnId]?.addOp(TransactionOp.SetResult(target, key, value))
     }
+
     fun addToBackStack(txnId: String, name: String?) {
         openTransactions[txnId]?.markBackStack(name)
     }
+
     fun commit(txnId: String) {
         val txn = openTransactions.remove(txnId) ?: return
         val replacedContainers = mutableMapOf<String, List<Fragment>>()
         val replacedStates = mutableMapOf<String, FragmentSnapshot>()
+
         for (op in txn.operations()) {
-            if (op is TransactionOp.Replace) {
-                val container = containers[op.container]
-                if (container != null) {
-                    replacedContainers[op.container] = container.snapshot()
-                    for (frag in container.snapshot()) {
-                        fragments[frag.name]?.let { fs ->
-                            replacedStates[frag.name] = fs.toSnapshot()
+            when (op) {
+                is TransactionOp.Replace -> {
+                    val container = containers[op.container]
+                    if (container != null) {
+                        replacedContainers[op.container] = container.snapshot()
+                        for (frag in container.snapshot()) {
+                            fragments[frag.name]?.let { fs ->
+                                replacedStates[frag.name] = fs.toSnapshot()
+                            }
                         }
                     }
                 }
+                is TransactionOp.Remove -> {
+                    val fs = fragments[op.fragment.name]
+                    if (fs != null) {
+                        // capture state and container for restore on pop
+                        replacedStates[op.fragment.name] = fs.toSnapshot()
+                        fs.container?.let { cId ->
+                            containers[cId]?.let { cont ->
+                                replacedContainers[cId] = cont.snapshot()
+                            }
+                        }
+                    }
+                }
+                else -> {}
             }
         }
+
         applyOps(txn.operations())
+
         if (txn.addToBackStack) {
             backStack.add(BackStackEntry(txn.backStackName, txn.operations(), replacedContainers, replacedStates))
         }
     }
+
     fun pop(name: String?) {
         if (backStack.isEmpty()) return
         if (name == null) {
-            reverseEntry(backStack.removeAt(backStack.size - 1))
+            val entry = backStack.removeAt(backStack.size - 1)
+            reverseEntry(entry)
             return
         }
-        val index = backStack.indexOfFirst { it.name == name }
+        // must use last occurrence
+        val index = backStack.indexOfLast { it.name == name }
         if (index < 0) {
-            while (backStack.isNotEmpty()) {
-                reverseEntry(backStack.removeAt(backStack.size - 1))
-            }
+            // no-op, must NOT drain
             return
         }
-        while (backStack.size > index + 1) {
-            reverseEntry(backStack.removeAt(backStack.size - 1))
+        while (backStack.size > index) {
+            val entry = backStack.removeAt(backStack.size - 1)
+            reverseEntry(entry)
         }
     }
+
     fun rotate() {
+        // clear live state
         for (container in containers.values) container.clear()
         fragments.clear()
         val saved = backStack.toList()
@@ -87,6 +117,7 @@ class FragmentManager {
             backStack.add(entry)
         }
     }
+
     fun snapshot(): String {
         val builder = StringBuilder()
         for ((id, container) in containers.toSortedMap()) {
@@ -107,7 +138,9 @@ class FragmentManager {
         builder.append("backstack=[").append(entries).append("]\n")
         return builder.toString()
     }
+
     private val allContainersEverUsed = mutableSetOf<String>()
+
     private fun applyOps(ops: List<TransactionOp>) {
         for (op in ops) {
             when (op) {
@@ -121,20 +154,35 @@ class FragmentManager {
                 is TransactionOp.Replace -> {
                     allContainersEverUsed.add(op.container)
                     val container = containers.getOrPut(op.container) { Container(op.container) }
-                    for (old in container.snapshot()) {
-                        containers[op.container]?.remove(old)
+                    // remove old fragments and clear their state from live registry (they are captured for backstack restore)
+                    val oldList = container.snapshot()
+                    for (old in oldList) {
+                        container.remove(old)
+                        fragments.remove(old.name)
                     }
                     container.replace(op.fragment)
-                    val fs = fragments.getOrPut(op.fragment.name) { FragmentSnapshotMutable(op.fragment.name, null) }
-                    fs.container = op.container
+                    val newFs = fragments.getOrPut(op.fragment.name) { FragmentSnapshotMutable(op.fragment.name, null) }
+                    newFs.container = op.container
                 }
                 is TransactionOp.Remove -> {
+                    val fs = fragments[op.fragment.name] ?: continue
+                    fs.container?.let { cId ->
+                        containers[cId]?.remove(op.fragment)
+                    }
                     for (c in containers.values) c.remove(op.fragment)
                     fragments.remove(op.fragment.name)
                 }
                 is TransactionOp.SetListener -> {
                     val fs = fragments[op.fragment] ?: continue
-                    fs.listeners.add(op.key)
+                    // if pending exists, deliver immediately and consume listener
+                    val pendingVal = fs.pending[op.key]
+                    if (pendingVal != null) {
+                        fs.delivered[op.key] = pendingVal
+                        fs.pending.remove(op.key)
+                        fs.listeners.remove(op.key)
+                    } else {
+                        fs.listeners.add(op.key)
+                    }
                 }
                 is TransactionOp.ClearListener -> {
                     val fs = fragments[op.fragment] ?: continue
@@ -144,6 +192,8 @@ class FragmentManager {
                     val fs = fragments[op.target] ?: continue
                     if (fs.listeners.contains(op.key)) {
                         fs.delivered[op.key] = op.value
+                        fs.listeners.remove(op.key)
+                        fs.pending.remove(op.key)
                     } else {
                         fs.pending[op.key] = op.value
                     }
@@ -151,6 +201,7 @@ class FragmentManager {
             }
         }
     }
+
     private fun reverseEntry(entry: BackStackEntry) {
         for (op in entry.ops.reversed()) {
             when (op) {
@@ -175,15 +226,41 @@ class FragmentManager {
                         }
                     }
                 }
-                is TransactionOp.Remove -> {}
-                is TransactionOp.SetListener -> {
-                    fragments[op.fragment]?.listeners?.remove(op.key)
+                is TransactionOp.Remove -> {
+                    // restore removed fragment if captured
+                    val snap = entry.replacedStates[op.fragment.name]
+                    if (snap != null) {
+                        val restored = FragmentSnapshotMutable(
+                            snap.name, snap.container, snap.listeners.toMutableSet(), snap.pending.toMutableMap(), snap.delivered.toMutableMap()
+                        )
+                        fragments[snap.name] = restored
+                        snap.container?.let { cId ->
+                            val container = containers.getOrPut(cId) { Container(cId) }
+                            container.add(Fragment(snap.name))
+                            allContainersEverUsed.add(cId)
+                        }
+                    }
                 }
-                is TransactionOp.ClearListener -> {}
+                is TransactionOp.SetListener -> {
+                    val fs = fragments[op.fragment] ?: continue
+                    val deliveredVal = fs.delivered[op.key]
+                    if (deliveredVal != null) {
+                        fs.pending[op.key] = deliveredVal
+                        fs.delivered.remove(op.key)
+                    }
+                    fs.listeners.remove(op.key)
+                }
+                is TransactionOp.ClearListener -> {
+                    fragments[op.fragment]?.listeners?.add(op.key)
+                }
                 is TransactionOp.SetResult -> {
                     val fs = fragments[op.target] ?: continue
-                    fs.delivered.remove(op.key)
-                    fs.pending.remove(op.key)
+                    if (fs.delivered.containsKey(op.key)) {
+                        fs.delivered.remove(op.key)
+                        fs.listeners.add(op.key)
+                    } else {
+                        fs.pending.remove(op.key)
+                    }
                 }
             }
         }

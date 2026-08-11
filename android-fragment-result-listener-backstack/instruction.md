@@ -8,10 +8,10 @@ Result handling:
 - SET_RESULT_LISTENER txn fragment key inside a transaction: register listener for key on that fragment. Ignore if fragment not in registry yet. If a pending result already exists for same key, deliver right away: move pending value to delivered, clear pending and listener (listener consumed).
 - CLEAR_RESULT_LISTENER txn fragment key: clear listener.
 - SET_RESULT txn targetFragment key value inside transaction: set result for target. If target currently has a listener for that key, deliver instantly (delivered[key]=value, remove listener and any pending for that key). If no listener, queue as pending[key]=value overwriting any previous pending for same key.
-- REMOVE txn fragment: removes fragment from any container and deletes its listeners, pending, delivered, and all registration.
+- REMOVE txn fragment: removes fragment from any container and deletes its listeners, pending, delivered, and all registration. If transaction is marked for backstack, capture its full state before removal so POP restores it with listeners pending delivered and container.
 
 Backstack:
-- ADD_TO_BACK_STACK txn name|NONE marks transaction as backstack entry, NONE means anon. COMMIT applies ops in order; if marked, push entry onto backstack capturing replaced fragments full child state (all result maps plus container) for REPLACE ops so POP can restore.
+- ADD_TO_BACK_STACK txn name|NONE marks transaction as backstack entry, NONE means anon. COMMIT applies ops in order; if marked, push entry onto backstack capturing replaced fragments full child state (all result maps plus container) for REPLACE ops and removed fragment full state for REMOVE ops so POP can restore either.
 - POP name|NONE: NONE pops most recent entry. POP with a name must pop down to and including the most recent entry with that name, searching from the top and using the last occurrence, not the first. Name search is case sensitive. If name not found on stack, POP is no-op and must not drain the whole stack, otherwise you lose user navigation history.
 - ROTATE simulates config change: clear live containers and registry, keep backstack, replay only transactions that were added to backstack, in order. Fragments never part of a backstacked ADD or REPLACE must not reappear after rotate. Listeners and pending/delivered that were registered or set inside backstacked transactions must survive rotate because replay re-creates them; anything only from non-backstacked transactions is dropped.
 
