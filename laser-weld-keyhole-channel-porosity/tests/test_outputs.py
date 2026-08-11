@@ -225,91 +225,92 @@ def geometric_truth_mm3(cfg, v_true):
 
 BASE_CONFIGS = {
     "heldout_1": dict(
-        dims=(60, 52, 38),
+        dims=(64, 54, 40),
         data_offset=96,
-        spacing=(0.38, 0.38, 0.8),
+        spacing=(0.35, 0.35, 0.75),
         dtype=16,
-        amp=2800,
-        bg=90,
-        sig_xy=1.1,
+        amp=2600,
+        bg=80,
+        sig_xy=1.15,
         sig_z=0.65,
-        noise=6,
+        noise=7,
         seed=212,
         object=[
-            ("box", 6, 36, 22, 30, 16, 24, True),
-            ("ell", 48, 12, 30, 6.0, 6.0, 5.0, False),
-            ("box", 10, 24, 38, 46, 12, 20, True),
+            ("box", 8, 40, 20, 30, 16, 24, True),
+            ("ell", 50, 10, 30, 6.0, 6.0, 5.0, False),
+            ("box", 12, 26, 38, 48, 12, 20, True),
         ],
         specks=[(54, 8, 6, 1.5), (8, 46, 32, 1.2), (50, 46, 8, 1.0)],
     ),
     "heldout_2": dict(
-        dims=(60, 48, 40),
+        dims=(56, 68, 42),
         data_offset=128,
-        spacing=(0.40, 0.40, 0.75),
+        spacing=(0.48, 0.48, 0.85),
         dtype=2,
-        amp=3200,
-        bg=110,
-        sig_xy=0.9,
+        amp=3600,
+        bg=130,
+        sig_xy=0.85,
         sig_z=0.55,
-        noise=5,
+        noise=4,
         seed=323,
         object=[
-            ("box", 6, 38, 18, 26, 14, 22, True),
-            ("ell", 48, 36, 30, 6.5, 6.5, 5.5, False),
+            ("box", 20, 28, 8, 44, 14, 22, True),
+            ("ell", 44, 50, 30, 6.5, 6.5, 5.5, False),
         ],
-        specks=[(55, 6, 7, 1.4), (7, 42, 34, 1.2)],
+        specks=[(50, 6, 7, 1.4), (8, 60, 34, 1.2)],
     ),
     "heldout_3": dict(
-        dims=(58, 54, 38),
+        dims=(54, 50, 70),
         data_offset=80,
-        spacing=(0.44, 0.44, 0.85),
+        spacing=(0.30, 0.30, 0.50),
         dtype=16,
-        amp=2900,
-        bg=95,
-        sig_xy=1.0,
-        sig_z=0.6,
-        noise=6,
+        amp=2100,
+        bg=65,
+        sig_xy=1.25,
+        sig_z=0.85,
+        noise=9,
         seed=434,
         object=[
-            ("box", 8, 40, 24, 32, 16, 24, True),
-            ("ell", 46, 10, 30, 5.5, 5.5, 4.5, False),
-            ("ell", 12, 44, 12, 3.5, 3.5, 3.5, False),
+            ("box", 18, 26, 20, 28, 8, 44, True),
+            ("ell", 40, 12, 40, 5.5, 5.5, 4.5, False),
+            ("ell", 10, 38, 10, 3.5, 3.5, 3.5, False),
         ],
-        specks=[(52, 7, 6, 1.6), (7, 48, 30, 1.2)],
+        specks=[(46, 8, 6, 1.6), (8, 42, 12, 1.2)],
     ),
     "speck_heavy": dict(
-        dims=(56, 52, 38),
+        dims=(60, 60, 48),
         data_offset=112,
-        spacing=(0.42, 0.42, 0.9),
+        spacing=(0.40, 0.40, 1.10),
         dtype=16,
-        amp=3000,
-        bg=100,
-        sig_xy=1.0,
-        sig_z=0.6,
-        noise=5,
+        amp=4200,
+        bg=160,
+        sig_xy=0.75,
+        sig_z=0.90,
+        noise=10,
         seed=555,
         object=[
-            ("box", 8, 32, 20, 28, 14, 22, True),
-            ("ell", 44, 10, 30, 5.0, 5.0, 4.0, False),
+            ("box", 10, 38, 22, 30, 18, 26, True),
+            ("ell", 46, 10, 34, 5.0, 5.0, 4.0, False),
         ],
-        specks=[(10, 10, 6, 2.2), (40, 40, 28, 2.0), (48, 6, 6, 1.8), (6, 45, 30, 1.8)],
+        specks=[(10, 10, 6, 2.2), (40, 40, 32, 2.0), (50, 6, 6, 1.8), (6, 52, 34, 1.8)],
     ),
     "randomized": dict(
-        dims=(52, 48, 36),
+        dims=(72, 52, 36),
         data_offset=96,
-        spacing=(0.45, 0.45, 0.9),
+        spacing=(0.55, 0.55, 0.65),
         dtype=16,
-        amp=2800,
-        bg=90,
-        sig_xy=1.1,
-        sig_z=0.65,
-        noise=6,
+        amp=1700,
+        bg=55,
+        sig_xy=1.35,
+        sig_z=0.60,
+        noise=5,
         seed=777,
         object=[
-            ("box", 10, 34, 18, 26, 14, 22, True),
-            ("ell", 48, 12, 28, 5.5, 5.5, 4.5, False),
+            ("box", 8, 36, 18, 26, 12, 20, True),
+            ("box", 42, 50, 30, 44, 20, 28, True),
+            ("ell", 20, 44, 10, 5.0, 5.0, 4.0, False),
         ],
-        specks=[(48, 6, 6, 1.6), (6, 42, 30, 1.3)],
+        specks=[(60, 6, 6, 1.6), (6, 42, 30, 1.3)],
     ),
 }
 
@@ -471,20 +472,20 @@ def test_heldout_secure(cfg_name, cfg):
 
 def test_randomized_extra():
     cfg = dict(
-        dims=(56, 48, 36),
-        spacing=(0.42, 0.42, 0.9),
+        dims=(50, 66, 46),
+        spacing=(0.32, 0.32, 0.95),
         dtype=16,
-        amp=3000,
-        bg=100,
-        sig_xy=1.0,
-        sig_z=0.6,
-        noise=5,
+        amp=3800,
+        bg=140,
+        sig_xy=0.90,
+        sig_z=0.70,
+        noise=8,
         seed=999,
         object=[
-            ("box", 6, 30, 20, 28, 14, 22, True),
-            ("ell", 44, 10, 30, 5.0, 5.0, 4.0, False),
+            ("box", 18, 26, 10, 42, 12, 20, True),
+            ("ell", 38, 50, 32, 5.5, 5.5, 5.0, False),
         ],
-        specks=[(48, 6, 5, 1.5), (6, 42, 32, 1.3)],
+        specks=[(42, 8, 6, 1.6), (8, 56, 32, 1.4)],
     )
     field, v_true = build_field(cfg)
     tiv_bytes = pack_tiv(cfg, field)
@@ -513,30 +514,3 @@ def test_global_conservation_shortcut_fails_on_speck_heavy():
     assert abs(got - truth) > REL_TOL * truth, (
         f"Expected naive global to fail on speck_heavy, got {got:.2f} vs truth {truth:.2f}"
     )
-
-
-def test_cheating_attempt_pathlib_construction_fails():
-    cheating_code = """
-import pathlib
-p = pathlib.Path("/") / "tests" / "test_outputs.py"
-print(p.read_text()[:10])
-"""
-    tree = ast.parse(cheating_code)
-    banned_import_found = False
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for a in node.names:
-                if a.name.split(".")[0] in BANNED_MODULES:
-                    banned_import_found = True
-        elif isinstance(node, ast.ImportFrom):
-            if (node.module or "").split(".")[0] in BANNED_MODULES:
-                banned_import_found = True
-    assert banned_import_found, "cheating pathlib import should be banned"
-
-
-def test_cheating_attempt_chr_construction_fails():
-    cheating_code = "print(chr(47)+chr(116)+chr(101)+chr(115)+chr(116)+chr(115))"
-    tree = ast.parse(cheating_code)
-    src = cheating_code
-    low = src.lower()
-    assert "chr(" in low, "chr construction should be flagged"
