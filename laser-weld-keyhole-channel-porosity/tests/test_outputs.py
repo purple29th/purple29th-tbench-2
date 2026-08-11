@@ -174,8 +174,12 @@ def build_field(cfg):
             if is_channel:
                 add_box(x0, x1, y0, y1, z0, z1, true_channel)
     amp = cfg["amp"]
+    bubble_factor = float(cfg.get("bubble_factor", 0.30))
     for i in true_all:
-        clean[i] = float(amp)
+        if i in true_channel:
+            clean[i] = float(amp)
+        else:
+            clean[i] = float(amp * bubble_factor)
     for sx0, sy0, sz0, sr in cfg["specks"]:
         for z in range(nz):
             for y in range(ny):
@@ -235,6 +239,7 @@ BASE_CONFIGS = {
         sig_z=0.65,
         noise=7,
         seed=212,
+        bubble_factor=0.30,
         object=[
             ("box", 8, 40, 20, 30, 16, 24, True),
             ("ell", 50, 10, 30, 6.0, 6.0, 5.0, False),
@@ -249,10 +254,11 @@ BASE_CONFIGS = {
         dtype=2,
         amp=3600,
         bg=130,
-        sig_xy=0.85,
-        sig_z=0.55,
-        noise=4,
+        sig_xy=0.95,
+        sig_z=0.70,
+        noise=10,
         seed=323,
+        bubble_factor=0.28,
         object=[
             ("box", 20, 28, 8, 44, 14, 22, True),
             ("ell", 44, 50, 30, 6.5, 6.5, 5.5, False),
@@ -264,12 +270,13 @@ BASE_CONFIGS = {
         data_offset=80,
         spacing=(0.30, 0.30, 0.50),
         dtype=16,
-        amp=2100,
-        bg=65,
-        sig_xy=1.25,
+        amp=2200,
+        bg=75,
+        sig_xy=1.30,
         sig_z=0.85,
         noise=9,
         seed=434,
+        bubble_factor=0.25,
         object=[
             ("box", 18, 26, 20, 28, 8, 44, True),
             ("ell", 40, 12, 40, 5.5, 5.5, 4.5, False),
@@ -284,30 +291,74 @@ BASE_CONFIGS = {
         dtype=16,
         amp=4200,
         bg=160,
-        sig_xy=0.75,
-        sig_z=0.90,
-        noise=10,
+        sig_xy=0.85,
+        sig_z=0.95,
+        noise=12,
         seed=555,
+        bubble_factor=0.30,
         object=[
             ("box", 10, 38, 22, 30, 18, 26, True),
             ("ell", 46, 10, 34, 5.0, 5.0, 4.0, False),
         ],
-        specks=[(10, 10, 6, 2.2), (40, 40, 32, 2.0), (50, 6, 6, 1.8), (6, 52, 34, 1.8)],
+        specks=[
+            (10, 10, 6, 2.2),
+            (40, 40, 32, 2.0),
+            (50, 6, 6, 1.8),
+            (6, 52, 34, 1.8),
+            (30, 5, 40, 1.5),
+        ],
+    ),
+    "bubble_large": dict(
+        dims=(62, 62, 52),
+        data_offset=96,
+        spacing=(0.38, 0.38, 0.80),
+        dtype=16,
+        amp=3000,
+        bg=90,
+        sig_xy=1.10,
+        sig_z=0.75,
+        noise=7,
+        seed=612,
+        bubble_factor=0.12,
+        object=[
+            ("box", 8, 24, 20, 28, 16, 24, True),
+            ("ell", 42, 42, 28, 14, 14, 12, False),
+        ],
+        specks=[(54, 8, 6, 1.4), (8, 54, 40, 1.2)],
+    ),
+    "thin_neck": dict(
+        dims=(64, 54, 40),
+        data_offset=96,
+        spacing=(0.35, 0.35, 0.75),
+        dtype=16,
+        amp=2800,
+        bg=80,
+        sig_xy=1.15,
+        sig_z=0.65,
+        noise=6,
+        seed=712,
+        bubble_factor=0.30,
+        object=[
+            ("box", 8, 20, 20, 28, 16, 24, True),
+            ("box", 27, 39, 20, 28, 16, 24, True),
+        ],
+        specks=[(52, 8, 6, 1.2), (8, 46, 32, 1.1)],
     ),
     "randomized": dict(
-        dims=(72, 52, 36),
+        dims=(72, 52, 40),
         data_offset=96,
         spacing=(0.55, 0.55, 0.65),
         dtype=16,
-        amp=1700,
-        bg=55,
+        amp=2100,
+        bg=65,
         sig_xy=1.35,
-        sig_z=0.60,
-        noise=5,
+        sig_z=0.80,
+        noise=8,
         seed=777,
+        bubble_factor=0.26,
         object=[
             ("box", 8, 36, 18, 26, 12, 20, True),
-            ("box", 42, 50, 30, 44, 20, 28, True),
+            ("box", 42, 50, 30, 46, 20, 28, True),
             ("ell", 20, 44, 10, 5.0, 5.0, 4.0, False),
         ],
         specks=[(60, 6, 6, 1.6), (6, 42, 30, 1.3)],
@@ -319,6 +370,8 @@ ALL_TEST_CONFIGS = [
     ("heldout_2", BASE_CONFIGS["heldout_2"]),
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
+    ("bubble_large", BASE_CONFIGS["bubble_large"]),
+    ("thin_neck", BASE_CONFIGS["thin_neck"]),
     ("randomized", BASE_CONFIGS["randomized"]),
 ]
 
@@ -481,6 +534,7 @@ def test_randomized_extra():
         sig_z=0.70,
         noise=8,
         seed=999,
+        bubble_factor=0.28,
         object=[
             ("box", 18, 26, 10, 42, 12, 20, True),
             ("ell", 38, 50, 32, 5.5, 5.5, 5.0, False),
