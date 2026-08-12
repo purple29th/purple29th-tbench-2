@@ -44,9 +44,9 @@ Method works for varied txn names, container counts, listener keys.
 ## Model Analysis / Completion
 
 - Oracle 24/24 100%: reference solution passes all heldouts including pop named last, pop missing noop, rotate retains listeners, queued result survives rotate, pending delivery later, plus new coverage.
-- Buggy baseline 6/24 (fails 18) → reward 0: result delivered keeps listener, pending not delivered, replace capture missing, pop named uses first, pop missing drains, queued result lost, plus fails new cases: pending overwrite, ignore missing fragment, case-sensitive pop, multi-container sorting, multiple keys, remove pop restore, rotate mixed.
+- Buggy baseline 10/24 (fails 14) → reward 0: environment/src/FragmentManager.kt is intentionally buggy and distinct from solution/ (previous revision shipped identical files, fixed now). Bugs: result delivered keeps listener, pending not delivered on SetListener, replace capture missing result state, remove capture missing so POP cannot restore, pop named uses first (indexOfFirst) not last, pop missing drains entire stack instead of no-op, rotate clears live state but does not replay backstacked transactions so queued result lost, pending overwrite ignores second value, ghost fragment creation on missing target, plus fails new cases: pending_overwrite, ignore_missing_fragment, case_sensitive_pop_noop, multiple_keys, remove_pop_restore_result, rotate_mixed, etc. Reward is 0 without fix.
 - Build: Kotlin 1.9.22 kotlinc compiles, formal verification via contract tests.
-- Expected difficulty: medium (was marked hard but 14/15 non-oracle passed originally) – legitimate distribution now with expanded coverage should be more challenging.
+- Expected difficulty: hard (expert 75m, junior 240m) – requires fixing 7+ interacting bugs.
 
 ## Anti-Cheating / Leakage Fix (per review)
 
