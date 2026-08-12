@@ -338,7 +338,7 @@ BASE_CONFIGS = {
         specks=[(38, 5, 4, 4.0), (5, 35, 20, 3.6), (39, 36, 6, 3.2)],
     ),
     "pixel_count_trap": dict(
-        dims=(50, 48, 28),
+        dims=(44, 40, 24),
         spacing=(0.018, 0.020, 0.022),
         dtype=16,
         amp=1100,
@@ -348,12 +348,12 @@ BASE_CONFIGS = {
         noise=8,
         seed=909,
         object=[
-            ("ell", 24, 24, 14, 10.0, 9.0, 5.0),
-            ("box", 32, 44, 18, 24, 12, 16),
+            ("ell", 22, 20, 12, 9.0, 8.0, 5.0),
+            ("box", 30, 38, 18, 21, 10, 15),
         ],
-        # large faint speck: many voxels (4765) but low mass due to 0.2 scale,
+        # large faint speck: many voxels but low mass due to 0.2 scale,
         # so count-based picks speck (130% error) while mass-based picks main.
-        specks=[(5, 5, 5, 12.0, 0.2), (38, 6, 4, 2.0)],
+        specks=[(5, 5, 5, 10.0, 0.2), (38, 5, 4, 2.0)],
     ),
     "plateau_trap": dict(
         dims=(44, 40, 24),
@@ -508,13 +508,18 @@ def run_agent_secure(ssdv_bytes, expected_mm3, name="case"):
         secure_path = os.path.join(td, "_secure_runner.py")
         with open(secure_path, "w") as f:
             f.write(SECURE_RUNNER_CODE)
-        proc = subprocess.run(
-            ["python3", secure_path, SCRIPT, ssdv_path],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=td,
-        )
+        try:
+            proc = subprocess.run(
+                ["python3", secure_path, SCRIPT, ssdv_path],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=td,
+            )
+        except subprocess.TimeoutExpired as e:
+            pytest.fail(
+                f"timeout {name} after 120s (expected {expected_mm3:.5f} mm3) - solver too slow, likely O(n^2) or infinite loop\nstdout:\n{e.stdout or ''}\nstderr:\n{e.stderr or ''}"
+            )
         assert proc.returncode == 0, (
             f"fail {name} (expected {expected_mm3:.5f} mm3)\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         )
