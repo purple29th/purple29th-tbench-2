@@ -8,7 +8,7 @@ but global integration without speck removal fails.
 Verifier: generates heldouts at runtime with geometric truth, runs solver in
 isolated sandbox blocking /tests, test_outputs, heldout, _gen, GEOM_TRUTH etc
 and banned imports including pathlib, os, io, etc. Sample at
-/app/data/scene.ssdv is readable. Includes speck-heavy case.
+/app/data/scene.ssdv is readable. Includes speck-heavy case and halo cases.
 """
 
 import ast
@@ -58,6 +58,9 @@ BANNED_MODULES = {
 
 BANNED_CALLS = {"eval", "exec", "compile", "__import__", "chr"}
 
+# Narrowed: removed generic filesystem method names walk, listdir, scandir, rglob
+# that collide with user helper methods like Grid.walk(). Security for
+# os.walk etc is enforced by secure runner audit hook and by banning os module.
 BANNED_ATTRS = {
     "system",
     "popen",
@@ -82,10 +85,6 @@ BANNED_ATTRS = {
     "posix_spawnp",
     "fork",
     "forkpty",
-    "walk",
-    "listdir",
-    "scandir",
-    "rglob",
     "__subclasses__",
     "__builtins__",
     "__code__",
@@ -93,8 +92,9 @@ BANNED_ATTRS = {
     "__getattribute__",
 }
 
+# Removed "/tests" from string literal ban per review: the phrase appears in
+# instruction ("No /tests access.") and audit hook already blocks real access.
 BANNED_SUBSTRINGS_SRC = [
-    "/tests",
     "test_outputs",
     "heldout",
     "_gen",
@@ -194,12 +194,18 @@ def build_field(cfg):
     for i in true_set:
         clean[i] = float(amp)
 
-    for sx0, sy0, sz0, sr in cfg["specks"]:
+    for spec in cfg["specks"]:
+        if len(spec) == 5:
+            sx0, sy0, sz0, sr, scale = spec
+            samp = float(amp) * float(scale)
+        else:
+            sx0, sy0, sz0, sr = spec
+            samp = float(amp)
         for z in range(nz):
             for y in range(ny):
                 for x in range(nx):
                     if (x - sx0) ** 2 + (y - sy0) ** 2 + (z - sz0) ** 2 <= sr * sr:
-                        clean[idx(x, y, z)] = float(amp)
+                        clean[idx(x, y, z)] = samp
 
     blurred = _blur_separable(clean, nx, ny, nz, cfg["sig_xy"], cfg["sig_z"])
 
@@ -207,6 +213,29 @@ def build_field(cfg):
     ns = cfg["noise"]
     rng = _lcg(cfg["seed"])
     field = [blurred[i] + bg + (next(rng) - 0.5) * 2.0 * ns for i in range(n)]
+
+    # Optional hot spike for plateau trap: one voxel inside void gets +delta,
+    # optionally conserved by subtracting equally from 26 neighbors so total
+    # energy is preserved and only raw-max vs filtered differs.
+    if "hot_spike" in cfg:
+        hx, hy, hz, delta = cfg["hot_spike"]
+        k = idx(hx, hy, hz)
+        field[k] += delta
+        if cfg.get("hot_spike_conserve"):
+            neigh = []
+            for dz in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if dx == 0 and dy == 0 and dz == 0:
+                            continue
+                        a, b, c = hx + dx, hy + dy, hz + dz
+                        if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
+                            neigh.append(idx(a, b, c))
+            if neigh:
+                per = delta / len(neigh)
+                for nn in neigh:
+                    field[nn] -= per
+
     return field, len(true_set)
 
 
@@ -237,16 +266,17 @@ def geometric_truth_mm3(cfg, v_true):
     return v_true * sx * sy * sz
 
 
+# Updated to make halo real: wider sig_xy, lower amp, higher noise gives 1 shell ~2-3%
 BASE_CONFIGS = {
     "heldout_1": dict(
         dims=(44, 40, 24),
         spacing=(0.018, 0.021, 0.025),
         dtype=16,
-        amp=1200,
+        amp=900,
         bg=50,
-        sig_xy=2.3,
-        sig_z=0.9,
-        noise=9,
+        sig_xy=3.0,
+        sig_z=1.0,
+        noise=15,
         seed=101,
         object=[
             ("ell", 21, 20, 12, 9.0, 8.0, 5.0),
@@ -259,11 +289,11 @@ BASE_CONFIGS = {
         dims=(42, 42, 28),
         spacing=(0.020, 0.023, 0.022),
         dtype=2,
-        amp=1500,
+        amp=800,
         bg=78,
-        sig_xy=2.0,
-        sig_z=0.8,
-        noise=12,
+        sig_xy=2.8,
+        sig_z=1.0,
+        noise=15,
         seed=202,
         object=[
             ("ell", 20, 21, 14, 8.5, 8.5, 5.5),
@@ -276,11 +306,11 @@ BASE_CONFIGS = {
         dims=(46, 38, 26),
         spacing=(0.016, 0.019, 0.028),
         dtype=16,
-        amp=1350,
+        amp=700,
         bg=60,
-        sig_xy=2.5,
+        sig_xy=3.2,
         sig_z=1.0,
-        noise=10,
+        noise=15,
         seed=303,
         object=[
             ("ell", 22, 19, 13, 10.0, 8.0, 4.5),
@@ -294,11 +324,11 @@ BASE_CONFIGS = {
         dims=(44, 40, 24),
         spacing=(0.018, 0.021, 0.025),
         dtype=16,
-        amp=1200,
+        amp=900,
         bg=50,
-        sig_xy=2.3,
-        sig_z=0.9,
-        noise=9,
+        sig_xy=3.0,
+        sig_z=1.0,
+        noise=15,
         seed=101,
         object=[
             ("ell", 21, 20, 12, 9.0, 8.0, 5.0),
@@ -307,17 +337,71 @@ BASE_CONFIGS = {
         ],
         specks=[(38, 5, 4, 4.0), (5, 35, 20, 3.6), (39, 36, 6, 3.2)],
     ),
+    "pixel_count_trap": dict(
+        dims=(50, 48, 28),
+        spacing=(0.018, 0.020, 0.022),
+        dtype=16,
+        amp=1100,
+        bg=45,
+        sig_xy=1.2,
+        sig_z=0.6,
+        noise=8,
+        seed=909,
+        object=[
+            ("ell", 24, 24, 14, 10.0, 9.0, 5.0),
+            ("box", 32, 44, 18, 24, 12, 16),
+        ],
+        # large faint speck: many voxels (4765) but low mass due to 0.2 scale,
+        # so count-based picks speck (130% error) while mass-based picks main.
+        specks=[(5, 5, 5, 12.0, 0.2), (38, 6, 4, 2.0)],
+    ),
+    "plateau_trap": dict(
+        dims=(44, 40, 24),
+        spacing=(0.018, 0.021, 0.025),
+        dtype=16,
+        amp=1200,
+        bg=50,
+        sig_xy=2.3,
+        sig_z=0.9,
+        noise=12,
+        seed=101,
+        object=[
+            ("ell", 21, 20, 12, 9.0, 8.0, 5.0),
+            ("box", 30, 38, 18, 21, 10, 15),
+            ("box", 6, 12, 18, 21, 10, 15),
+        ],
+        specks=[(38, 5, 4, 2.0)],
+        hot_spike=(21, 20, 12, 400),
+        hot_spike_conserve=True,
+    ),
+    "halo_heavy": dict(
+        dims=(44, 40, 24),
+        spacing=(0.018, 0.021, 0.025),
+        dtype=16,
+        amp=700,
+        bg=50,
+        sig_xy=3.2,
+        sig_z=1.2,
+        noise=15,
+        seed=101,
+        object=[
+            ("ell", 21, 20, 12, 9.0, 8.0, 5.0),
+            ("box", 30, 38, 18, 21, 10, 15),
+            ("box", 6, 12, 18, 21, 10, 15),
+        ],
+        specks=[(38, 5, 4, 2.0)],
+    ),
 }
 
 RANDOM_CONFIG = dict(
     dims=(40, 36, 28),
     spacing=(0.019, 0.022, 0.024),
     dtype=2,
-    amp=1300,
+    amp=900,
     bg=65,
-    sig_xy=2.2,
-    sig_z=0.85,
-    noise=11,
+    sig_xy=2.8,
+    sig_z=1.0,
+    noise=12,
     seed=404,
     object=[
         ("ell", 19, 18, 14, 8.5, 8.5, 5.0),
@@ -332,6 +416,9 @@ ALL_TEST_CONFIGS = [
     ("heldout_2", BASE_CONFIGS["heldout_2"]),
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
+    ("pixel_count_trap", BASE_CONFIGS["pixel_count_trap"]),
+    ("plateau_trap", BASE_CONFIGS["plateau_trap"]),
+    ("halo_heavy", BASE_CONFIGS["halo_heavy"]),
     ("randomized", RANDOM_CONFIG),
 ]
 
@@ -479,12 +566,6 @@ def test_from_scratch():
                     pytest.fail(
                         f"banned substring in string literal: {banned} in {node.value!r}"
                     )
-    # NOTE: previous raw-source compact substring scan removed per review:
-    # it flagged valid identifiers (_generate_background -> _gen,
-    # noise_gen -> _gen, _generic_peak -> _gen) and comments
-    # ("/tests", "heldout") as banned. Security for path access is still
-    # enforced by AST literal check above and by the secure runner's
-    # audit hook blocking open/listdir on those paths at runtime.
     lowered = src.lower()
     assert "chr(" not in lowered, "chr() banned"
     assert "fromhex" not in lowered, "fromhex banned"
@@ -498,7 +579,7 @@ def test_heldout_secure(cfg_name, cfg):
     exp_mm3 = geometric_truth_mm3(cfg, v_true)
     got = run_agent_secure(ssdv_bytes, exp_mm3, name=cfg_name)
     assert abs(got - exp_mm3) <= REL_TOL * exp_mm3, (
-        f"{cfg_name}: got {got:.6f} mm3 expected {exp_mm3:.6f} ±{REL_TOL * 100}%"
+        f"{cfg_name}: got {got:.6f} mm3 expected {exp_mm3:.6f} plusminus{REL_TOL * 100}%"
     )
 
 
@@ -525,108 +606,3 @@ def test_randomized_extra():
     exp_mm3 = geometric_truth_mm3(cfg, v_true)
     got = run_agent_secure(ssdv_bytes, exp_mm3, name="randomized_extra")
     assert abs(got - exp_mm3) <= REL_TOL * exp_mm3
-
-
-def test_global_conservation_shortcut_fails_on_speck_heavy():
-    cfg = BASE_CONFIGS["speck_heavy"]
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_mm3(cfg, v_true)
-
-    def naive_global():
-        sv = sorted(field)
-        bg = sv[len(sv) // 2]
-        r = [v - bg for v in field]
-        filt = sorted(r, reverse=True)
-        topk = filt[:8]
-        amp = sum(topk) / len(topk) if topk else 1
-        sx, sy, sz = cfg["spacing"]
-        mass = sum(r)
-        return mass / amp * sx * sy * sz if amp > 0 else 0
-
-    got = naive_global()
-    assert abs(got - truth) > REL_TOL * truth, (
-        f"Expected naive global to fail on speck_heavy, got {got:.5f} vs truth {truth:.5f}"
-    )
-
-
-def test_pixel_count_shortcut_fails_on_main():
-    """Naive that counts voxels and picks largest by count fails — dust can have more voxels than pit."""
-    cfg = dict(
-        dims=(50, 48, 28),
-        spacing=(0.018, 0.020, 0.022),
-        dtype=16,
-        amp=1100,
-        bg=45,
-        sig_xy=2.0,
-        sig_z=0.8,
-        noise=8,
-        seed=909,
-        object=[
-            ("ell", 24, 24, 14, 10.0, 9.0, 5.0),
-            ("box", 32, 44, 18, 24, 12, 8),
-        ],
-        # large faint speck radius 12 with low effective bright residual vs main
-        specks=[(12, 12, 6, 12.0), (38, 6, 4, 2.0)],
-    )
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_mm3(cfg, v_true)
-    nx, ny, nz = cfg["dims"]
-    sx, sy, sz = cfg["spacing"]
-
-    def idx(x, y, z):
-        return x + nx * (y + ny * z)
-
-    # naive background via lower-half median
-    sv = sorted(field)
-    lower = sv[: len(sv) // 2]
-    bg = lower[len(lower) // 2] if lower else 0
-    resid = [v - bg for v in field]
-    # noise via MAD on lower
-    lower_res = sorted([v - bg for v in lower])
-    med_low = lower_res[len(lower_res) // 2] if lower_res else 0
-    abs_dev = sorted(abs(r - med_low) for r in lower_res)
-    mad = abs_dev[len(abs_dev) // 2] if abs_dev else 1
-    sigma = max(1e-6, 1.4826 * mad)
-    thr = 4.0 * sigma
-    occ = [r > thr for r in resid]
-
-    seen = bytearray(len(field))
-    best_cnt = -1
-    best = None
-    NEIGH = [
-        (dx, dy, dz)
-        for dz in (-1, 0, 1)
-        for dy in (-1, 0, 1)
-        for dx in (-1, 0, 1)
-        if dx or dy or dz
-    ]
-    for z0 in range(nz):
-        for y0 in range(ny):
-            for x0 in range(nx):
-                k = idx(x0, y0, z0)
-                if not occ[k] or seen[k]:
-                    continue
-                stack = [(x0, y0, z0)]
-                seen[k] = 1
-                comp = []
-                while stack:
-                    x, y, z = stack.pop()
-                    kk = idx(x, y, z)
-                    comp.append(kk)
-                    for dx, dy, dz in NEIGH:
-                        xx, yy, zz = x + dx, y + dy, z + dz
-                        if 0 <= xx < nx and 0 <= yy < ny and 0 <= zz < nz:
-                            nn = idx(xx, yy, zz)
-                            if occ[nn] and not seen[nn]:
-                                seen[nn] = 1
-                                stack.append((xx, yy, zz))
-                if len(comp) > best_cnt:
-                    best_cnt = len(comp)
-                    best = comp
-
-    assert best is not None
-    naive_vol = len(best) * sx * sy * sz
-    # count-based should be far from truth because large faint speck has many voxels
-    assert abs(naive_vol - truth) > REL_TOL * truth, (
-        f"Expected pixel-count to fail, got {naive_vol:.5f} vs truth {truth:.5f}"
-    )
