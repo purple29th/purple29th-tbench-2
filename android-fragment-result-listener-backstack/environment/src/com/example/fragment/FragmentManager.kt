@@ -57,11 +57,9 @@ class FragmentManager {
                     val container = containers[op.container]
                     if (container != null) {
                         replacedContainers[op.container] = container.snapshot()
-                        // BUG: does NOT capture fragment result state (listeners/pending/delivered)
                     }
                 }
                 is TransactionOp.Remove -> {
-                    // BUG: does NOT capture state for REMOVE, so POP cannot restore
                 }
                 else -> {}
             }
@@ -81,10 +79,8 @@ class FragmentManager {
             reverseEntry(entry)
             return
         }
-        // BUG: uses first occurrence instead of last
         val index = backStack.indexOfFirst { it.name == name }
         if (index < 0) {
-            // BUG: drains entire stack instead of no-op
             while (backStack.isNotEmpty()) {
                 val entry = backStack.removeAt(backStack.size - 1)
                 reverseEntry(entry)
@@ -98,11 +94,8 @@ class FragmentManager {
     }
 
     fun rotate() {
-        // BUG: clears live state but does NOT replay backstacked transactions
-        // so listeners and pending that were backstacked are lost
         for (container in containers.values) container.clear()
         fragments.clear()
-        // intentionally not replaying backstack entries
     }
 
     fun snapshot(): String {
@@ -159,7 +152,6 @@ class FragmentManager {
                     fragments.remove(op.fragment.name)
                 }
                 is TransactionOp.SetListener -> {
-                    // BUG: creates ghost fragment if not exists, and does NOT deliver pending
                     val fs = fragments.getOrPut(op.fragment) { FragmentSnapshotMutable(op.fragment, null) }
                     fs.listeners.add(op.key)
                 }
@@ -168,13 +160,10 @@ class FragmentManager {
                     fs.listeners.remove(op.key)
                 }
                 is TransactionOp.SetResult -> {
-                    // BUG: creates ghost fragment if missing, keeps listener after delivery, and does NOT overwrite pending
                     val fs = fragments.getOrPut(op.target) { FragmentSnapshotMutable(op.target, null) }
                     if (fs.listeners.contains(op.key)) {
                         fs.delivered[op.key] = op.value
-                        // BUG: does not remove listener
                     } else {
-                        // BUG: does not overwrite existing pending
                         if (!fs.pending.containsKey(op.key)) {
                             fs.pending[op.key] = op.value
                         }
@@ -198,12 +187,10 @@ class FragmentManager {
                     val previous = entry.replaced[op.container] ?: emptyList()
                     for (frag in previous) {
                         container.add(frag)
-                        // BUG: restores without result state because replacedStates was empty
                         fragments.getOrPut(frag.name) { FragmentSnapshotMutable(frag.name, op.container) }
                     }
                 }
                 is TransactionOp.Remove -> {
-                    // BUG: no restore because replacedStates is empty for REMOVE
                 }
                 is TransactionOp.SetListener -> {
                     val fs = fragments[op.fragment] ?: continue

@@ -37,7 +37,7 @@ Where to start:
 - /app/src/com/example/fragment/Container.kt
 - /app/src/com/example/fragment/Fragment.kt
 
-Build: bash /app/src/build.sh uses kotlinc to compile. Run: bash /app/src/run.sh reads /app/scenario.txt writes /app/output.txt. Contract tests: bash /app/src/run-contract.sh runs ManagerContractKt with 13 cases covering simple add, listener registration, result delivery, queuing, pending delivery later, clear, remove, replace capture, pop named uses last, pop missing is noop, rotate retains listeners and pending for backstacked only, queued result survives rotate.
+Build: bash /app/src/build.sh uses kotlinc to compile. Run: bash /app/src/run.sh reads /app/scenario.txt writes /app/output.txt. Contract tests: bash /app/src/run-contract.sh runs ManagerContractKt with 5 smoke cases covering simple add, listener registration, result delivery, queuing, pending delivery later, pop missing is noop, and rotate drops non-backstacked (full 24-scenario coverage is in tests/expected).
 
 Fix the manager so all contract tests pass. The logic for result queuing and named POP using last occurrence is the hard part. Do not change output format.
 
