@@ -339,8 +339,8 @@ BASE_CONFIGS = {
         seed=712,
         bubble_factor=0.30,
         object=[
-            ("box", 8, 20, 20, 28, 16, 24, True),
-            ("box", 27, 39, 20, 28, 16, 24, True),
+            ("box", 8, 22, 20, 28, 16, 24, True),
+            ("box", 24, 38, 20, 28, 16, 24, True),
         ],
         specks=[(52, 8, 6, 1.2), (8, 46, 32, 1.1)],
     ),
@@ -381,42 +381,60 @@ def test_script_exists():
 
 
 def test_from_scratch():
-    src = open(SCRIPT, "r", encoding="utf-8", errors="ignore").read()
-    tree = ast.parse(src, filename="solve.py")
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                root = alias.name.split(".")[0]
+    # Scan every *.py under /app per reviewer fix: helper modules were previously unscanned
+    app_dir = os.path.dirname(SCRIPT)
+    py_files = []
+    if os.path.isdir(app_dir):
+        for fname in os.listdir(app_dir):
+            if fname.endswith(".py"):
+                py_files.append(os.path.join(app_dir, fname))
+    # Fallback to SCRIPT if no directory listing (e.g., local run without /app)
+    if not py_files:
+        py_files = [SCRIPT]
+    # Deduplicate
+    py_files = sorted(set(py_files))
+    assert py_files, "no python files found under /app"
+    for py_path in py_files:
+        if not os.path.exists(py_path):
+            continue
+        src = open(py_path, "r", encoding="utf-8", errors="ignore").read()
+        tree = ast.parse(src, filename=os.path.basename(py_path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root = alias.name.split(".")[0]
+                    if root in BANNED_MODULES:
+                        raise AssertionError(f"banned import {alias.name} in {py_path}")
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                root = mod.split(".")[0]
                 if root in BANNED_MODULES:
-                    raise AssertionError(f"banned import {alias.name}")
-        elif isinstance(node, ast.ImportFrom):
-            mod = node.module or ""
-            root = mod.split(".")[0]
-            if root in BANNED_MODULES:
-                raise AssertionError(f"banned import from {mod}")
-        elif isinstance(node, ast.Call):
-            fn = node.func
-            name = (
-                fn.id
-                if isinstance(fn, ast.Name)
-                else (fn.attr if isinstance(fn, ast.Attribute) else "")
-            )
-            if name in BANNED_CALLS:
-                raise AssertionError(f"banned call {name}")
-            if isinstance(fn, ast.Attribute):
-                if fn.attr in BANNED_ATTRS:
-                    raise AssertionError(f"banned attr {fn.attr}")
-        elif isinstance(node, ast.Attribute):
-            if node.attr in BANNED_ATTRS:
-                raise AssertionError(f"banned attr {node.attr}")
-        if isinstance(node, ast.Constant):
-            v = node.value
-            if isinstance(v, str):
-                for bad in BANNED_SUBSTRINGS_SRC:
-                    if bad in v:
-                        raise AssertionError(f"banned substring {bad!r}")
-    assert "chr(" not in src
-    assert "base64" not in src.lower()
+                    raise AssertionError(f"banned import from {mod} in {py_path}")
+            elif isinstance(node, ast.Call):
+                fn = node.func
+                name = (
+                    fn.id
+                    if isinstance(fn, ast.Name)
+                    else (fn.attr if isinstance(fn, ast.Attribute) else "")
+                )
+                if name in BANNED_CALLS:
+                    raise AssertionError(f"banned call {name} in {py_path}")
+                if isinstance(fn, ast.Attribute):
+                    if fn.attr in BANNED_ATTRS:
+                        raise AssertionError(f"banned attr {fn.attr} in {py_path}")
+            elif isinstance(node, ast.Attribute):
+                if node.attr in BANNED_ATTRS:
+                    raise AssertionError(f"banned attr {node.attr} in {py_path}")
+            if isinstance(node, ast.Constant):
+                v = node.value
+                if isinstance(v, str):
+                    for bad in BANNED_SUBSTRINGS_SRC:
+                        if bad in v:
+                            raise AssertionError(
+                                f"banned substring {bad!r} in {py_path}"
+                            )
+        assert "chr(" not in src, f"chr() banned in {py_path}"
+        assert "base64" not in src.lower(), f"base64 banned in {py_path}"
 
 
 def run_agent_secure(tiv_bytes, expected_mm3, name="case"):
@@ -480,7 +498,8 @@ def run_agent_secure(tiv_bytes, expected_mm3, name="case"):
                 elif event == "import":
                     mod = args[0] if args else ""
                     base = mod.split(".")[0]
-                    banned_imports = {{"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath"}}
+                    # Make identical to BANNED_MODULES per reviewer fix, including networkx, igraph, etc.
+                    banned_imports = {{"numpy","scipy","skimage","cv2","PIL","Pillow","networkx","igraph","imageio","pandas","torch","tensorflow","subprocess","importlib","runpy","ctypes","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath"}}
                     if base in banned_imports:
                         raise RuntimeError(f"Blocked import {{mod}}")
             sys.addaudithook(audit_hook)
@@ -490,13 +509,18 @@ def run_agent_secure(tiv_bytes, expected_mm3, name="case"):
         secure_path = os.path.join(td, "_secure_runner.py")
         with open(secure_path, "w") as f:
             f.write(secure_code)
-        proc = subprocess.run(
-            ["python3", secure_path, SCRIPT, tiv_path],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=td,
-        )
+        try:
+            proc = subprocess.run(
+                ["python3", secure_path, SCRIPT, tiv_path],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=td,
+            )
+        except subprocess.TimeoutExpired as e:
+            pytest.fail(
+                f"timeout {name} after 120s (expected {expected_mm3:.2f} mm3) - solver too slow\nstdout:\n{e.stdout or ''}\nstderr:\n{e.stderr or ''}"
+            )
         assert proc.returncode == 0, (
             f"fail {name} (expected {expected_mm3:.2f} mm3)\\nstdout:\\n{proc.stdout}\\nstderr:\\n{proc.stderr}"
         )
