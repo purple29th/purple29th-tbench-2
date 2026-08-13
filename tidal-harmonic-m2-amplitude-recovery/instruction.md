@@ -50,3 +50,5 @@ Coding rules your solve.py is scanned:
  Your solver must work on any random temp file path.
 
 Print M2 physical amplitude in meters as last token for example 1.234 or 1.23e0
+
+Additional harbor context port authority uses this M2 level for dredge planning and vessel clearance. Tidal constituent blending comes from lunar and solar gravitation and Earth rotation. Ship wake events are brief and must be treated as outliers not tide.
