@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/music-harmonic-tonic-balance-recovery"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "From-scratch parser for custom music harmonic balance binary (.mthb magic MTHB) containing a piano chord waveform with tonic fundamental (graded), major-third (f*1.2599), perfect-fifth (f*1.4983), octave (2f) and second harmonic (3f) as arrangement interferers, plus mic gain 0.85-1.35, DC drift, Gaussian noise, and percussive key-click spikes. Simple RMS or peak overestimates 30-85% due to other chord tones and spikes. Solver must robustly reject spikes via median/MAD (>5.5 sigma), detrend linearly on inliers, and perform multi-frequency least squares (5 tones) via normal equations + Gaussian elimination to isolate tonic amplitude, then divide by gain. Data offset varied 48-128, dt 0.00025-0.001s, tonic f0 110-440Hz per file, 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["music", "harmonic-analysis", "tonic-balance", "arrangement", "polyphonic", "binary-parsing", "least-squares", "from-scratch", "audio-mixing"]
+language = "python"
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["music", "harmony", "tonic-balance", "arrangement", "polyphonic", "harmonic-analysis", "binary-parsing", "from-scratch", "least-squares", "audio", "robust-statistics"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
