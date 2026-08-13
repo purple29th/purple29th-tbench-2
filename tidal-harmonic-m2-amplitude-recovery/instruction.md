@@ -34,23 +34,18 @@ What is inside:
 - Spikes: 2-8 isolated samples add +1.2 to +2.5 m or -1.2 to -2.5 m (ship wakes) far from tide, must be rejected, like dust specks in earlier tasks but now time domain.
 
 Why naive fails:
-- Low: max-min /2 or RMS*sqrt2 absorbs S2 O1 K1 and drift → overestimates 30-60%. Spikes make it double.
-- High: counting only tallest peaks misses phase.
-- Gain ignored → 15-35% error.
+- max-min /2 or RMS*sqrt2 absorbs S2 O1 K1 and drift and spikes → overestimates 30-80%. In spike_heavy configs and arrangement-heavy configs the naive error exceeds our 3% budget by large margins.
+- Counting only tallest peaks misses phase and still mixes other constituents.
+- Ignoring sensor gain gives 15-35% systematic error because observed = physical * gain.
+- The grading signal is intact only for a full separation of M2 from other tides, handling of far outliers, and correction for instrumental factors. Skipping any of those still fails >3%.
 
-What works:
-- Robust background: median and MAD on lower half to estimate sigma, flag spikes >5-6 sigma away from median trend.
-- De-trend: linear least squares on inliers to remove mean+drift before harmonic fit.
-- Multi-frequency least squares: build matrix A with columns [cos(w_k t), sin(w_k t)] for each known omega (k = M2,S2,O1,K1). Unknowns are C_k,S_k. Solve normal equations A^T A x = A^T y via Gaussian elimination from scratch. Then M2 amp = sqrt(C_M2^2 + S_M2^2) / gain . This isolates M2 from other tides.
-- Energy is not conserved like blur tasks – isolation comes from orthogonal projection over long record. Skipping outlier rejection or de-trending still fails >3%.
-
-We grade at 3% relative error.
+We grade at 3% relative error. Simple methods are far outside that window.
 
 Coding rules – your solve.py is scanned:
 - Parse bytes yourself. Only allowed imports: struct sys math random tempfile re
 - Forbidden: numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath and any other array/imaging/graph lib, plus subprocess importlib runpy ctypes
-- Forbidden calls: eval exec compile __import__ chr ord breakpoint bytes bytearray
-- Forbidden runtime: subprocess os.system os.popen os.exec os.fork os.walk os.listdir os.scandir os.open pty any dir listing, hiding paths via chr bytes fromhex base64 b64decode bytearray tricks
+- Forbidden calls: eval exec compile __import__ chr
+- Forbidden runtime: subprocess os.system os.popen os.exec os.fork os.walk os.listdir os.scandir os.open pty any dir listing, plus tricks hiding forbidden file names with chr bytes fromhex base64 b64decode bytearray
 - Do not try to open or list tests folder. Do not reference test_outputs heldout reference_volume _gen GEOM_TRUTH geometric_truth in solver.
 - Your solver must work on any random temp file path.
 

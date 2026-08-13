@@ -35,24 +35,19 @@ Noise sigma 0.04-0.12 V.
 Spikes: 2-8 isolated samples add +1.2 to +2.5 V or -1.2 to -2.5 V (keybed clicks), must be rejected – analogous to ship wakes in tide task but time-domain audio clicks.
 
 Why naive fails:
-- RMS*sqrt2 or max/2 absorbs third/fifth/octave/harm2 and drift → over 30-60%. Clicks make it double.
-- Single frequency fit without separating chord tones still 8-18% over on arrangement-heavy configs.
-- Gain ignored → 15-35% error.
+- RMS*sqrt2 or peak/2 absorbs major-third, perfect-fifth, octave, second overtone and drift and clicks → over 30-85%. In spike_heavy and arrangement_heavy configs naive error exceeds our budget by large margins.
+- Single frequency fit without separating the other arrangement tones still 8-18% over.
+- Ignoring sensor gain gives 15-35% systematic error because observed = physical * gain.
+- The grading signal requires separation of the 5 arrangement tones from each other, handling of far isolated clicks, and correction for instrumental gain and drift. Skipping any still fails >3%.
 
-What works (same robust core as tide task but music arrangement):
-- Median and MAD for noise sigma, flag spikes >5.5 sigma from median.
-- Linear detrend on inliers via least squares to remove DC+drift.
-- Multi-frequency LS: build A with columns [cos(2pi f_k t), sin(2pi f_k t)] for each arrangement frequency (k = tonic, third, fifth, octave, harm2). Solve normal equations AtA x = Atb via Gaussian elimination from scratch. Tonic amplitude = hypot(C_tonic, S_tonic)/gain.
-- Second pass spike rejection after detrending at 5 sigma.
+We grade at 3% relative error. Simple methods are far outside that window.
 
-We grade 3% relative.
-
-Coding rules – your solve.py scanned:
+Coding rules – your solve.py is scanned:
 - Parse bytes yourself. Only allowed imports: struct sys math random tempfile re
-- Forbidden: numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath etc plus subprocess importlib runpy ctypes
-- Forbidden calls: eval exec compile __import__ chr ord breakpoint bytes bytearray
-- Forbidden runtime: subprocess os.system os.popen os.exec os.fork os.walk os.listdir os.scandir os.open pty any dir listing, hiding paths via chr bytes fromhex base64 b64decode bytearray tricks
-- Do not open or list tests folder. Do not reference test_outputs heldout reference_volume _gen GEOM_TRUTH geometric_truth in solver.
-- Must work on any random temp file path.
+- Forbidden: numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath and any other array/imaging/graph lib, plus subprocess importlib runpy ctypes
+- Forbidden calls: eval exec compile __import__ chr
+- Forbidden runtime: subprocess os.system os.popen os.exec os.fork os.walk os.listdir os.scandir os.open pty any dir listing, plus tricks hiding forbidden file names with chr bytes fromhex base64 b64decode bytearray
+- Do not try to open or list tests folder. Do not reference test_outputs heldout reference_volume _gen GEOM_TRUTH geometric_truth in solver.
+- Your solver must work on any random temp file path.
 
 Print tonic physical amplitude as last token, e.g. 1.234 or 1.23e-0
