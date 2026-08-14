@@ -1,10 +1,10 @@
-I work on the PCB factory line inspecting copper traces. After etching, some traces have undercut that creates a small gap under solder mask. This gap hurts reliability. We use X ray to see it but the X ray blur spreads the gap signal everywhere, so the gap looks larger and fuzzier than its true size.
+I work on factory line inspecting gaps. After process, some gaps create small void that hurts reliability. We use X ray to see it but the X ray blur spreads the gap signal everywhere, so the gap looks larger and fuzzier than its true size.
 
 I need you to build a small tool for me. Please create a file at /app/solve.py. It will be invoked as python at /app/solve.py plus a scan path and the last word it prints will be taken as the gap volume.
 
 You are provided one example scan for local testing at /app/data/scene.pcb. You may read this file while developing, but hidden grading uses different scans you have never seen, with different dimensions, spacings, brightness, copper thickness, and voxel pitch, passed as random temporary files. Do not hardcode numbers or paths from the example. Your solver must work on any file path given as the first argument. Hardcoding the sample volume will fail the hidden volume checks.
 
-Format pcb is a custom binary for X ray undercut gap volumes. Everything is little endian:
+Format pcb is a custom binary for X ray gap volumes. Everything is little endian:
 
 * Offset 0: magic PCBG four ASCII bytes.
 * Offset 4: version uint32.
@@ -14,13 +14,13 @@ Format pcb is a custom binary for X ray undercut gap volumes. Everything is litt
 * Offset 36: uint32 data offset where voxel values start.
 * After data offset: nx times ny times nz values in the announced dtype, x fastest, so linear index for x y z is x plus nx times (y plus ny times z).
 
-Each volume contains copper trace with undercut gaps that are elongated along trace direction and are the only gaps that count, plus some round solder voids that are artefacts and must be ignored. You can tell them apart by shape, elongated versus round. The centre of each gap is flat and bright where X ray sees open gap, the border is dimmer with partial fill smeared by X ray blur. There is a flat ambient background plus sensor noise. Some scans also have one or two tiny bright specks far away from dust artefacts that must be ignored. Keep only the main elongated undercut gaps using 26 neighbour connectivity plus shape filtering.
+Each volume contains gaps that are elongated along trace direction and are the only gaps that count, plus some round voids that are artefacts and must be ignored. You can tell them apart by shape, elongated versus round. The centre of each gap is flat and bright where X ray sees open gap, the border is dimmer with partial fill smeared by X ray blur. There is a flat ambient background plus sensor noise. Some scans also have one or two tiny bright specks far away from dust artefacts that must be ignored. Keep only the main elongated gaps using 26 neighbour connectivity plus shape filtering.
 
-Threshold counting cannot be precise. A low cutoff includes a huge halo and overcounts by eighty to one hundred thirty percent. A high cutoff misses thin undercut that never gets bright enough and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change. The blurry images give the best clue where signal is most concentrated, not how many bright voxels there are. The true core is flat but hidden by blur noise.
+Threshold counting cannot be precise. A low cutoff includes a huge halo and overcounts by eighty to one hundred thirty percent. A high cutoff misses thin gaps that never gets bright enough and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change. The blurry images give the best clue where signal is most concentrated, not how many bright voxels there are. The true core is flat but hidden by blur noise.
 
 The blur spreads energy but does not create or destroy signal. That physics makes precise volume recovery possible despite smear, but using it requires separating the main gap from far specks, estimating background without bias from the gap itself, estimating the true concentrated intensity without being fooled by noise, and deciding how far the faint halo extends without merging specks. That is the hard part.
 
-The optics apply normalized blur that preserves total power; image just spread out. Background pedestal and random noise vary per shot. Buggy code estimates background as mean of whole frame biased upward by gap, uses fixed threshold, picks largest region by pixel count, and uses count times max. That misses faint tail and halo and keeps solder voids. The blurry images give the best clue where signal is most concentrated, not how many bright voxels there are.
+The optics apply normalized blur that preserves total power; image just spread out. Background pedestal and random noise vary per shot. Buggy code estimates background as mean of whole frame biased upward by gap, uses fixed threshold, picks largest region by pixel count, and uses count times max. That misses faint tail and halo and keeps voids.
 
 An offshore platform flares excess hydrocarbon and monitors it with fixed IR radiometer for emissions accounting. A data center monitors 48V copper busbars with magneto-optical imager. A factory inspects electroless nickel-phosphorus pits and sintered silver die attach voids with X ray and WLI. All share same underlying physics: Gaussian blur conserves integral, so total energy preserved but spread into halo that looks larger and fuzzier. Simple threshold counting fails: low cutoff includes huge halo and overcounts by eighty to one hundred thirty percent, high cutoff misses thin gaps and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change.
 
