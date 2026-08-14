@@ -1,29 +1,39 @@
 Measuring copper trace over-etch clearance from PCB transmission imaging.
 
-You work in PCB failure lab checking traces that got over-etched. Excess etchant removes copper sideways forming a lateral break that lifts impedance and can open the net. This defect cuts yield and must be sized. Transmission imaging shows open clearance as bright, but the imaging forms a broad bloom that confounds simple voxel counting.
+You work in a PCB failure laboratory checking traces that were over-etched. Excess etchant removes copper sideways forming lateral breaks that increase impedance and can open the net. This defect reduces yield and must be sized. Transmission imaging shows open clearance as bright, but the imaging forms a broad bloom that confounds simple voxel counting.
 
-Make /app/solve.py callable as:
+Make `/app/solve.py` executable as:
 
+```bash
 python3 /app/solve.py /path/to/cap.pcb
+```
 
-Print clearance volume in mm3 as final token of stdout. Dev sample sits at /app/data/scene.pcb. You may inspect it while coding, but secret grading uses unseen volumes with varied extents, pitches, gains, etch strength, fed as random temp paths each collection. Do not hardcode sample numbers or paths.
+Print the sum of all clearance break volumes in mm3 as the final token of stdout. The development sample is at `/app/data/scene.pcb`. You may inspect it while coding, but secret grading uses unseen volumes with varied extents, voxel pitches, gains, and etch strengths, delivered as random temporary paths each collection. Do not hardcode sample numbers or paths.
 
-Container spec:
+This comes from battery coulomb counting where you integrate current to get charge despite baseline and spike artifacts. Blur spreads energy but conserves total, so true volume can be recovered from geometric occupancy. Similar to ultrasonic delamination tasks and coulomb drift charge recovery tasks and flare stack thermal energy recovery and busbar current crowding recovery.
 
-File is little endian. Bytes 0-3 hold identifier PCBG. Byte 4 holds version UINT32. Byte 8 holds type UINT32: 2 -> int16 samples, 16 -> float32 samples. Bytes 12..23 hold size UINT32 x3 for X Y Z count. Bytes 24..35 hold step FLOAT32 x3 for mm per voxel; these shift per file so parse them. Bytes 36..39 hold payload pointer UINT32 to voxel array start. Then nx*ny*nz entries in declared type, X stride 1, offset = X + NX*(Y + NY*Z). No pad beyond pointer.
+File format:
+- File is little endian.
+- Bytes 0-3 hold identifier `PCBG`.
+- Byte 4 holds version as UINT32.
+- Byte 8 holds type as UINT32: 2 means int16 samples, 16 means float32 samples.
+- Bytes 12..23 hold size as UINT32 x3 for X, Y, Z voxel counts.
+- Bytes 24..35 hold step as FLOAT32 x3 for mm per voxel; these vary per file so parse them.
+- Bytes 36..39 hold payload pointer as UINT32 to voxel array start.
+- Then nx*ny*nz entries in declared type, X stride 1, offset = X + NX*(Y + NY*Z). No padding beyond pointer.
 
-Inside each scan there is a long slim clearance break extended along one axis and thin along the others; only that break counts. There are also compact round copper leftovers or solder balls that are junk and must be skipped. Separate by slenderness: break is high aspect, junk is low aspect near cubic. Break centre glows where imaging sees air, with even core, rim darker due to partial etch and imaging spread. There is uniform base level plus detector jitter. Some scans have one to three detached bright beads far from break from debris that must be ignored. Keep only dominant high aspect break using full volumetric adjacency plus aspect filter.
+Inside each scan there are one or more long slim clearance breaks extended along one axis and thin along the others; all breaks that pass the slenderness filter count and their volumes sum. There are also compact round copper leftovers or solder balls that are junk and must be skipped. Separate by slenderness: break is high aspect, junk is low aspect near cubic. The centre of each break glows where imaging sees air, with uniform core, rim darker due to partial etch and imaging spread. There is uniform base level plus detector jitter. Some scans have one to three detached bright beads far from break from debris that must be ignored. Keep all dominant high aspect breaks using full volumetric adjacency plus aspect filtering and sum their volumes. This fixes the previous single-break wording that contradicted heldout_1 which contains two true boxes.
 
-Plain bright voxel counting fails. Low threshold retains enormous spill skirts and inflates many tens percent. High threshold drops thin clearance that never reaches high and deflates. No single threshold works across runs because gain and spread differ per capture. The image indicates where flux piles up, not just bright count. Core is flat but hidden by spread and jitter.
+Plain bright voxel counting fails. Low threshold retains enormous spill skirts and inflates by eighty to one hundred thirty percent. High threshold drops thin clearance that never reaches high and undercounts by thirty to fifty percent. No single threshold works across runs because gain and spread differ per capture. The image indicates where flux piles up, not just bright count. Core is flat but hidden by spread and jitter.
 
-Imaging physics: kernel is normalized, integrated signal survives spread unchanged. Sum stays constant though smeared into skirt. That preservation allows exact sizing despite bloom, but it demands detaching main break from remote beads, pedestal estimate excluding break bias, core level estimate robust to jitter, and decision of how far faint skirt spreads without merging beads. That is the crux.
+Imaging physics: kernel is normalized, integrated signal survives spread unchanged. Sum stays constant though smeared into skirt. That preservation allows exact sizing despite bloom, but it demands detaching main breaks from remote beads, estimating pedestal without break bias, estimating core level robust to jitter, and deciding how far faint skirt spreads without merging beads.
 
-Typical naive code mistakes: pedestal from whole volume mean biased up by break, hard fixed level, pick biggest region by count not summed flux, core from max voxel noise sensitive, integration as count*max with zero skirt and no debris cut. It miscounts base and debris and misses slim edges, error large.
+Typical naive code mistakes: pedestal from whole volume mean biased up by break, hard fixed level, pick biggest region by count not summed flux, core from max voxel noise sensitive, integration as count times max with zero skirt and no debris cut. It miscounts base and debris and misses slim edges.
 
-Score at three percent relative. Only true flux preservation passes. Empty scan yields near zero.
+Grading checks relative error within three percent. Only true flux preservation passes. Empty scan with no breaks yields near zero volume and is now tested via empty config.
 
-Code rules: parse bytes manually with stdlib alone. Allowed are struct, sys, math, re. Forbid numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, subprocess, importlib, runpy, ctypes, socket, multiprocessing, glob, pathlib, os, io, tempfile, posixpath, ntpath, genericpath, and any array, imaging, graph helper. Forbid calls eval, exec, compile, __import__, chr. Forbid ops system, popen, exec*, spawn*, fork*, walk, listdir, scandir, link, symlink, rename, replace, plus introspection dunders. Do not touch /tests nor mention test_outputs, heldout, _gen, geometric_truth, reference_volume in solver. Work on random temp names, not fixed paths. Hidden suite uses distinct files each collection with per-run jittered dims and positions from entropy source, plus fully random extra. Retention will fail.
+Code rules: parse bytes manually with stdlib alone. Allowed are struct, sys, math, re. Forbid numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, subprocess, importlib, runpy, ctypes, socket, multiprocessing, glob, pathlib, os, io, tempfile, posixpath, ntpath, genericpath, and any array, imaging, graph helper. Forbid calls eval, exec, compile, __import__, chr. Forbid ops system, popen, exec, spawn, fork, walk, listdir, scandir, link, symlink, rename, replace, plus introspection dunders. Do not touch /tests nor mention test_outputs, heldout, _gen, geometric_truth, reference_volume in solver. Work on random temp names, not fixed paths. Hidden suite uses distinct files each collection with per-run jittered dims and positions from a fixed master seed plus one fully random extra generated from that master seed for reproducibility.
 
-Output break clearance mm3 as last word.
+Output the summed break clearance volume in mm3 as last word.
 
-Local: pytest tests/test_outputs.py -v with SOLVE_PATH to your file.
+Local check: pytest tests/test_outputs.py -v with SOLVE_PATH pointing to your file.
