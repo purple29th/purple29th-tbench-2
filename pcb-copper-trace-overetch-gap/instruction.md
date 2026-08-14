@@ -1,20 +1,26 @@
-Fix charge estimator in src/charge.py
+Build copper etch clearance measurer.
 
-Inspiration
-This comes from battery coulomb counting where you integrate current to get charge despite baseline and spike artifacts. Blur spreads energy but conserves total, so true charge can be recovered from geometric occupancy. Similar to ultrasonic delam tasks.
+Context: in PCB etch line, after resist develop, alkaline etchant attacks sidewall, leaving triangular foot clearance called overetch. We capture volume with lab microCT. Reconstruction point spread smears clearance, plus detector adds offset and noise. Simple counting fails across recipes.
 
-Context
-File to fix is src/charge.py function calculate_charge(samples, dt). Samples is list of current in mA length about 180 to 240, dt is seconds 0.5 0.8 1.0 or 2.0. Should return charge in mAh.
+Goal: write /app/solve.py that takes a volume path and prints total clearance in cubic millimetres. Example at /app/data/scene.ovg for local run; hidden eval uses unseen volumes with random tmp paths, varied extents, pitches, gain, blur. Do not hardcode example numbers or paths.
 
-Trace generation is hidden in tests but roughly one main pulse. Flat core 45 to 60 samples occupancy 1.0, left feather 6 to 12 samples occupancy 0.3 times one minus normalized distance, right tail 16 to 22 samples occupancy 0.4 times one minus normalized distance. Amplitude amp few hundred mA. Baseline is constant offset bg plus Gaussian noise. Gaussian blur sigma a few points is applied to clean trace including spikes to simulate spreading, but it conserves sum.
+Binary OVEG layout little-endian:
+- bytes 0-3: ASCII OVEG
+- 4-7: u32 version
+- 8-11: u32 sample type 2=int16 16=float32
+- 12-23: three u32 extents nx ny nz
+- 24-35: three f32 pitches sx sy sz mm per voxel, per-file varying, must be parsed
+- 36-39: u32 payload start
+- after: nx*ny*nz samples in type order, x moves fastest: idx = x + nx*(y+ny*z)
 
-Spikes are 1 to 3 narrow transients width a few samples amplitude about 0.9 times amp with triangular falloff. Spikes may appear far from pulse as isolated speck and must be ignored, or may overlap feather tail or even core and still must be excluded otherwise charge overcounts by a few percent. True charge is defined only from geometric occupancy sum true occ times amp times dt over 3600 and excludes spikes entirely. Tests compute truth at runtime from fixed random seeds, so no fixtures to read.
+Scene content: copper trace foot includes wedge clearance that is triangular in cross-section and long along X, versus round flux bubbles that are artefacts to discard via elongation vs compactness test. Clearance interior brightest, edge fades due to partial volume and smear. Base offset flat plus noise. Occasional isolated bright grains far from main wedge are dust to ignore. Keep main wedge via clustering plus geometry test.
 
-Bug
-Current implementation estimates background as mean which is biased, uses fixed threshold 50, picks largest component by count not mass, uses max as plateau which is noise sensitive, and integrates as count times plateau times dt over 3600 with no tail inclusion and no spike suppression. It overcounts background and spikes and undercounts tails.
+Why naive fails: low cut keeps big glow and inflates 60-100pct, high cut drops thin foot and deflates 25-45pct, no single cut works because gain and spread vary. Brightest voxels indicate where mass concentrated, not how many to count. Flat interior obscured by noise and blur.
 
-Expected
-Fix the estimator to be robust without hardcoding positions gains or seeds. It should handle baseline that is not biased by pulse, handle noise, include thin feather and tail as part of true charge, exclude narrow spikes even when they overlap the pulse, and recover charge using conservation. Empty or all zero input should return near zero. Grading checks relative error within three percent. Tests include random seeds plus heavy spike case plus global fails where a spike sits in the tail plus threshold fails. Two guard tests ensure naive global mass and simple count threshold both fail. All tests must pass.
+Physics: point spread preserves total integrated attenuation; smear moves signal but sum conserved. So true clearance can be recovered from pedestal-corrected sum divided by interior level, provided main wedge separated from far grains, pedestal estimated without bias from wedge, interior level estimated robust to noise, and halo extent decided without merging bubbles.
 
-Verification
-Run pytest tests/test_outputs.py dash v from repo root with PYTHONPATH set to include src.
+Accuracy need 3pct relative; shortcut methods off by large margin.
+
+Coding rules: only stdlib, no external libs. Allowed imports struct sys math re. Forbidden numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io tempfile posixpath ntpath genericpath plus imaging graph array helpers. Forbidden calls eval exec compile __import__ chr. Forbidden runtime tricks subprocess os.system popen exec walk listdir scandir open symlink link rename replace pty importlib runpy ctypes filesystem listing chr bytes base64 obfuscation building forbidden paths. Do not open or list /tests, do not mention test_outputs heldout reference_volume _gen GEOM truth. Work on arbitrary tmp file path.
+
+Output last word is volume mm3.

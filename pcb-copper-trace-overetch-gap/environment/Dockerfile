@@ -8,3 +8,4 @@ RUN pip install --no-cache-dir --retries 3 \
       pytest-json-ctrf==0.3.5
 RUN mkdir -p /app/data
 COPY data/scene.pcb /app/data/scene.pcb
+COPY data/scene.ovg /app/data/scene.ovg

@@ -85,7 +85,7 @@ BANNED_SUBSTRINGS_SRC = [
     "reference_volume",
 ]
 
-MAGIC = b"PCBG"
+MAGIC = b"OVEG"
 
 
 def _gauss_kernel1d(sigma, radius):
@@ -603,7 +603,7 @@ def test_from_scratch():
 
 def run_agent_secure(tiv_bytes, expected_mm3, name="case"):
     with tempfile.TemporaryDirectory() as td:
-        tiv_path = os.path.join(td, f"input_{os.urandom(4).hex()}.pcb")
+        tiv_path = os.path.join(td, f"input_{os.urandom(4).hex()}.ovg")
         with open(tiv_path, "wb") as f:
             f.write(tiv_bytes)
         try:
