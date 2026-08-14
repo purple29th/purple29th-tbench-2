@@ -1,31 +1,19 @@
-I work on factory line inspecting gaps. After process, some gaps create small void that hurts reliability. We use X ray to see it but the X ray blur spreads the gap signal everywhere, so the gap looks larger and fuzzier than its true size.
+Ni-P pit area from WLI – automotive connector
 
-I need you to build a small tool for me. Please create a file at /app/solve.py. It will be invoked as python at /app/solve.py plus a scan path and the last word it prints will be taken as the gap volume.
+Situation: copper connector pins get electroless nickel-phosphorus, ~12 µm. During plating hydrogen bubbles stick, leaving a micro pit to Cu. Salt spray shows red rust, part fails.
 
-You are provided one example scan for local testing at /app/data/scene.pcb. You may read this file while developing, but hidden grading uses different scans you have never seen, with different dimensions, spacings, brightness, copper thickness, and voxel pitch, passed as random temporary files. Do not hardcode numbers or paths from the example. Your solver must work on any file path given as the first argument. Hardcoding the sample volume will fail the hidden volume checks.
+Metrology: white-light interferometer (Bruker). Airy disk and stage vibration smear deep pit into broad shallow cloud; true shape is compact but image is wide faint dish. Need true area mm2, not cloud extent.
 
-Format pcb is a custom binary for X ray gap volumes. Everything is little endian:
+Run: /app/solve.py <file>.enpp prints area as last token. Example at /app/data/scene.enpp for dev; hidden eval uses different files each run with per-run jittered dims, spacing, gain, blur, tilt, noise and positions from random seed, plus one fully random extra scene. No memorization.
 
-* Offset 0: magic PCBG four ASCII bytes.
-* Offset 4: version uint32.
-* Offset 8: dtype code uint32. 2 means int16 voxels, 16 means float32 voxels.
-* Offset 12: three uint32 values for voxel counts per axis, nx, ny, nz.
-* Offset 24: three float32 values for millimetres per voxel per axis, sx, sy, sz. These change per file and must be read from the header.
-* Offset 36: uint32 data offset where voxel values start.
-* After data offset: nx times ny times nz values in the announced dtype, x fastest, so linear index for x y z is x plus nx times (y plus ny times z).
+File ENPP: little-endian binary, header: magic ENPP 4B, version, dtype (2=int16,16=float32), dimensions nx ny, spacing sx sy mm per pixel anisotropic, offset, then nx*ny values x fastest (x+nx*y). Bright = pit.
 
-Each volume contains gaps that are elongated along trace direction and are the only gaps that count, plus some round voids that are artefacts and must be ignored. You can tell them apart by shape, elongated versus round. The centre of each gap is flat and bright where X ray sees open gap, the border is dimmer with partial fill smeared by X ray blur. There is a flat ambient background plus sensor noise. Some scans also have one or two tiny bright specks far away from dust artefacts that must be ignored. Keep only the main elongated gaps using 26 neighbour connectivity plus shape filtering.
+One main pit scored per file: roughly round with two faint side lips where bubble pinned – lips count. Distractors: 1-2 distant dust specks (bright compact) and a distant shallow scratch (many pixels dim) – ignore, main dominates integrated brightness; counting pixels fails on scratch.
 
-Threshold counting cannot be precise. A low cutoff includes a huge halo and overcounts by eighty to one hundred thirty percent. A high cutoff misses thin gaps that never gets bright enough and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change. The blurry images give the best clue where signal is most concentrated, not how many bright voxels there are. The true core is flat but hidden by blur noise.
+Naive threshold fails: low keeps halo ~2x area, high loses lips ~0.5x. Gain/blur/tilt/noise shift, so no fixed level works.
 
-The blur spreads energy but does not create or destroy signal. That physics makes precise volume recovery possible despite smear, but using it requires separating the main gap from far specks, estimating background without bias from the gap itself, estimating the true concentrated intensity without being fooled by noise, and deciding how far the faint halo extends without merging specks. That is the hard part.
+Accuracy 3% relative.
 
-The optics apply normalized blur that preserves total power; image just spread out. Background pedestal and random noise vary per shot. Buggy code estimates background as mean of whole frame biased upward by gap, uses fixed threshold, picks largest region by pixel count, and uses count times max. That misses faint tail and halo and keeps voids.
+Allowed imports: struct, sys, math, random, re only. No tempfile (removed – it exposed os via _os). No numpy, scipy, imaging, graph, os, io, pathlib, socket, multiprocessing, glob, etc. No eval/exec/compile/chr/fromhex/b64decode. No os link/rename/symlink. Source must not contain substrings /tests, test_outputs, heldout, GEOM_TRUTH, geometric_truth, reference_volume anywhere. Attribute accesses like os.walk, os.system, os.listdir, os.scandir, os.rglob, os.popen, os.exec*, os.spawn*, os.fork are blocked. Plain helper named walk() is allowed.
 
-An offshore platform flares excess hydrocarbon and monitors it with fixed IR radiometer for emissions accounting. A data center monitors 48V copper busbars with magneto-optical imager. A factory inspects electroless nickel-phosphorus pits and sintered silver die attach voids with X ray and WLI. All share same underlying physics: Gaussian blur conserves integral, so total energy preserved but spread into halo that looks larger and fuzzier. Simple threshold counting fails: low cutoff includes huge halo and overcounts by eighty to one hundred thirty percent, high cutoff misses thin gaps and undercounts by thirty to fifty percent. No fixed cutoff works across files because brightness and blur width change.
-
-Simple shortcuts are off by a large margin. Grading is at three percent tolerance, only a genuine precise method passes.
-
-Implementation constraints: parse bytes yourself using only the standard library. Allowed stdlib modules include struct, sys, math, random, tempfile, re. The following are banned and will be rejected by test from scratch: numpy, scipy, skimage, cv2, PIL, Pillow, networkx, igraph, imageio, pandas, torch, tensorflow, socket, multiprocessing, glob, pathlib, os, io, posixpath, ntpath, genericpath, plus any array, imaging, or graph helper library. Banned calls include eval, exec, compile, __import__, chr. Banned runtime tricks include subprocess, os system, os popen, os exec, os fork, os walk, os listdir, os scandir, os open, pty, importlib, runpy, ctypes, filesystem listing, and any obfuscation that hides paths using chr, bytes fromhex, base64, b64decode, bytearray, bytes tricks, or string concatenation that builds forbidden paths. Do not attempt to open or list the /tests directory, and do not reference test outputs, heldout, reference volume, _gen, GEOM TRUTH, or geometric truth in your solver source. Your solver must work on random temporary files, not hardcoded paths.
-
-Print the volume in mm3 as the last word on stdout.
+Output mm2 e.g. 12.345.
