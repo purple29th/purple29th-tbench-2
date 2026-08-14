@@ -1,34 +1,20 @@
-Implement a function that computes the 3D gravitational potential and its gradient at M target points due to N source masses.
+Fix charge estimator in src/charge.py
 
-The potential at target point `x` due to sources at positions `y_i` with masses `m_i` is:
+Inspiration
+This comes from battery coulomb counting where you integrate current to get charge despite baseline and spike artifacts. Blur spreads energy but conserves total, so true charge can be recovered from geometric occupancy. Similar to ultrasonic delam tasks.
 
-    Φ(x) = Σ_{i=1}^{N} m_i / |x - y_i|
+Context
+File to fix is src/charge.py function calculate_charge(samples, dt). Samples is list of current in mA length about 180 to 240, dt is seconds 0.5 0.8 1.0 or 2.0. Should return charge in mAh.
 
-and the gradient is:
+Trace generation is hidden in tests but roughly one main pulse. Flat core 45 to 60 samples occupancy 1.0, left feather 6 to 12 samples occupancy 0.3 times one minus normalized distance, right tail 16 to 22 samples occupancy 0.4 times one minus normalized distance. Amplitude amp few hundred mA. Baseline is constant offset bg plus Gaussian noise. Gaussian blur sigma a few points is applied to clean trace including spikes to simulate spreading, but it conserves sum.
 
-    ∇Φ(x) = -Σ_{i=1}^{N} m_i * (x - y_i) / |x - y_i|³
+Spikes are 1 to 3 narrow transients width a few samples amplitude about 0.9 times amp with triangular falloff. Spikes may appear far from pulse as isolated speck and must be ignored, or may overlap feather tail or even core and still must be excluded otherwise charge overcounts by a few percent. True charge is defined only from geometric occupancy sum true occ times amp times dt over 3600 and excludes spikes entirely. Tests compute truth at runtime from fixed random seeds, so no fixtures to read.
 
-where `|·|` denotes the Euclidean norm in ℝ³.
+Bug
+Current implementation estimates background as mean which is biased, uses fixed threshold 50, picks largest component by count not mass, uses max as plateau which is noise sensitive, and integrates as count times plateau times dt over 3600 with no tail inclusion and no spike suppression. It overcounts background and spikes and undercounts tails.
 
-## Interface
+Expected
+Fix the estimator to be robust without hardcoding positions gains or seeds. It should handle baseline that is not biased by pulse, handle noise, include thin feather and tail as part of true charge, exclude narrow spikes even when they overlap the pulse, and recover charge using conservation. Empty or all zero input should return near zero. Grading checks relative error within three percent. Tests include random seeds plus heavy spike case plus global fails where a spike sits in the tail plus threshold fails. Two guard tests ensure naive global mass and simple count threshold both fail. All tests must pass.
 
-The function should be called `compute_potential` in `compute_potential.py` with the following signature:
-
-```python
-def compute_potential(
-    sources: np.ndarray,   # (N, 3) array of source positions
-    masses: np.ndarray,    # (N,) array of source masses (positive or negative reals)
-    targets: np.ndarray,   # (M, 3) array of target positions
-) -> tuple[np.ndarray, np.ndarray]:
-    # Returns:
-    #   potential: (M,) array of potential values at targets
-    #   gradient: (M, 3) array of gradient vectors at targets
-```
-
-## Requirements
-
-- **Correctness**: The potential must match the naive O(NM) direct summation to a relative error of at most `1e-4` for each target point (or absolute error `1e-10` when the true value is near zero). The gradient must match to a relative error of at most `1e-2` (or absolute error `1e-8` when the true value is near zero).
-- **Performance**: The algorithm must scale as O(N log N) or better — NOT O(N²). This is verified by checking that the normalized runtime t(N)/(N·log(N)) is approximately constant across problem sizes, and that the ratio t(N_max)/t(N_min) over a wide range is consistent with O(N log N).
-- **Dependencies**: Only `numpy` and `scipy` (and their sub-modules) are allowed. No other external packages.
-- **No precomputation**: The function should be self-contained. Each call is independent — no caching or global state between calls.
-- **No targets coinciding with sources**: You may assume that no target point is exactly equal to any source point.
+Verification
+Run pytest tests/test_outputs.py dash v from repo root with PYTHONPATH set to include src.
