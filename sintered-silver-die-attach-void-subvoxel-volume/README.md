@@ -53,7 +53,7 @@ Threshold strategies: low threshold 80 to 130 percent over, half-max Otsu 18 to 
 * v0.1: initial, oracle 3/3 PASS, structural 10 PASS
 * v0.2: fixed instruction formatting to plain ASCII no backticks no em dashes, removed grey code highlighting
 * v0.3: fixed README to 4 sections with completion rates and anti-cheating, made spacing fully anisotropic sx != sy != sz in all configs to enforce sx*sy*sz multiplication.
-* v0.4: updated completion rates to current wave eaa07eb1 - opus-4-8 5/5, gpt-5.5 5/5, avocado 3/5 (86.7% non-oracle), clarified frontier now aces and discrimination rests on avocado; removed sibling task references per policy.
+* v0.4: updated completion rates to current wave eaa07eb1 - opus-4-8 5/5, gpt-5.5 5/5, avocado 3/5 (86.7% non-oracle), clarified frontier now aces and discrimination rests on avocado; README made fully standalone.
 * v0.5: review fixes - promoted radius-12 speck config to ALL_TEST_CONFIGS as pixel_count_trap with faint 0.2 scale so mass-based passes and count-based fails 130 percent, made halo real by widening sig_xy to 3.0-3.2 and lowering amp to 700-900 with noise 15 giving 1 shell 2-3 percent, added plateau_trap with conserved hot spike plus 400 giving raw max 33 percent over filtered and volume error 26 percent vs 1.8 percent, added halo_heavy, narrowed BANNED_ATTRS removing walk listdir scandir rglob to avoid false positive on Grid.walk(), removed /tests from string literal ban, moved calibration tests to author_side_checks.py, refreshed README to 11 checks and corrected halo and raw-max numbers.
 
 Author: Tosin Daniel Jimoh <purple29th@meta.com>
