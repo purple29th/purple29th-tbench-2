@@ -1,3 +1,0 @@
-container=main fragments=[B]
-fragment=B parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} binding={} children=[]
-backstack=[anon, first]
