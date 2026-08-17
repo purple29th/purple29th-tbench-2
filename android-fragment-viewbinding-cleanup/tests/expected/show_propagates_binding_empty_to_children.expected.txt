@@ -1,5 +1,0 @@
-container=main fragments=[Home]
-container=tabs fragments=[Tab1]
-fragment=Home parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} binding={} children=[Tab1]
-fragment=Tab1 parent=Home hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} binding={} children=[]
-backstack=[]
