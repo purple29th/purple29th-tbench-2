@@ -118,16 +118,16 @@ class FragmentManager {
     }
     fun snapshot(): String {
         val builder = StringBuilder()
-        for ((id, container) in containers.toSortedMap()) {
-            val frags = container.snapshot().map { it.name }.sorted()
-            if (frags.isEmpty() && !allContainersEverUsed.contains(id)) continue
+        for (id in allContainersEverUsed.toSortedSet()) {
+            val container = containers[id]
+            val frags = container?.snapshot()?.map { it.name }?.sorted() ?: emptyList()
             builder.append("container=").append(id).append(" fragments=[").append(frags.joinToString(", ")).append("]\n")
         }
         for ((name, state) in fragmentStates.toSortedMap()) {
             val parent = state.parent ?: "NONE"
-            val vm = state.viewModel.toSortedMap().entries.joinToString(", ") { "${'$'}{it.key}=${'$'}{it.value}" }
-            val ss = state.savedState.toSortedMap().entries.joinToString(", ") { "${'$'}{it.key}=${'$'}{it.value}" }
-            val bd = state.binding.toSortedMap().entries.joinToString(", ") { "${'$'}{it.key}=${'$'}{it.value}" }
+            val vm = state.viewModel.toSortedMap().entries.joinToString(", ") { "${it.key}=${it.value}" }
+            val ss = state.savedState.toSortedMap().entries.joinToString(", ") { "${it.key}=${it.value}" }
+            val bd = state.binding.toSortedMap().entries.joinToString(", ") { "${it.key}=${it.value}" }
             val childs = state.children.sorted().joinToString(", ")
             builder.append("fragment=").append(name)
                 .append(" parent=").append(parent)
