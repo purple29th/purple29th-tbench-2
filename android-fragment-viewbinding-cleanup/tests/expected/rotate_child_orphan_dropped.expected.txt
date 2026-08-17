@@ -1,4 +1,0 @@
-container=main fragments=[Other]
-container=tabs fragments=[]
-fragment=Other parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} binding={} children=[]
-backstack=[bs]
