@@ -93,7 +93,7 @@ fun main() {
         if (status.startsWith("PASS")) println("PASS  $name")
         else { allPass = false; println("FAIL  $name"); println(status.lineSequence().drop(1).joinToString("\n")) }
     }
-    if (allPass) println("\nAll contract tests pass.") else println("\nContract failures above.")
+    if (allPass) println("\nAll contract tests pass.") else { println("\nContract failures above."); kotlin.system.exitProcess(1) }
 }
 
 private fun run(name: String, block: () -> Unit) {
