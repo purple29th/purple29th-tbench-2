@@ -1,0 +1,10 @@
+BEGIN t1
+ADD t1 main Home
+COMMIT t1
+VM_PUT Home a 1
+VM_PUT Home b 2
+SAVE Home x 10
+SAVE Home y 20
+BIND_PUT Home k1 v1
+BIND_PUT Home k2 v2
+QUERY
