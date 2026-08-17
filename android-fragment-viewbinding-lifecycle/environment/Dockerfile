@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         unzip \
         python3 \
         python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* || echo "apt install skipped (offline, using base image tools)"
 
 RUN curl -LsSf https://astral.sh/uv/0.5.11/install.sh | sh || echo "uv install skipped (offline)"
 ENV PATH="/root/.local/bin:/usr/local/bin:${PATH}"
