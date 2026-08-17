@@ -1,3 +1,5 @@
+Create /app/solve.py; it will be invoked as python3 /app/solve.py <input.epcm>; print the mass as the last token.
+
 I look after EUV pellicles for the scanner. The pellicle is a freestanding ten nanometer film that covers the reticle and keeps particles away. After many EUV shots with thirteen point five nanometer light, cracked pump oil and resist outgas form dark carbon veins on the film. The veins absorb EUV, the film heats and can break, so we track total carbon in micrograms to decide replacement.
 
 My setup shines X-ray and collects fluorescence that is bright where carbon sits. The trouble is the scintillator spreads charge and the lens adds its own point spread, so each vein appears as a big soft cloud that is much bigger than the true carbon. You get one example file at /app/data/scene.epcm to try locally. The hidden grading uses completely new cubes I made with different sizes, membrane pitch, vein width, brightness, background, and scatter, passed as random temp files like input_9f3a.epcm. You cannot hardcode numbers from the example.
@@ -9,7 +11,7 @@ Four bytes uint32 version.
 Four bytes uint32 dtype code. Two means int16 voxels, sixteen means float32 voxels.
 Twelve bytes are three uint32 nx ny nz counts per axis.
 Twelve bytes are three float32 sx sy sz millimeters per voxel, this changes per file so you must read it.
-Four bytes uint32 data offset where voxel array starts.
+Four bytes uint32 data offset where voxel array starts. You must use this offset field; do not assume data offset is 64 as it may include padding.
 At data offset you get nx times ny times nz samples in the dtype announced, X fastest, so linear index is x plus nx times y plus ny times z.
 
 What lives inside. Each cube has a few carbon deposits. The ones that matter for scanner dose are the long branching veins that track crazing lines on the film. Those are the only carbon that counts for the mass I want. There are also compact fallout dots that are almost round and come from airborne particles, those are benign and must be ignored. Veins are stretched, fallout is compact. In lab we keep a vein when its bounding box longest side is at least eight and more than one point six times its shortest side. Fallout is cubic. Some scans also have one to three very tiny bright dots far away that are dust on the camera window, ignore them.

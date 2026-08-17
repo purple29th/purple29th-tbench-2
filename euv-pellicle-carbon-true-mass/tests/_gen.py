@@ -101,18 +101,20 @@ def build_field(cfg):
     field=[blurred[i]+bg+(next(rng)-0.5)*2.0*ns for i in range(n)]
     return field,len(true_main)
 
-def pack(cfg, field):
+def pack(cfg, field, data_offset=64):
     nx,ny,nz=cfg["dims"]
     sx,sy,sz=cfg["spacing"]
     dtype=cfg["dtype"]
     n=nx*ny*nz
+    if data_offset < 64:
+        raise ValueError("data_offset must be >=64")
     hdr=bytearray(64)
     hdr[0:4]=MAGIC
     struct.pack_into("<I",hdr,4,1)
     struct.pack_into("<I",hdr,8,dtype)
     struct.pack_into("<III",hdr,12,nx,ny,nz)
     struct.pack_into("<fff",hdr,24,sx,sy,sz)
-    struct.pack_into("<I",hdr,36,64)
+    struct.pack_into("<I",hdr,36,data_offset)
     if dtype==2:
         vals=[max(-32768,min(32767,int(round(v)))) for v in field]
         body=struct.pack("<%dh"%n,*vals)
@@ -120,6 +122,10 @@ def pack(cfg, field):
         body=struct.pack("<%df"%n,*field)
     else:
         raise ValueError("dtype")
+    padding_len = data_offset - 64
+    if padding_len > 0:
+        padding = b"\x00" * padding_len
+        return bytes(hdr) + padding + body
     return bytes(hdr)+body
 
 def geometric_truth_ug(cfg, v_true):

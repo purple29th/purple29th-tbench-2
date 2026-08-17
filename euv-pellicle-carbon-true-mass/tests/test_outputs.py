@@ -208,18 +208,20 @@ def build_field(cfg):
     return field, len(true_dend)
 
 
-def pack_epcm(cfg, field):
+def pack_epcm(cfg, field, data_offset=64):
     nx, ny, nz = cfg["dims"]
     sx, sy, sz = cfg["spacing"]
     dtype = cfg["dtype"]
     n = nx * ny * nz
+    if data_offset < 64:
+        raise ValueError("data_offset must be >=64")
     hdr = bytearray(64)
     hdr[0:4] = MAGIC
     struct.pack_into("<I", hdr, 4, 1)
     struct.pack_into("<I", hdr, 8, dtype)
     struct.pack_into("<III", hdr, 12, nx, ny, nz)
     struct.pack_into("<fff", hdr, 24, sx, sy, sz)
-    struct.pack_into("<I", hdr, 36, 64)
+    struct.pack_into("<I", hdr, 36, data_offset)
     if dtype == 2:
         vals = [max(-32768, min(32767, int(round(v)))) for v in field]
         body = struct.pack("<%dh" % n, *vals)
@@ -227,6 +229,10 @@ def pack_epcm(cfg, field):
         body = struct.pack("<%df" % n, *field)
     else:
         raise ValueError("dtype")
+    padding_len = data_offset - 64
+    if padding_len > 0:
+        padding = b"\x00" * padding_len
+        return bytes(hdr) + padding + body
     return bytes(hdr) + body
 
 
@@ -516,6 +522,109 @@ def test_randomized_extra():
     exp_ug = geometric_truth_ug(cfg, v_true)
     got = run_agent_secure(epcm_bytes, exp_ug, name="randomized_extra")
     assert abs(got - exp_ug) <= REL_TOL * exp_ug
+
+def test_data_offset_non_standard():
+    """Ensure solver respects data_offset field instead of hardcoding 64."""
+    cfg = dict(
+        dims=(42, 38, 22),
+        spacing=(0.9, 0.9, 2.6),
+        dtype=16,
+        amp=1000,
+        bg=40,
+        sig_xy=2.2,
+        sig_z=0.8,
+        noise=6,
+        seed=202,
+        object=[
+            ("ell", 19, 18, 11, 9.0, 8.0, 4.0, True),
+            ("box", 28, 37, 16, 19, 8, 14, True),
+            ("box", 5, 10, 16, 19, 8, 14, True),
+            ("box", 18, 21, 2, 16, 8, 14, True),
+        ],
+        specks=[(38, 4, 3, 1.8), (4, 35, 18, 1.4), (37, 34, 4, 1.2)],
+    )
+    field, v_true = build_field(cfg)
+    exp_ug = geometric_truth_ug(cfg, v_true)
+    # test several offsets with zero padding
+    for offset in (96, 128, 80):
+        epcm_bytes = pack_epcm(cfg, field, data_offset=offset)
+        # sanity check offset field
+        off_read = struct.unpack_from("<I", epcm_bytes, 36)[0]
+        assert off_read == offset, f"packed offset {off_read} != {offset}"
+        got = run_agent_secure(epcm_bytes, exp_ug, name=f"offset_{offset}")
+        assert abs(got - exp_ug) <= REL_TOL * exp_ug, (
+            f"offset {offset}: got {got:.4f} vs exp {exp_ug:.4f}"
+        )
+
+
+def test_data_offset_with_nonzero_padding():
+    """Offset includes non-zero padding bytes that must not be interpreted as voxels."""
+    cfg = dict(
+        dims=(36, 36, 26),
+        spacing=(1.0, 1.0, 2.2),
+        dtype=2,
+        amp=1500,
+        bg=80,
+        sig_xy=1.8,
+        sig_z=0.6,
+        noise=7,
+        seed=303,
+        object=[
+            ("ell", 17, 18, 13, 7.5, 7.5, 5.0, True),
+            ("box", 24, 32, 16, 19, 10, 17, True),
+            ("box", 18, 21, 2, 16, 10, 17, True),
+        ],
+        specks=[(32, 4, 5, 1.5), (4, 32, 21, 1.2)],
+    )
+    field, v_true = build_field(cfg)
+    exp_ug = geometric_truth_ug(cfg, v_true)
+    # Build normal then manually insert non-zero padding
+    base = pack_epcm(cfg, field, data_offset=64)
+    offset = 128
+    # header is first 64 bytes, update its offset field to 128
+    hdr = bytearray(base[:64])
+    struct.pack_into("<I", hdr, 36, offset)
+    # non-zero padding pattern
+    padding = b"\xAB\xCD" * ((offset - 64)//2) + b"\x00" * ((offset - 64) % 2)
+    # for int16 dtype, body starts after old header; base[64:] is body
+    body = base[64:]
+    epcm_bytes = bytes(hdr) + padding + body
+    got = run_agent_secure(epcm_bytes, exp_ug, name="offset_nonzero_pad")
+    assert abs(got - exp_ug) <= REL_TOL * exp_ug, f"non-zero padding failed: got {got:.4f} vs exp {exp_ug:.4f}"
+
+
+def test_hardcoded_offset_would_fail():
+    """Demonstrate that a hardcoded-64 parser would read padding as voxels and fail."""
+    cfg = dict(
+        dims=(40, 38, 22),
+        spacing=(0.95, 0.95, 2.8),
+        dtype=16,
+        amp=1350,
+        bg=55,
+        sig_xy=2.0,
+        sig_z=0.8,
+        noise=6,
+        seed=404,
+        object=[
+            ("ell", 18, 18, 12, 8.5, 7.5, 4.0, True),
+            ("box", 27, 35, 16, 19, 10, 15, True),
+            ("box", 5, 9, 16, 19, 10, 15, True),
+        ],
+        specks=[(36, 4, 3, 1.6), (4, 34, 18, 1.3)],
+    )
+    field, v_true = build_field(cfg)
+    # pack with offset 96 and all padding bytes 0xFF -> if read at 64, voxels are garbage
+    offset = 96
+    fd, vo = build_field(cfg)
+    epcm_bytes_correct = pack_epcm(cfg, fd, data_offset=offset)
+    # simulate hardcoded parser: reads from 64
+    n = cfg["dims"][0]*cfg["dims"][1]*cfg["dims"][2]
+    vals_hardcoded = struct.unpack_from("<%df" % n, epcm_bytes_correct, 64)
+    vals_correct = struct.unpack_from("<%df" % n, epcm_bytes_correct, offset)
+    # they should differ significantly (padding causes shift)
+    diff = sum(1 for a,b in zip(vals_hardcoded, vals_correct) if abs(a-b) > 1e-3)
+    assert diff > 10, "hardcoded offset would still produce similar values, need padding test to be meaningful"
+
 
 
 def test_global_conservation_shortcut_fails_on_speck_heavy():
