@@ -230,6 +230,21 @@ def pack_ldch(cfg, field):
     return bytes(hdr) + body
 
 
+def pack_ldch_padded(cfg, field, extra=64):
+    """Pack LDCH with padding between header and voxel data to vary data offset.
+
+    Produces offset = 64 + extra so solvers must read the header offset rather
+    than hardcoding 64. Extra bytes are zero padding.
+    """
+    base = pack_ldch(cfg, field)
+    hdr = bytearray(base[:64])
+    body = base[64:]
+    new_off = 64 + extra
+    struct.pack_into("<I", hdr, 36, new_off)
+    padding = b"\x00" * extra
+    return bytes(hdr) + padding + body
+
+
 def geometric_truth_mC(cfg, v_true):
     sx, sy, sz = cfg["spacing"]
     return v_true * sx * sy * sz * RHO
@@ -562,6 +577,35 @@ def test_shape_filter_needed():
     # naive global should be off because it includes plating
     assert abs(naive_charge - truth) > REL_TOL * truth, (
         f"plating_heavy should require shape filter, naive {naive_charge:.2f} vs truth {truth:.2f}"
+    )
+
+
+def test_offset_nonstandard_padded():
+    """Verify solver reads data offset from header; hardcoding 64 must fail."""
+    cfg = BASE_CONFIGS["heldout_1"]
+    field, v_true = build_field(cfg)
+    exp_mC = geometric_truth_mC(cfg, v_true)
+    ldch_bytes = pack_ldch_padded(cfg, field, extra=64)
+    # sanity: offset really is 128
+    off = struct.unpack_from("<I", ldch_bytes, 36)[0]
+    assert off == 128, f"padded offset should be 128, got {off}"
+    got = run_agent_secure(ldch_bytes, exp_mC, name="offset_padded_heldout_1")
+    assert abs(got - exp_mC) <= REL_TOL * exp_mC, (
+        f"offset_padded: got {got:.4f} mC expected {exp_mC:.4f} ±{REL_TOL*100}%"
+    )
+
+
+def test_offset_nonstandard_int16_padded():
+    """Padded offset with int16 dtype exercises alternative dtype path."""
+    cfg = BASE_CONFIGS["heldout_2"]
+    field, v_true = build_field(cfg)
+    exp_mC = geometric_truth_mC(cfg, v_true)
+    ldch_bytes = pack_ldch_padded(cfg, field, extra=32)
+    off = struct.unpack_from("<I", ldch_bytes, 36)[0]
+    assert off == 96, f"padded offset should be 96, got {off}"
+    got = run_agent_secure(ldch_bytes, exp_mC, name="offset_padded_heldout_2")
+    assert abs(got - exp_mC) <= REL_TOL * exp_mC, (
+        f"offset_padded int16: got {got:.4f} mC expected {exp_mC:.4f} ±{REL_TOL*100}%"
     )
 
 
