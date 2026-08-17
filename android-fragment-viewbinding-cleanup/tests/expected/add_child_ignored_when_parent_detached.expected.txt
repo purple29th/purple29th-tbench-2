@@ -1,4 +1,0 @@
-container=main fragments=[]
-container=tabs fragments=[]
-fragment=Home parent=NONE hidden=false detached=true lifecycle=CREATED maxLifecycle=RESUMED viewModel={} savedState={} binding={} children=[]
-backstack=[]

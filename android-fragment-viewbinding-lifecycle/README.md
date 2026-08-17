@@ -17,7 +17,7 @@ Prod OOMs because binding references leak after view destroyed. The reference Fr
 - REMOVE: must clear descendants and be restorable via POP with vm/ss retained but binding empty.
 - ADD_CHILD ignored when parent detached: child container still marked ever-used and appears empty, but child fragment not added.
 
-Buggy baseline fails 21/26 scenarios (5 pass) → reward 0: bind_put still shows old binding, hide/detach/attach keep old binding, rotate loses vm and doesn't replay REPLACE/HIDE/SET_MAX, pop named uses first, pop missing drains, ADD_CHILD detached not handled.
+Buggy baseline fails 28/33 scenarios (5 pass) → reward 0: bind_put still shows old binding, hide/detach/attach keep old binding, rotate loses vm and doesn't replay REPLACE/HIDE/SET_MAX, pop named uses first, pop missing drains, ADD_CHILD detached not handled, plus 7 new coverage gaps (detach/attach with children, add_child under hidden/maxcapped, show conditional, two-query, map two keys).
 
 ## Approach (Oracle)
 

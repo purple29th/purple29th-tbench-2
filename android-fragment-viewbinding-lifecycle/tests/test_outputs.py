@@ -14,6 +14,7 @@ def run_app(scenario_text):
     SCENARIO_PATH.write_text(scenario_text)
     if OUTPUT_PATH.exists():
         OUTPUT_PATH.unlink()
+    subprocess.run(["rm", "-rf", "/app/build"], timeout=10)
     result = subprocess.run(
         ["bash", "/app/src/run.sh"],
         capture_output=True,
@@ -61,6 +62,14 @@ CASE_NAMES = [
     "rotate_backstacked_hide",
     "rotate_backstacked_set_max",
     "remove_pop_restore",
+    # coverage gaps from quality review
+    "detach_with_children",
+    "attach_with_children",
+    "add_child_under_hidden_parent",
+    "add_child_under_maxcapped_parent",
+    "show_child_hidden_conditional",
+    "two_query",
+    "map_two_keys",
 ]
 
 

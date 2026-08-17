@@ -1,3 +1,0 @@
-container=main fragments=[Home]
-fragment=Home parent=NONE hidden=false detached=false lifecycle=RESUMED maxLifecycle=RESUMED viewModel={} savedState={} binding={bKey=bVal} children=[]
-backstack=[]
