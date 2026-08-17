@@ -104,19 +104,23 @@ def pack(cfg, field):
     sx,sy,sz=cfg["spacing"]
     dtype=cfg["dtype"]
     n=nx*ny*nz
-    hdr=bytearray(64)
+    off=cfg.get("data_offset",64)
+    hdr=bytearray(max(64,off))
     hdr[0:4]=MAGIC
     struct.pack_into("<I",hdr,4,1)
     struct.pack_into("<I",hdr,8,dtype)
     struct.pack_into("<III",hdr,12,nx,ny,nz)
     struct.pack_into("<fff",hdr,24,sx,sy,sz)
-    struct.pack_into("<I",hdr,36,64)
+    struct.pack_into("<I",hdr,36,off)
+    hdr_bytes=bytes(hdr)
+    if len(hdr_bytes)<off:
+        hdr_bytes+=b"\x00"*(off-len(hdr_bytes))
     if dtype==2:
         vals=[max(-32768,min(32767,int(round(v)))) for v in field]
         body=struct.pack("<%dh"%n,*vals)
     else:
         body=struct.pack("<%df"%n,*field)
-    return bytes(hdr)+body
+    return hdr_bytes+body
 
 def geometric_truth_kpa(cfg, v_true):
     sx,sy,sz=cfg["spacing"]
