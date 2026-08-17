@@ -427,9 +427,9 @@ class FragmentManager {
 
     fun snapshot(): String {
         val builder = StringBuilder()
-        for ((id, container) in containers.toSortedMap()) {
-            val frags = container.snapshot().map { it.name }.sorted()
-            if (frags.isEmpty() && !allContainersEverUsed.contains(id)) continue
+        for (id in allContainersEverUsed.toSortedSet()) {
+            val container = containers[id]
+            val frags = container?.snapshot()?.map { it.name }?.sorted() ?: emptyList()
             builder.append("container=").append(id).append(" fragments=[").append(frags.joinToString(", ")).append("]\n")
         }
         for ((name, state) in fragmentStates.toSortedMap()) {
@@ -483,8 +483,9 @@ class FragmentManager {
                     childState.hidden = false
                     childState.lifecycle = Lifecycle.RESUMED
                     childState.lifecycle = minLifecycle(childState.lifecycle, childState.maxLifecycle)
+                    childState.lifecycle = minLifecycle(childState.lifecycle, parentState.maxLifecycle)
                     if (parentState.hidden) {
-                        childState.lifecycle = minLifecycle(Lifecycle.STARTED, childState.maxLifecycle)
+                        childState.lifecycle = minLifecycle(Lifecycle.STARTED, childState.lifecycle)
                     }
                     parentState.children.add(op.childFragment.name)
                     childState.lastContainer = op.childContainer
@@ -564,7 +565,6 @@ class FragmentManager {
                         val curName = queue[idx]
                         val curSt = fragmentStates[curName]
                         if (curSt != null) {
-                            curSt.lifecycle = minLifecycle(curSt.lifecycle, state.maxLifecycle)
                             curSt.binding.clear()
                             queue.addAll(curSt.children)
                         }
