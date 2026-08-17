@@ -1,0 +1,3 @@
+container=main fragments=[Home]
+fragment=Home parent=NONE hidden=true detached=false lifecycle=STARTED maxLifecycle=RESUMED viewModel={} savedState={} binding={} children=[]
+backstack=[]

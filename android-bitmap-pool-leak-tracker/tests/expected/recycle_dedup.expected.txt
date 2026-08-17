@@ -1,0 +1,10 @@
+pool maxBytes=32768 currentBytes=4096
+strong:
+  key=a w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=3
+soft:
+  key=b w=32 h=32 config=ARGB_8888 bytes=4096
+active:
+events:
+  ALLOC a
+  ALLOC b
+  DEDUP b

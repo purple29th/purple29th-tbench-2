@@ -1,0 +1,19 @@
+pool maxBytes=32768 currentBytes=6144
+strong:
+  key=a w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=2
+  key=b w=32 h=32 config=RGB_565 bytes=2048 lastAccess=3
+soft:
+active:
+events:
+  ALLOC a
+  ALLOC b
+pool maxBytes=32768 currentBytes=6144
+strong:
+  key=b w=32 h=32 config=RGB_565 bytes=2048 lastAccess=3
+  key=c w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=2
+soft:
+active:
+events:
+  ALLOC a
+  ALLOC b
+  REUSE_STRONG c

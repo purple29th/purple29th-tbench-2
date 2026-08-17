@@ -1,0 +1,141 @@
+pool maxBytes=32768 currentBytes=24500
+strong:
+  key=a w=50 h=50 config=ARGB_8888 bytes=10000 lastAccess=1
+  key=b w=45 h=45 config=ARGB_8888 bytes=8100 lastAccess=2
+  key=c w=40 h=40 config=ARGB_8888 bytes=6400 lastAccess=3
+soft:
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+pool maxBytes=32768 currentBytes=32500
+strong:
+  key=a w=50 h=50 config=ARGB_8888 bytes=10000 lastAccess=4
+  key=b w=45 h=45 config=ARGB_8888 bytes=8100 lastAccess=4
+  key=big1 w=60 h=60 config=ARGB_8888 bytes=14400 lastAccess=5
+soft:
+  key=c w=40 h=40 config=ARGB_8888 bytes=6400
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC big1
+  EVICT c reason=lru
+pool maxBytes=32768 currentBytes=32500
+strong:
+  key=b w=45 h=45 config=ARGB_8888 bytes=8100 lastAccess=4
+  key=big1 w=60 h=60 config=ARGB_8888 bytes=14400 lastAccess=5
+  key=reA w=50 h=50 config=ARGB_8888 bytes=10000 lastAccess=4
+soft:
+  key=c w=40 h=40 config=ARGB_8888 bytes=6400
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC big1
+  EVICT c reason=lru
+  REUSE_STRONG reA
+pool maxBytes=32768 currentBytes=28496
+strong:
+  key=big1 w=60 h=60 config=ARGB_8888 bytes=14400 lastAccess=5
+  key=d w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=12
+  key=reA w=50 h=50 config=ARGB_8888 bytes=10000 lastAccess=4
+soft:
+  key=b w=45 h=45 config=ARGB_8888 bytes=8100
+  key=c w=40 h=40 config=ARGB_8888 bytes=6400
+  key=e w=32 h=32 config=ARGB_8888 bytes=4096
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC big1
+  EVICT c reason=lru
+  REUSE_STRONG reA
+  ALLOC d
+  EVICT b reason=tie
+  ALLOC e
+  DEDUP e
+pool maxBytes=32768 currentBytes=29600
+strong:
+  key=big2 w=70 h=70 config=ARGB_8888 bytes=19600 lastAccess=14
+  key=reA w=50 h=50 config=ARGB_8888 bytes=10000 lastAccess=13
+soft:
+  key=b w=45 h=45 config=ARGB_8888 bytes=8100
+  key=big1 w=60 h=60 config=ARGB_8888 bytes=14400
+  key=c w=40 h=40 config=ARGB_8888 bytes=6400
+  key=d w=32 h=32 config=ARGB_8888 bytes=4096
+  key=e w=32 h=32 config=ARGB_8888 bytes=4096
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC big1
+  EVICT c reason=lru
+  REUSE_STRONG reA
+  ALLOC d
+  EVICT b reason=tie
+  ALLOC e
+  DEDUP e
+  ALLOC big2
+  EVICT big1 reason=lru
+  EVICT d reason=tie
+pool maxBytes=32768 currentBytes=29600
+strong:
+  key=big2 w=70 h=70 config=ARGB_8888 bytes=19600 lastAccess=14
+  key=reA w=50 h=50 config=ARGB_8888 bytes=10000 lastAccess=13
+soft:
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC big1
+  EVICT c reason=lru
+  REUSE_STRONG reA
+  ALLOC d
+  EVICT b reason=tie
+  ALLOC e
+  DEDUP e
+  ALLOC big2
+  EVICT big1 reason=lru
+  EVICT d reason=tie
+  REUSE_SOFT reB
+  EVICT reB reason=lru
+  GC cleared=5
+pool maxBytes=32768 currentBytes=29696
+strong:
+  key=big3 w=80 h=80 config=ARGB_8888 bytes=25600 lastAccess=20
+  key=g w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=19
+soft:
+  key=big2 w=70 h=70 config=ARGB_8888 bytes=19600
+  key=f w=32 h=32 config=ARGB_8888 bytes=4096
+  key=reA w=50 h=50 config=ARGB_8888 bytes=10000
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  ALLOC big1
+  EVICT c reason=lru
+  REUSE_STRONG reA
+  ALLOC d
+  EVICT b reason=tie
+  ALLOC e
+  DEDUP e
+  ALLOC big2
+  EVICT big1 reason=lru
+  EVICT d reason=tie
+  REUSE_SOFT reB
+  EVICT reB reason=lru
+  GC cleared=5
+  ALLOC f
+  EVICT reA reason=lru
+  ALLOC g
+  ALLOC big3
+  EVICT big2 reason=lru
+  EVICT f reason=tie

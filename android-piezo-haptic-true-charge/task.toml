@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/android-piezo-haptic-true-charge"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Android under-display piezo haptics: custom APHC binary with data_offset 32 40 48 64 80 96 128, interval, gain_trim, RF ripple. Trace has linear thermal drift plus display driver RF sine 120-250 period, main pop smeared by driver RC, dual shallow wide humps from dielectric creep and elastomer gasket relaxation (longer together than main+30 but low charge), far LRA spikes. Must calibrate: raw_mA=value/10, calibrated=raw_mA*gain, charge_uC=sum(calibrated minus baseline over main plus tails)*interval*1000. Baseline via lower median plus linear drift from edges, main by mass not count, tail dilation to 0.5 sigma excluding dust, 3% tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["android", "piezo", "haptic", "residual-charge", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["android", "piezo", "haptic", "residual-charge", "binary-parsing", "from-scratch", "charge-conservation"]
+expert_time_estimate_min = 70.0
+junior_time_estimate_min = 230.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]

@@ -1,0 +1,9 @@
+BEGIN t1
+ADD t1 main Home
+COMMIT t1
+BEGIN t2
+REPLACE t2 main Profile
+ADD_TO_BACK_STACK t2 profile
+COMMIT t2
+POP ghost
+QUERY

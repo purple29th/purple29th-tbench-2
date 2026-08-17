@@ -1,0 +1,7 @@
+pool maxBytes=32768 currentBytes=0
+strong:
+soft:
+active:
+events:
+  ALLOC a
+  LEAK a

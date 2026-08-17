@@ -1,0 +1,10 @@
+pool maxBytes=32768 currentBytes=32400
+strong:
+  key=b w=90 h=90 config=ARGB_8888 bytes=32400 lastAccess=2
+soft:
+  key=a w=90 h=90 config=ARGB_8888 bytes=32400
+active:
+events:
+  ALLOC a
+  ALLOC b
+  EVICT a reason=lru

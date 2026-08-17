@@ -1,0 +1,27 @@
+pool maxBytes=32768 currentBytes=20480
+strong:
+  key=c w=64 h=64 config=ARGB_8888 bytes=16384 lastAccess=4
+  key=d w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=1
+soft:
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  EVICT a reason=lru
+  LEAK b
+  REUSE_SOFT d
+pool maxBytes=32768 currentBytes=20480
+strong:
+  key=c w=64 h=64 config=ARGB_8888 bytes=16384 lastAccess=4
+  key=d w=32 h=32 config=ARGB_8888 bytes=4096 lastAccess=1
+soft:
+active:
+events:
+  ALLOC a
+  ALLOC b
+  ALLOC c
+  EVICT a reason=lru
+  LEAK b
+  REUSE_SOFT d
+  GC cleared=0

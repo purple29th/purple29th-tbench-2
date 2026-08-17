@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/billet-hydrogen-pore-true-pressure"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Continuous cast aluminum billet QA for hydrogen porosity. Hydrogen from humidity forms round sealed pores with pressurized gas that blister during extrusion. A micro CT fluorescence scanner writes a custom binary HPPR file with magic HPPR, anisotropic voxel pitch, variable data offset 32 to 128, and dtype int16 or float32. Fluorescence is smeared by scintillator diffusion and lens point spread, but total energy is conserved. The task asks for internal gas pressure in kPa computed as 780 divided by total recovered round pore volume in mm3 using ideal gas law. Only round hydrogen pores count. Elongated MnS stringers along casting and far corner dust specks must be ignored. Two far apart round pores must be summed before pressure conversion. Tolerance 3 percent."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["billet", "hydrogen", "pore-pressure", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["billet", "hydrogen-pore", "gas-pressure", "binary-parsing", "from-scratch", "intensity-conservation"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]

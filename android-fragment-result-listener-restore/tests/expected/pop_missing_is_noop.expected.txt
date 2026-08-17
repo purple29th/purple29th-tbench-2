@@ -1,0 +1,3 @@
+container=main fragments=[Profile]
+fragment=Profile listeners=[] pending={} delivered={}
+backstack=[profile]

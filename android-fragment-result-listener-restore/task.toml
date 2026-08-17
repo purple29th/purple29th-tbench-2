@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/android-fragment-result-listener-restore"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Fix a mini Android FragmentManager with Fragment Result API: setResultListener, clearResultListener, setResult. Results must be queued when no listener and delivered when listener appears, survive ROTATE if fragment was backstacked, cleared on REMOVE, restored on POP including named POP using last occurrence. Includes ADD, REPLACE, REMOVE, ADD_TO_BACK_STACK, COMMIT, POP, ROTATE, QUERY. Build and contract tests must pass."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["android", "fragment", "result-listener", "backstack", "kotlin"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "bug-fixing"
+category_subdomain = "mobile_android"
+category_usecase = "state_management"
+reward_type = "binary"
+tags = ["android", "fragment", "fragment-result", "backstack", "kotlin", "lifecycle", "rotate"]
+expert_time_estimate_min = 75.0
+junior_time_estimate_min = 240.0
+languages = ["kotlin"]
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]

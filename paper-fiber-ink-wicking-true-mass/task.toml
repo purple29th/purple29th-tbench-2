@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/paper-fiber-ink-wicking-true-mass"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Mill QC for 120gsm photo rag inkjet paper with calendered cellulose base and kaolin clay blade coating. We print a black dye patch, capillary wicking along fiber axis makes a ragged feathered blot whose fiber direction span correlates with Cobb sizing and sheet caliper. A UV fluorescence microscope writes a custom 2D container with fourcc INKW, pixel pitch sx sy, variable payload start, and a post coat calibration multiplier at file offset forty that scales mm result and is non unity for hidden cases like offset ninety six. Evaluation asks for total wicking span in mm computed as recovered pooled area over zero point four mm fiber repeat times multiplier, ignoring circular condensation beads and far corner window dust, summing two distant feathered blots when present, tolerance three percent."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["paper", "ink-wicking", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["paper", "ink-wicking-mass", "binary-parsing", "from-scratch", "intensity-conservation"]
+expert_time_estimate_min = 50.0
+junior_time_estimate_min = 180.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
