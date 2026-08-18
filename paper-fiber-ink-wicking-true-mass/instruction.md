@@ -2,7 +2,7 @@ I work in a photo paper mill grading 120gsm rag with calendered cellulose base a
 
 Please make a file at /app/solve.py. We run python /app/solve.py /tmp/input_*.inkw and take the last printed number as span in millimeters.
 
-There is one example at /app/data/scene.inkw for local debugging. Real grading uses entirely new maps I create at runtime with random names like input_a3f9.inkw, new dimensions, pixel pitch, thickness, brightness, blur, background, seed. Hardcoding twelve mm from sample fails hidden.
+There is one example at /app/data/scene.inkw for local debugging (about fifteen mm with the 0.4 mm fiber repeat). Real grading uses entirely new maps I create at runtime with random names like input_a3f9.inkw, new dimensions, pixel pitch, thickness, brightness, blur, background, seed. Hardcoding fifteen mm from sample fails hidden.
 
 Container spec — little endian, byte ranges:
 
@@ -32,4 +32,4 @@ If you nail base and core you are within a percent, we grade three percent.
 
 Coding rules. You must parse bytes yourself, only stdlib. Allowed helpers struct sys math random tempfile re. Forbidden libs numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath or any imaging array graph lib. Forbidden calls eval exec compile __import__ chr ord breakpoint bytes bytearray. Forbidden tricks subprocess os system popen exec fork walk listdir scandir pty importlib runpy ctypes filesystem listing or hiding forbidden filenames with chr fromhex base64 b64decode bytearray. Do not try to open or list tests folder (the solver naturally needs to open the input file given as argv). Do not mention /tests test_outputs heldout tests/_gen GEOM_TRUTH geometric_truth reference_mass reference_length ground_truth in solver. Solver must work on any random temp path.
 
-Print span in mm as last printed token. Example around twelve mm.
+Print span in mm as last printed token. Example around fifteen mm with the stated 0.4 mm repeat.
