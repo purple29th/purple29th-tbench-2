@@ -10,19 +10,36 @@ OUTPUT_PATH = Path("/app/output.txt")
 EXPECTED_DIR = Path("/tests/expected")
 
 
-def run_app(scenario_text):
-    SCENARIO_PATH.write_text(scenario_text)
-    if OUTPUT_PATH.exists():
-        OUTPUT_PATH.unlink()
+@pytest.fixture(scope="session", autouse=True)
+def build_once():
+    # Build Kotlin jar once per test session to avoid per-scenario rebuild timeout (BAD_SLOW_GRADING)
+    # Mirrors run.sh's build steps but runs only once
     subprocess.run(["rm", "-rf", "/app/build"], timeout=10)
     result = subprocess.run(
-        ["bash", "/app/src/run.sh"],
+        ["bash", "/app/src/build.sh"],
         capture_output=True,
         text=True,
         timeout=120,
     )
     assert result.returncode == 0, (
-        f"run.sh failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        f"build.sh failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )
+    assert Path("/app/build/app.jar").exists(), "build/app.jar not produced"
+
+
+def run_app(scenario_text):
+    SCENARIO_PATH.write_text(scenario_text)
+    if OUTPUT_PATH.exists():
+        OUTPUT_PATH.unlink()
+    # Run compiled jar directly without rebuilding (fast, ~0.1s per scenario)
+    result = subprocess.run(
+        ["java", "-cp", "/app/build/app.jar:/opt/kotlinc/lib/kotlin-stdlib.jar", "com.example.app.MainKt"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"java MainKt failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
     assert OUTPUT_PATH.exists(), "Agent must produce /app/output.txt"
     return OUTPUT_PATH.read_text()
