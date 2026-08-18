@@ -100,16 +100,36 @@ def mass_from_path(path):
     if not components:
         return 0.0
     c_sorted = sorted(components, key=lambda x: x[0], reverse=True)
-    best = None
+    kept = []
+    rejected = []
     for mass, comp, dx_, dy_, dz_ in c_sorted:
         dims = sorted([dx_, dy_, dz_])
         if dims[2] >= 8 and dims[2] > 1.6 * dims[0]:
-            best = comp
-            break
-    if best is None:
-        best = c_sorted[0][1]
+            kept.append(comp)
+        else:
+            rejected.append(comp)
+    if not kept:
+        kept = [c_sorted[0][1]]
+        rejected = [c for _, c, _, _, _ in c_sorted[1:]]
+    # artifact barrier: dilate rejected (compact fallout + dust) by one shell to block halo bridging
+    blocked = set()
+    for comp in rejected:
+        for j in comp:
+            x = j % nx
+            y = (j // nx) % ny
+            z = j // (nx * ny)
+            for dx_, dy_, dz_ in NEIGH26:
+                a, b, c = x + dx_, y + dy_, z + dz_
+                if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
+                    k = idx(a, b, c)
+                    if k not in blocked:
+                        blocked.add(k)
+    # plateau across all kept veins
+    all_kept_vox = []
+    for comp in kept:
+        all_kept_vox.extend(comp)
     filtered = []
-    for j in best:
+    for j in all_kept_vox:
         x = j % nx
         y = (j // nx) % ny
         z = j // (nx * ny)
@@ -128,8 +148,11 @@ def mass_from_path(path):
     plateau = sum(topk) / len(topk) if topk else 0
     if plateau <= 0:
         return 0.0
-    region = set(best)
-    frontier = set(best)
+    # shared region for all kept veins to avoid double-counting overlapping halos
+    region = set()
+    for comp in kept:
+        region.update(comp)
+    frontier = set(region)
     halo_floor = 1.0 * noise_sigma
     for _ in range(40):
         shell = set()
@@ -141,7 +164,7 @@ def mass_from_path(path):
                 a, b, c = x + dx_, y + dy_, z + dz_
                 if 0 <= a < nx and 0 <= b < ny and 0 <= c < nz:
                     k = idx(a, b, c)
-                    if k not in region:
+                    if k not in region and k not in blocked:
                         shell.add(k)
         if not shell:
             break
