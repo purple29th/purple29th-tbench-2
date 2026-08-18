@@ -12,7 +12,7 @@ Per scan, one cavity to measure: near-spherical with narrow vent paths to edge t
 
 Why thresholding fails: low cut captures cloud → ~2× volume, high cut drops vents → ~0.5×. No universal cut as material and imaging vary.
 
-Principle: convolution kernel is normalized, so total sum is invariant – volume = total base-subtracted energy / robust plateau intensity * voxel volume sx*sy*sz. Estimate plateau as robust interior brightness, e.g. 3x3x3 smoothed top-K mean of the largest-mass 26-connected component to avoid single-voxel spike.
+Principle: blur is normalized and conserves total signal, so thresholding either inflates halo as solid or erases faint vents. Correct volume must use conserved energy, not a fixed cutoff.
 
 Within 3% relative.
 
