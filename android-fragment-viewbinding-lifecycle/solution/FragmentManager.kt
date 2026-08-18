@@ -474,7 +474,6 @@ class FragmentManager {
                 }
                 is TransactionOp.AddChild -> {
                     allContainersEverUsed.add(op.childContainer)
-                    containers.getOrPut(op.childContainer) { Container(op.childContainer) }
                     val parentState = fragmentStates[op.parentFragment] ?: continue
                     if (parentState.detached) continue
                     val childState = fragmentStates.getOrPut(op.childFragment.name) { FragmentState(op.childFragment) }

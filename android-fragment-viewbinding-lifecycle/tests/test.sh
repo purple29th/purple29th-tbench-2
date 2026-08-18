@@ -1,5 +1,6 @@
 #!/bin/bash
 set +e
+rm -rf /app/build
 mkdir -p /logs/verifier
 
 if command -v uvx >/dev/null 2>&1; then
