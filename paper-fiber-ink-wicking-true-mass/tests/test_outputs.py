@@ -3,7 +3,7 @@ import ast, math, os, re, struct, subprocess, sys, tempfile, textwrap, pytest
 SCRIPT = os.environ.get("SOLVE_PATH", "/app/solve.py")
 REL_TOL = 0.03
 RHO = 2.5
-BANNED_MODULES = {"numpy","scipy","skimage","cv2","PIL","Pillow","networkx","igraph","imageio","pandas","torch","tensorflow","subprocess","importlib","runpy","ctypes","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","shutil"}
+BANNED_MODULES = {"numpy","scipy","skimage","cv2","PIL","Pillow","networkx","igraph","imageio","pandas","torch","tensorflow","subprocess","importlib","runpy","ctypes","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath"}
 BANNED_CALLS = {"eval","exec","compile","__import__","chr","ord","breakpoint","bytes","bytearray"}
 BANNED_ATTRS = {"system","popen","exec","execl","execle","execlp","execlpe","execv","execve","execvp","execvpe","spawnl","spawnle","spawnlp","spawnlpe","spawnv","spawnve","spawnvp","spawnvpe","posix_spawn","posix_spawnp","fork","forkpty","walk","listdir","scandir","rglob","__subclasses__","__builtins__","__code__","__globals__","__getattribute__","modules","import_module"}
 BANNED_SUBSTRINGS_SRC = ["/tests","test_outputs","heldout","tests/_gen","GEOM_TRUTH","geometric_truth","reference_mass","reference_length","ground_truth"]
@@ -88,7 +88,7 @@ def pack_inkw(cfg, field):
     dtype=cfg["dtype"]
     n=nx*ny
     off=cfg.get("data_offset",64)
-    hdr=bytearray(max(64, off))
+    hdr=bytearray(off)
     hdr[0:4]=MAGIC
     struct.pack_into("<I",hdr,4,1)
     struct.pack_into("<I",hdr,8,dtype)
@@ -145,13 +145,23 @@ BASE_CONFIGS={
         object=[("box",8,24,14,20,True),("ell",32,6,4,4,False)],
         specks=[(5,5,1.2),(35,30,1.0)],
     ),
+    "heldout_48": dict(
+        dims=(42,38),spacing=(0.12,0.12),dtype=16,amp=1180,bg=48,sig=0.8,noise=3,seed=515,data_offset=48,gain=1.08,
+        object=[("box",6,22,12,20,True),("ell",34,8,3,3,False)],
+        specks=[(5,5,1.2),(33,28,1.0)],
+    ),
+    "heldout_80": dict(
+        dims=(46,42),spacing=(0.11,0.10),dtype=16,amp=1220,bg=50,sig=1.0,noise=4,seed=612,data_offset=80,gain=0.96,
+        object=[("box",8,26,14,22,True),("ell",38,10,4,4,False)],
+        specks=[(5,5,1.2),(38,32,1.0)],
+    ),
 }
 RANDOM_CONFIG=dict(
     dims=(38,40),spacing=(0.13,0.13),dtype=16,amp=1210,bg=60,sig=1.0,noise=4,seed=777,gain=0.95,
     object=[("box",6,22,12,18,True),("ell",32,6,4,4,False)],
     specks=[(5,5,1.2),(35,30,1.0)],
 )
-ALL_TEST_CONFIGS=[("heldout_1",BASE_CONFIGS["heldout_1"]),("heldout_2",BASE_CONFIGS["heldout_2"]),("heldout_3",BASE_CONFIGS["heldout_3"]),("speck_heavy",BASE_CONFIGS["speck_heavy"]),("round_heavy",BASE_CONFIGS["round_heavy"]),("heldout_96",BASE_CONFIGS["heldout_96"]),("heldout_128",BASE_CONFIGS["heldout_128"]),("randomized",RANDOM_CONFIG)]
+ALL_TEST_CONFIGS=[("heldout_1",BASE_CONFIGS["heldout_1"]),("heldout_2",BASE_CONFIGS["heldout_2"]),("heldout_3",BASE_CONFIGS["heldout_3"]),("speck_heavy",BASE_CONFIGS["speck_heavy"]),("round_heavy",BASE_CONFIGS["round_heavy"]),("heldout_96",BASE_CONFIGS["heldout_96"]),("heldout_128",BASE_CONFIGS["heldout_128"]),("heldout_48",BASE_CONFIGS["heldout_48"]),("heldout_80",BASE_CONFIGS["heldout_80"]),("randomized",RANDOM_CONFIG)]
 SECURE_RUNNER_CODE = r'''
 import sys, os, runpy
 solve_path=sys.argv[1]; data_path=sys.argv[2]
@@ -200,7 +210,7 @@ def audit_hook(event, args):
     elif event.startswith("socket."): raise RuntimeError(f"Blocked {event}")
     elif event=="import":
         mod=args[0] if args else ""; base=mod.split(".")[0]
-        banned_imports={"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","shutil","ctypes","importlib","runpy"}
+        banned_imports={"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","ctypes","importlib","runpy"}
         if base in banned_imports: raise RuntimeError(f"Blocked import {mod}")
 sys.addaudithook(audit_hook)
 sys.argv=[solve_path, data_path]

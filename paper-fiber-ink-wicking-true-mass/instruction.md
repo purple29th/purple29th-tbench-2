@@ -18,7 +18,7 @@ Container spec — little endian, byte ranges:
 | 28-31 | uint32  | payload_start |
 | 40-43 | float32 | post_coat_multiplier |
 
-`payload_start` can be 32, 40, 48, 64, 80, 96, 128 — respect the header value. `post_coat_multiplier` scales the mm result and varies 0.85–1.35 per file (sample is 1.0; hidden case offset 96 uses 1.22 and fails if ignored). Bytes between header and payload are zero padding. At `payload_start` you have `width*height` samples in the announced dtype, x fastest: index = x + width*y. `sx`, `sy`, `payload_start`, and `post_coat_multiplier` vary per sheet and must be read.
+`payload_start` can be 48, 64, 80, 96, 128 — respect the header value. `post_coat_multiplier` is at bytes 40-43 and scales the mm result and varies 0.85–1.35 per file (sample is 1.0; hidden case offset 96 uses 1.22 and fails if ignored). Bytes between header and payload are zero padding. At `payload_start` you have `width*height` samples in the announced dtype, x fastest: index = x + width*y. `sx`, `sy`, `payload_start`, and `post_coat_multiplier` vary per sheet and must be read. `payload_start` is always ≥48 so the multiplier at 40-43 never overlaps payload.
 
 What counts. Inside sheet there are ink locations. Real feathered wicking follows fiber and is ragged and stretched along fiber direction, not circular. We also see circular condensation beads from humidifier that are almost round and must be skipped. And we see tiny far window dust specks in corners near 5,5 and 75,75 far from center that must be skipped. Some sheets have two distant feathered blots both along fiber, both count, you must add their recovered areas before span conversion. Keeping only single biggest loses 40-50% in those sheets.
 
