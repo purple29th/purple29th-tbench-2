@@ -1,4 +1,4 @@
-# codimango/sintered-silver-die-attach-void-subvoxel-volume
+# codimango/sintered-silver-die-attach-void-true-volume
 
 ## Description
 
