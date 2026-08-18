@@ -10,10 +10,9 @@ How the hidden evaluation is built to punish shortcuts. Volumes contain long bra
 
 A correct program must:
 * read magic EPCM and parse little endian header with data offset not assumed sixty four
-* get clean border background from median of whole stack and noise scale from median absolute deviation of lower half
-* seed bright voxels above four sigma and grow twenty six connected components by flood fill, pick the crazing veins via stretch test
-* get vein interior level via three by three by three neighbourhood smoothing then mean of top four inside main veins, not raw maximum that is noise spiked
-* expand region outward layer by layer until average layer glow drops to about noise floor, skipping artefact voxels so you do not jump into a dust ball
+* estimate robust background and noise, isolate stretched veins from compact fallout and far dust
+* estimate robust vein interior brightness that tolerates noise and thin tips without flat plateau
+* collect faint halo out to noise floor without bridging into nearby artefacts
 * turn integrated glow into voxel count, then into cubic millimeters with sx sy sz from header, then into micrograms with two point one microgram per cubic millimeter lab factor
 
 Files you will see:
@@ -22,7 +21,7 @@ Files you will see:
 * Dockerfile installs pytest and copies example
 * tests generate new volumes at runtime in temp directories with random names like input_a3f9.epcm, truth computed geometrically outside sandbox
 
-Pass when error under three percent on cases that include speck heavy where large window dust contributes more than three percent extra glow if not removed, and particle heavy where compact fallout dots outweigh thin vein tips. Whole stack energy sum fails speck heavy. Mass only without stretch test fails particle heavy.
+Pass when error under two percent on cases that include speck heavy where large window dust contributes more than three percent extra glow if not removed, and particle heavy where compact fallout dots outweigh thin vein tips. Whole stack energy sum fails speck heavy. Mass only without stretch test fails particle heavy.
 
 Difficulty target in the lithography domain: oracle near one percent, fixed level zero, global without filter zero on speck heavy, expected gpt two of five, opus two of five, avocado zero to one of five.
 

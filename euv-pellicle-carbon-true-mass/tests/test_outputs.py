@@ -1,7 +1,7 @@
-"""Secure verifier for /app/solve.py - battery dendrite mass load.
+"""Secure verifier for /app/solve.py - euv pellicle carbon mass.
 
-Fluorescence diffusion + lens PSF spreads lithium signal but conserves total energy.
-Threshold fails 80-130% over / 30-50% under. True mass recoverable via intensity conservation + shape discrimination.
+Scintillator spread + lens PSF spreads fluorescence but conserves total energy.
+Threshold fails ~100% over / 30-50% under. True mass recoverable via intensity conservation + shape discrimination.
 """
 
 import ast
@@ -91,6 +91,7 @@ BANNED_SUBSTRINGS_SRC = [
     "GEOM_TRUTH",
     "geometric_truth",
     "reference_mass",
+    "reference_charge",
 ]
 
 MAGIC = b"EPCM"
@@ -161,7 +162,7 @@ def build_field(cfg):
 
     clean = [0.0] * n
     true_all = set()
-    true_dend = set()
+    true_vein = set()
 
     def add_ell(cx, cy, cz, rx, ry, rz, tgt):
         for z in range(nz):
@@ -185,12 +186,12 @@ def build_field(cfg):
             _, cx, cy, cz, rx, ry, rz, _ = shp
             add_ell(cx, cy, cz, rx, ry, rz, true_all)
             if is_d:
-                add_ell(cx, cy, cz, rx, ry, rz, true_dend)
+                add_ell(cx, cy, cz, rx, ry, rz, true_vein)
         else:
             _, x0, x1, y0, y1, z0, z1, _ = shp
             add_box(x0, x1, y0, y1, z0, z1, true_all)
             if is_d:
-                add_box(x0, x1, y0, y1, z0, z1, true_dend)
+                add_box(x0, x1, y0, y1, z0, z1, true_vein)
     amp = cfg["amp"]
     for i in true_all:
         clean[i] = float(amp)
@@ -205,7 +206,7 @@ def build_field(cfg):
     ns = cfg["noise"]
     rng = _lcg(cfg["seed"])
     field = [blurred[i] + bg + (next(rng) - 0.5) * 2.0 * ns for i in range(n)]
-    return field, len(true_dend)
+    return field, len(true_vein)
 
 
 def pack_epcm(cfg, field, data_offset=64):
