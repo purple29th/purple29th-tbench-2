@@ -135,7 +135,7 @@ CONFIGS = {
         noise=9,
         seed=111,
         gain=1.0,
-        fiber_angle=12.0,
+        fiber_angle=0.0,
         object=[
             ("ell", 38, 40, 14, 10),
             ("box", 52, 68, 35, 42),

@@ -11,8 +11,8 @@ What we use in coater without giving exact code. Paper base from dimmest four fi
 Core brightness from mean of four brightest raw pixels inside kept groups with three by three smoothed fallback. Expand rings outward gathering residual until ring mean nears zero, skipping other artefact groups to prevent bridging to dust. Area from sx sy, span as area over zero point four times multiplier.
 
 Files:
-* /app/solve.py you write last token mm span around twelve mm sample
-* /app/data/scene.inkw about twelve mm
+* /app/solve.py you write last token mm span around fifteen mm sample
+* /app/data/scene.inkw about fifteen mm
 * Dockerfile python slim pytest
 * solution/solve.py oracle bespoke reading payload start and multiplier summing multi ragged
 * _gen.py only scene stale avoidance
