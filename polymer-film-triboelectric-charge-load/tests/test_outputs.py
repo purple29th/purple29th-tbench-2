@@ -1,4 +1,4 @@
-"""Secure verifier for polymer-film-triboelectric-charge-load .trch"""
+"""Secure verifier for polymer-film-triboelectric-true-charge .trch"""
 
 import ast
 import math
@@ -12,7 +12,7 @@ import tempfile
 import pytest
 
 SCRIPT = os.environ.get("SOLVE_PATH", "/app/solve.py")
-REL_TOL = 0.03
+REL_TOL = 0.02
 RHO = 1.5
 
 BANNED_MODULES = {
@@ -205,10 +205,19 @@ def pack_trch(cfg, field):
     return bytes(hdr) + body
 
 
+def pack_trch_padded(cfg, field, extra=64):
+    base = pack_trch(cfg, field)
+    hdr = bytearray(base[:64])
+    body = base[64:]
+    new_off = 64 + extra
+    struct.pack_into("<I", hdr, 28, new_off)
+    padding = b"\x00" * extra
+    return bytes(hdr) + padding + body
+
+
 def geometric_truth_nC(cfg, v_true):
     sx, sy = cfg["spacing"]
     return v_true * sx * sy * RHO
-
 
 
 BASE_CONFIGS = {
@@ -300,6 +309,73 @@ BASE_CONFIGS = {
         ],
         specks=[(5, 5, 1.0), (5, 75, 1.0)],
     ),
+    "thin_no_plateau": dict(
+        dims=(68, 64),
+        spacing=(0.11, 0.11),
+        dtype=16,
+        amp=1400,
+        bg=40,
+        sig=1.3,
+        noise=3,
+        seed=551,
+        object=[
+            ("box", 10, 58, 28, 34, True),
+            ("ell", 34, 31, 16, 6, True),
+            ("ell", 70, 12, 4, 4, False),
+            ("ell", 10, 56, 3, 3, False),
+        ],
+        specks=[(5, 5, 1.0), (60, 60, 1.0)],
+    ),
+    "close_speck": dict(
+        dims=(84, 76),
+        spacing=(0.12, 0.12),
+        dtype=16,
+        amp=1000,
+        bg=40,
+        sig=1.6,
+        noise=3,
+        seed=612,
+        object=[
+            ("box", 12, 68, 32, 40, True),
+            ("ell", 40, 36, 18, 6, True),
+            ("ell", 74, 14, 4, 4, False),
+        ],
+        specks=[(30, 28, 1.2), (68, 42, 1.0)],
+    ),
+    "halo_heavy": dict(
+        dims=(72, 72),
+        spacing=(0.10, 0.10),
+        dtype=16,
+        amp=1200,
+        bg=55,
+        sig=2.0,
+        noise=5,
+        seed=723,
+        object=[
+            ("box", 10, 62, 30, 38, True),
+            ("ell", 36, 34, 18, 6, True),
+            ("ell", 68, 14, 4, 4, False),
+            ("ell", 12, 60, 3, 3, False),
+        ],
+        specks=[(5, 5, 1.0), (65, 65, 1.0)],
+    ),
+    "large_dims": dict(
+        dims=(96, 88),
+        spacing=(0.08, 0.08),
+        dtype=2,
+        amp=1400,
+        bg=70,
+        sig=1.3,
+        noise=4,
+        seed=834,
+        object=[
+            ("box", 14, 82, 38, 46, True),
+            ("ell", 48, 42, 22, 7, True),
+            ("ell", 86, 16, 5, 5, False),
+            ("ell", 16, 78, 4, 4, False),
+        ],
+        specks=[(6, 6, 1.2), (88, 80, 1.0)],
+    ),
 }
 
 RANDOM_CONFIG = dict(
@@ -325,6 +401,10 @@ ALL_TEST_CONFIGS = [
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
     ("round_heavy", BASE_CONFIGS["round_heavy"]),
+    ("thin_no_plateau", BASE_CONFIGS["thin_no_plateau"]),
+    ("close_speck", BASE_CONFIGS["close_speck"]),
+    ("halo_heavy", BASE_CONFIGS["halo_heavy"]),
+    ("large_dims", BASE_CONFIGS["large_dims"]),
     ("randomized", RANDOM_CONFIG),
 ]
 
@@ -488,6 +568,90 @@ def test_randomized_extra():
     exp = geometric_truth_nC(cfg, v_true)
     got = run_agent_secure(b, exp, name="randomized_extra")
     assert abs(got - exp) <= REL_TOL * exp
+
+
+def test_randomized_many():
+    for seed in (101, 202, 303, 404, 505):
+        cfg = dict(
+            dims=(78, 74),
+            spacing=(0.11, 0.11),
+            dtype=16 if seed % 2 == 0 else 2,
+            amp=1100 + (seed % 300),
+            bg=45 + (seed % 20),
+            sig=1.5 + (seed % 4) * 0.15,
+            noise=3 + (seed % 3),
+            seed=seed,
+            object=[
+                ("box", 10, 66, 30, 38, True),
+                ("ell", 38, 34, 18, 6, True),
+                ("ell", 70, 12, 4, 4, False),
+            ],
+            specks=[(5, 5, 1.0), (72, 70, 1.0)],
+        )
+        field, v_true = build_field(cfg)
+        b = pack_trch(cfg, field)
+        exp = geometric_truth_nC(cfg, v_true)
+        got = run_agent_secure(b, exp, name=f"randomized_many_{seed}")
+        assert abs(got - exp) <= REL_TOL * exp, f"randomized_many_{seed}: got {got:.4f} vs exp {exp:.4f}"
+
+
+def test_offset_padded():
+    cfg = BASE_CONFIGS["heldout_1"]
+    field, v_true = build_field(cfg)
+    exp = geometric_truth_nC(cfg, v_true)
+    b = pack_trch_padded(cfg, field, extra=64)
+    off = struct.unpack_from("<I", b, 28)[0]
+    assert off == 128, f"padded offset should be 128 got {off}"
+    got = run_agent_secure(b, exp, name="offset_padded")
+    assert abs(got - exp) <= REL_TOL * exp, f"offset_padded: got {got:.4f} vs exp {exp:.4f}"
+
+
+def test_offset_padded_int16():
+    cfg = BASE_CONFIGS["heldout_2"]
+    field, v_true = build_field(cfg)
+    exp = geometric_truth_nC(cfg, v_true)
+    b = pack_trch_padded(cfg, field, extra=32)
+    off = struct.unpack_from("<I", b, 28)[0]
+    assert off == 96, f"padded offset should be 96 got {off}"
+    got = run_agent_secure(b, exp, name="offset_padded_int16")
+    assert abs(got - exp) <= REL_TOL * exp, f"offset_padded_int16: got {got:.4f} vs exp {exp:.4f}"
+
+
+def test_fixed_threshold_fails():
+    cfg = BASE_CONFIGS["halo_heavy"]
+    field, v_true = build_field(cfg)
+    truth = geometric_truth_nC(cfg, v_true)
+
+    def naive_threshold():
+        sv = sorted(field)
+        bg = sv[len(sv)//2]
+        # fixed 200 above bg threshold counting
+        sx, sy = cfg["spacing"]
+        cnt = sum(1 for v in field if v > bg + 200)
+        return cnt * sx * sy * RHO
+
+    got = naive_threshold()
+    assert abs(got - truth) > REL_TOL * truth, f"fixed threshold should fail, got {got:.2f} vs truth {truth:.2f}"
+
+
+def test_largest_component_fails():
+    cfg = BASE_CONFIGS["round_heavy"]
+    field, v_true = build_field(cfg)
+    truth = geometric_truth_nC(cfg, v_true)
+
+    def naive_largest_only():
+        # naive: take all bright mass divided by global max as if single component
+        sv = sorted(field)
+        bg = sv[len(sv)//2]
+        r = [v - bg for v in field]
+        amp = max(r) if r else 1
+        mass = sum(max(0, v) for v in r)
+        sx, sy = cfg["spacing"]
+        return mass / amp * sx * sy * RHO if amp else 0
+
+    got = naive_largest_only()
+    # on round_heavy with extra round dots, global mass overcounts
+    assert abs(got - truth) > REL_TOL * truth, f"largest-only naive should fail on round_heavy, got {got:.2f} vs truth {truth:.2f}"
 
 
 def test_global_fails_on_speck_heavy():
