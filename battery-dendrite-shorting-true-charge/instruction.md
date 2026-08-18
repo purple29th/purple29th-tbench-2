@@ -26,7 +26,7 @@ Why simple brightness cut does not work. I tried. If I take a permissive dark le
 
 The good news is blur does not create or destroy total fluorescence, it just moves it around. So total background-subtracted signal over needle plus its faint skirt divided by true core intensity gives number of true voxels, even when blurred. You will need a robust background estimate, a way to isolate the main branching needles from far dust and round islands, and a robust estimate of the core intensity that is not fooled by noise.
 
-If you get those steps right you land within a percent. If you shortcut you are tens of percent off. Grading expects within three percent.
+If you get those steps right you land within a percent. If you shortcut you are tens of percent off. Grading expects within two percent.
 
 Coding rules. You must parse the bytes yourself, stdlib only. You can use struct sys math random tempfile re. You cannot use numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath or any similar array imaging or graph library. Banned calls are eval exec compile __import__ chr. Banned tricks are subprocess os system popen exec fork walk listdir scandir open pty importlib runpy ctypes filesystem listing or trying to hide forbidden file names using chr bytes fromhex base64 b64decode bytearray tricks or string games. Do not try to open or list the tests folder. Do not mention or look for test_outputs heldout reference_charge _gen GEOM_TRUTH geometric_truth in your solver code. Your solver has to work on any random temp path they give, not a fixed path.
 
