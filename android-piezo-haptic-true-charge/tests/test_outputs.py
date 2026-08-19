@@ -159,12 +159,12 @@ def build_field(cfg):
     for i in range(c - width // 2, c + width // 2):
         if 0 <= i < total:
             occupancy[i] = 1.0
-    for i in range(c - width // 2 - 4, c - width // 2):
+    for i in range(c - width // 2 - 16, c - width // 2):
         if 0 <= i < total:
-            occupancy[i] = max(occupancy[i], 0.38)
-    for i in range(c + width // 2, c + width // 2 + 4):
+            occupancy[i] = max(occupancy[i], 0.04)
+    for i in range(c + width // 2, c + width // 2 + 16):
         if 0 <= i < total:
-            occupancy[i] = max(occupancy[i], 0.38)
+            occupancy[i] = max(occupancy[i], 0.04)
     true_charge = sum(occupancy) * amp / 10.0 * interval * gain * 1000.0
 
     ideal = [amp * occ for occ in occupancy]
