@@ -1,3 +1,0 @@
-container=main fragments=[Home]
-fragment=Home listeners=[] pending={} delivered={}
-backstack=[anon]
