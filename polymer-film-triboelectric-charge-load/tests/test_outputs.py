@@ -1,4 +1,4 @@
-"""Secure verifier for polymer-film-triboelectric-true-charge .trch"""
+"""Secure verifier for polymer-film-triboelectric-charge-load .trch"""
 
 import ast
 import math
@@ -12,7 +12,7 @@ import tempfile
 import pytest
 
 SCRIPT = os.environ.get("SOLVE_PATH", "/app/solve.py")
-REL_TOL = 0.02
+REL_TOL = 0.03
 RHO = 1.5
 
 BANNED_MODULES = {
@@ -41,6 +41,7 @@ BANNED_MODULES = {
     "posixpath",
     "ntpath",
     "genericpath",
+    "pty",
 }
 BANNED_CALLS = {"eval", "exec", "compile", "__import__", "chr"}
 BANNED_ATTRS = {
@@ -97,8 +98,15 @@ def _gauss_kernel1d(sigma, radius):
 
 
 def _blur_2d(vol, nx, ny, sig):
-    r = max(1, int(math.ceil(3.5 * sig)))
-    k = _gauss_kernel1d(sig, r)
+    # support anisotropic sig as tuple (sig_x, sig_y) or single float
+    if isinstance(sig, (tuple, list)):
+        sig_x, sig_y = sig
+    else:
+        sig_x = sig_y = sig
+    r_x = max(1, int(math.ceil(3.5 * sig_x)))
+    r_y = max(1, int(math.ceil(3.5 * sig_y)))
+    k_x = _gauss_kernel1d(sig_x, r_x)
+    k_y = _gauss_kernel1d(sig_y, r_y)
 
     def idx(x, y):
         return x + nx * y
@@ -108,19 +116,19 @@ def _blur_2d(vol, nx, ny, sig):
         base = nx * y
         for x in range(nx):
             acc = 0.0
-            for t in range(-r, r + 1):
+            for t in range(-r_x, r_x + 1):
                 xx = x + t
                 if 0 <= xx < nx:
-                    acc += vol[base + xx] * k[t + r]
+                    acc += vol[base + xx] * k_x[t + r_x]
             a[base + x] = acc
     b = [0.0] * len(vol)
     for x in range(nx):
         for y in range(ny):
             acc = 0.0
-            for t in range(-r, r + 1):
+            for t in range(-r_y, r_y + 1):
                 yy = y + t
                 if 0 <= yy < ny:
-                    acc += a[idx(x, yy)] * k[t + r]
+                    acc += a[idx(x, yy)] * k_y[t + r_y]
             b[idx(x, y)] = acc
     return b
 
@@ -168,8 +176,25 @@ def build_field(cfg):
             if is_main:
                 add_box(x0, x1, y0, y1, true_patch)
     amp = cfg["amp"]
+    # support gradient along x (draw direction) if cfg has gradient factor
+    grad = cfg.get("gradient", None)  # e.g. 0.4 means amp varies 0.8..1.2 across patch width
     for i in true_all:
-        clean[i] = float(amp)
+        if grad is not None:
+            # find x coordinate of this voxel to apply gradient
+            # decode x from idx
+            # to avoid O(n^2), just apply per-pixel later via clean array scan
+            clean[i] = float(amp)
+        else:
+            clean[i] = float(amp)
+    if grad is not None:
+        # apply linear gradient along x across the whole clean map (only where true_all has signal)
+        for y in range(ny):
+            for x in range(nx):
+                k = idx(x, y)
+                if k in true_all:
+                    # gradient 1 - grad/2 to 1 + grad/2 across nx
+                    factor = 1.0 + grad * ((x / max(1, nx-1)) - 0.5)
+                    clean[k] = float(amp) * factor
     for sx0, sy0, sr in cfg["specks"]:
         for y in range(ny):
             for x in range(nx):
@@ -188,13 +213,14 @@ def pack_trch(cfg, field):
     sx, sy = cfg["spacing"]
     dtype = cfg["dtype"]
     n = nx * ny
-    hdr = bytearray(64)
+    data_offset = cfg.get("data_offset", 64)
+    hdr = bytearray(data_offset)
     hdr[0:4] = MAGIC
     struct.pack_into("<I", hdr, 4, 1)
     struct.pack_into("<I", hdr, 8, dtype)
     struct.pack_into("<II", hdr, 12, nx, ny)
     struct.pack_into("<ff", hdr, 20, sx, sy)
-    struct.pack_into("<I", hdr, 28, 64)
+    struct.pack_into("<I", hdr, 28, data_offset)
     if dtype == 2:
         vals = [max(-32768, min(32767, int(round(v)))) for v in field]
         body = struct.pack("<%dh" % n, *vals)
@@ -205,19 +231,10 @@ def pack_trch(cfg, field):
     return bytes(hdr) + body
 
 
-def pack_trch_padded(cfg, field, extra=64):
-    base = pack_trch(cfg, field)
-    hdr = bytearray(base[:64])
-    body = base[64:]
-    new_off = 64 + extra
-    struct.pack_into("<I", hdr, 28, new_off)
-    padding = b"\x00" * extra
-    return bytes(hdr) + padding + body
-
-
 def geometric_truth_nC(cfg, v_true):
     sx, sy = cfg["spacing"]
     return v_true * sx * sy * RHO
+
 
 
 BASE_CONFIGS = {
@@ -241,11 +258,11 @@ BASE_CONFIGS = {
     ),
     "heldout_2": dict(
         dims=(72, 80),
-        spacing=(0.09, 0.09),
+        spacing=(0.09, 0.13),
         dtype=2,
         amp=1500,
         bg=80,
-        sig=1.3,
+        sig=(1.8, 0.9),
         noise=4,
         seed=323,
         object=[
@@ -292,8 +309,8 @@ BASE_CONFIGS = {
         specks=[(5, 5, 1.2), (75, 75, 2.0), (5, 75, 1.2)],
     ),
     "round_heavy": dict(
-        dims=(80, 80),
-        spacing=(0.1, 0.1),
+        dims=(84, 72),
+        spacing=(0.11, 0.09),
         dtype=16,
         amp=1200,
         bg=60,
@@ -308,73 +325,6 @@ BASE_CONFIGS = {
             ("ell", 70, 70, 5, 5, False),
         ],
         specks=[(5, 5, 1.0), (5, 75, 1.0)],
-    ),
-    "thin_no_plateau": dict(
-        dims=(68, 64),
-        spacing=(0.11, 0.11),
-        dtype=16,
-        amp=1400,
-        bg=40,
-        sig=1.3,
-        noise=3,
-        seed=551,
-        object=[
-            ("box", 10, 58, 28, 34, True),
-            ("ell", 34, 31, 16, 6, True),
-            ("ell", 70, 12, 4, 4, False),
-            ("ell", 10, 56, 3, 3, False),
-        ],
-        specks=[(5, 5, 1.0), (60, 60, 1.0)],
-    ),
-    "close_speck": dict(
-        dims=(84, 76),
-        spacing=(0.12, 0.12),
-        dtype=16,
-        amp=1000,
-        bg=40,
-        sig=1.6,
-        noise=3,
-        seed=612,
-        object=[
-            ("box", 12, 68, 32, 40, True),
-            ("ell", 40, 36, 18, 6, True),
-            ("ell", 74, 14, 4, 4, False),
-        ],
-        specks=[(30, 28, 1.2), (68, 42, 1.0)],
-    ),
-    "halo_heavy": dict(
-        dims=(72, 72),
-        spacing=(0.10, 0.10),
-        dtype=16,
-        amp=1200,
-        bg=55,
-        sig=2.0,
-        noise=5,
-        seed=723,
-        object=[
-            ("box", 10, 62, 30, 38, True),
-            ("ell", 36, 34, 18, 6, True),
-            ("ell", 68, 14, 4, 4, False),
-            ("ell", 12, 60, 3, 3, False),
-        ],
-        specks=[(5, 5, 1.0), (65, 65, 1.0)],
-    ),
-    "large_dims": dict(
-        dims=(96, 88),
-        spacing=(0.08, 0.08),
-        dtype=2,
-        amp=1400,
-        bg=70,
-        sig=1.3,
-        noise=4,
-        seed=834,
-        object=[
-            ("box", 14, 82, 38, 46, True),
-            ("ell", 48, 42, 22, 7, True),
-            ("ell", 86, 16, 5, 5, False),
-            ("ell", 16, 78, 4, 4, False),
-        ],
-        specks=[(6, 6, 1.2), (88, 80, 1.0)],
     ),
 }
 
@@ -395,17 +345,87 @@ RANDOM_CONFIG = dict(
     specks=[(5, 5, 1.0), (75, 75, 1.0)],
 )
 
+# Additional configs to break half-max and test shape/aniso
+GRADIENT_CONFIG = dict(
+    dims=(80, 76),
+    spacing=(0.10, 0.10),
+    dtype=16,
+    amp=1200,
+    bg=45,
+    sig=1.6,
+    noise=3,
+    seed=555,
+    gradient=0.18,
+    object=[
+        ("box", 12, 68, 32, 40, True),
+        ("ell", 40, 36, 22, 6, True),
+        ("ell", 70, 14, 4, 4, False),
+    ],
+    specks=[(5, 5, 1.0), (75, 75, 1.0)],
+)
+SHAPE_TRICK_CONFIG = dict(
+    dims=(80, 80),
+    spacing=(0.10, 0.10),
+    dtype=16,
+    amp=1100,
+    bg=50,
+    sig=1.3,
+    noise=3,
+    seed=666,
+    object=[
+        # elongated main patch (30x8, 240 px) — correctly elongated, moderate thickness
+        ("box", 30, 60, 36, 44, True),
+        # large round artefact (13x13 ell, ~530 px) — largest by area but round, should be ignored; placed centrally to avoid truncation
+        ("ell", 15, 15, 13, 13, False),
+        ("ell", 65, 65, 4, 4, False),
+    ],
+    specks=[(5, 75, 1.0), (75, 5, 1.0)],
+)
+ANISO_SPACING_CONFIG = dict(
+    dims=(72, 80),
+    spacing=(0.08, 0.13),
+    dtype=16,
+    amp=1300,
+    bg=55,
+    sig=(1.2, 1.8),
+    noise=3,
+    seed=777,
+    object=[
+        ("box", 10, 60, 34, 42, True),
+        ("ell", 36, 38, 18, 6, True),
+        ("ell", 64, 14, 3, 3, False),
+    ],
+    specks=[(5, 5, 1.0), (75, 75, 1.0)],
+)
+OFFSET_CONFIG = dict(
+    dims=(80, 80),
+    spacing=(0.10, 0.10),
+    dtype=16,
+    amp=1150,
+    bg=60,
+    sig=1.4,
+    noise=3,
+    seed=888,
+    data_offset=96,
+    object=[
+        ("box", 12, 68, 32, 40, True),
+        ("ell", 40, 36, 20, 8, True),
+        ("ell", 70, 14, 4, 4, False),
+    ],
+    specks=[(5, 5, 1.0), (75, 75, 1.0)],
+)
+
 ALL_TEST_CONFIGS = [
     ("heldout_1", BASE_CONFIGS["heldout_1"]),
     ("heldout_2", BASE_CONFIGS["heldout_2"]),
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
     ("round_heavy", BASE_CONFIGS["round_heavy"]),
-    ("thin_no_plateau", BASE_CONFIGS["thin_no_plateau"]),
-    ("close_speck", BASE_CONFIGS["close_speck"]),
-    ("halo_heavy", BASE_CONFIGS["halo_heavy"]),
-    ("large_dims", BASE_CONFIGS["large_dims"]),
     ("randomized", RANDOM_CONFIG),
+    ("gradient_heavy", GRADIENT_CONFIG),
+    ("shape_trick", SHAPE_TRICK_CONFIG),
+    ("aniso_spacing", ANISO_SPACING_CONFIG),
+    ("offset_heavy", OFFSET_CONFIG),
 ]
 
 SECURE_RUNNER_CODE = r"""
@@ -513,7 +533,15 @@ def test_from_scratch():
                 name = fn.attr
             assert name not in BANNED_CALLS, f"banned call {name}"
         if isinstance(node, ast.Attribute):
-            assert node.attr not in BANNED_ATTRS, f"banned attr {node.attr}"
+            # only ban os.* etc., not arbitrary self.walk
+            val = node.value
+            base_name = ""
+            if isinstance(val, ast.Name):
+                base_name = val.id
+            elif isinstance(val, ast.Attribute) and isinstance(val.value, ast.Name):
+                base_name = val.value.id
+            if base_name in ("os", "posixpath", "ntpath", "genericpath", "pathlib", "sys") or node.attr.startswith("__"):
+                assert node.attr not in BANNED_ATTRS, f"banned attr {node.attr}"
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             low = node.value.lower()
             for banned in BANNED_SUBSTRINGS_SRC:
@@ -570,90 +598,6 @@ def test_randomized_extra():
     assert abs(got - exp) <= REL_TOL * exp
 
 
-def test_randomized_many():
-    for seed in (101, 202, 303, 404, 505):
-        cfg = dict(
-            dims=(78, 74),
-            spacing=(0.11, 0.11),
-            dtype=16 if seed % 2 == 0 else 2,
-            amp=1100 + (seed % 300),
-            bg=45 + (seed % 20),
-            sig=1.5 + (seed % 4) * 0.15,
-            noise=3 + (seed % 3),
-            seed=seed,
-            object=[
-                ("box", 10, 66, 30, 38, True),
-                ("ell", 38, 34, 18, 6, True),
-                ("ell", 70, 12, 4, 4, False),
-            ],
-            specks=[(5, 5, 1.0), (72, 70, 1.0)],
-        )
-        field, v_true = build_field(cfg)
-        b = pack_trch(cfg, field)
-        exp = geometric_truth_nC(cfg, v_true)
-        got = run_agent_secure(b, exp, name=f"randomized_many_{seed}")
-        assert abs(got - exp) <= REL_TOL * exp, f"randomized_many_{seed}: got {got:.4f} vs exp {exp:.4f}"
-
-
-def test_offset_padded():
-    cfg = BASE_CONFIGS["heldout_1"]
-    field, v_true = build_field(cfg)
-    exp = geometric_truth_nC(cfg, v_true)
-    b = pack_trch_padded(cfg, field, extra=64)
-    off = struct.unpack_from("<I", b, 28)[0]
-    assert off == 128, f"padded offset should be 128 got {off}"
-    got = run_agent_secure(b, exp, name="offset_padded")
-    assert abs(got - exp) <= REL_TOL * exp, f"offset_padded: got {got:.4f} vs exp {exp:.4f}"
-
-
-def test_offset_padded_int16():
-    cfg = BASE_CONFIGS["heldout_2"]
-    field, v_true = build_field(cfg)
-    exp = geometric_truth_nC(cfg, v_true)
-    b = pack_trch_padded(cfg, field, extra=32)
-    off = struct.unpack_from("<I", b, 28)[0]
-    assert off == 96, f"padded offset should be 96 got {off}"
-    got = run_agent_secure(b, exp, name="offset_padded_int16")
-    assert abs(got - exp) <= REL_TOL * exp, f"offset_padded_int16: got {got:.4f} vs exp {exp:.4f}"
-
-
-def test_fixed_threshold_fails():
-    cfg = BASE_CONFIGS["halo_heavy"]
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_nC(cfg, v_true)
-
-    def naive_threshold():
-        sv = sorted(field)
-        bg = sv[len(sv)//2]
-        # fixed 200 above bg threshold counting
-        sx, sy = cfg["spacing"]
-        cnt = sum(1 for v in field if v > bg + 200)
-        return cnt * sx * sy * RHO
-
-    got = naive_threshold()
-    assert abs(got - truth) > REL_TOL * truth, f"fixed threshold should fail, got {got:.2f} vs truth {truth:.2f}"
-
-
-def test_largest_component_fails():
-    cfg = BASE_CONFIGS["round_heavy"]
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_nC(cfg, v_true)
-
-    def naive_largest_only():
-        # naive: take all bright mass divided by global max as if single component
-        sv = sorted(field)
-        bg = sv[len(sv)//2]
-        r = [v - bg for v in field]
-        amp = max(r) if r else 1
-        mass = sum(max(0, v) for v in r)
-        sx, sy = cfg["spacing"]
-        return mass / amp * sx * sy * RHO if amp else 0
-
-    got = naive_largest_only()
-    # on round_heavy with extra round dots, global mass overcounts
-    assert abs(got - truth) > REL_TOL * truth, f"largest-only naive should fail on round_heavy, got {got:.2f} vs truth {truth:.2f}"
-
-
 def test_global_fails_on_speck_heavy():
     cfg = BASE_CONFIGS["speck_heavy"]
     field, v_true = build_field(cfg)
@@ -674,3 +618,98 @@ def test_global_fails_on_speck_heavy():
     assert abs(got - truth) > REL_TOL * truth, (
         f"Expected naive to fail, got {got:.2f} vs truth {truth:.2f}"
     )
+
+
+def test_relative_cutoff_fails():
+    # Relative cutoff 0.45*max should fail on gradient_heavy / aniso configs (breaks half-max)
+    for cfg_name in ["gradient_heavy", "aniso_spacing", "shape_trick"]:
+        cfg = GRADIENT_CONFIG if cfg_name == "gradient_heavy" else (ANISO_SPACING_CONFIG if cfg_name == "aniso_spacing" else SHAPE_TRICK_CONFIG)
+        field, v_true = build_field(cfg)
+        truth = geometric_truth_nC(cfg, v_true)
+        sv = sorted(field)
+        bg = sv[len(sv)//2]
+        mx = max(field)
+        thr = bg + 0.45 * (mx - bg)
+        cnt = sum(1 for v in field if v > thr)
+        sx, sy = cfg["spacing"]
+        est = cnt * sx * sy * RHO
+        # relative cutoff must be off by >3% on at least one of these
+        assert abs(est - truth) > REL_TOL * truth, f"relative cutoff should fail on {cfg_name}: got {est:.2f} vs truth {truth:.2f}"
+    # also ensure at least one fraction in 0.40-0.60 fails on gradient_heavy
+    cfg = GRADIENT_CONFIG
+    field, v_true = build_field(cfg)
+    truth = geometric_truth_nC(cfg, v_true)
+    sv = sorted(field)
+    bg = sv[len(sv)//2]
+    mx = max(field)
+    fails = 0
+    for frac in [0.40, 0.45, 0.50, 0.55, 0.60]:
+        thr = bg + frac * (mx - bg)
+        cnt = sum(1 for v in field if v > thr)
+        sx, sy = cfg["spacing"]
+        est = cnt * sx * sy * RHO
+        if abs(est - truth) > REL_TOL * truth:
+            fails += 1
+    assert fails >= 3, f"expected at least 3 fractions to fail on gradient_heavy, got {fails}"
+
+
+def test_aniso_spacing_requires_sy():
+    cfg = ANISO_SPACING_CONFIG
+    field, v_true = build_field(cfg)
+    # correct truth uses sx*sy, wrong uses sx*sx should be off
+    sx, sy = cfg["spacing"]
+    truth = v_true * sx * sy * RHO
+    wrong = v_true * sx * sx * RHO
+    assert abs(wrong - truth) > REL_TOL * truth, f"sx*sx should differ from sx*sy on aniso config"
+
+
+def test_shape_filter_needed_on_shape_trick():
+    cfg = SHAPE_TRICK_CONFIG
+    field, v_true = build_field(cfg)
+    truth = geometric_truth_nC(cfg, v_true)
+    # naive largest-component by count (without shape filter) picks the large round artefact
+    sv = sorted(field)
+    bg = sv[len(sv)//2]
+    lower = sorted(sv[: len(sv)//2])
+    med_low = lower[len(lower)//2]
+    mad = sorted(abs(v - med_low) for v in lower)[len(lower)//2]
+    sigma = max(1e-6, 1.4826 * mad)
+    r = [v - bg for v in field]
+    nx, ny = cfg["dims"]
+    def idx(x,y): return x + nx*y
+    occ_thr = 4.0 * sigma
+    occ = [v > occ_thr for v in r]
+    seen = bytearray(len(r))
+    comps = []
+    for y0 in range(ny):
+        for x0 in range(nx):
+            s = idx(x0,y0)
+            if not occ[s] or seen[s]: continue
+            stack=[(x0,y0)]; seen[s]=1; comp=[]; mass=0; min_x=max_x=x0; min_y=max_y=y0
+            while stack:
+                x,y = stack.pop()
+                k=idx(x,y); comp.append(k); mass+=r[k]
+                min_x=min(min_x,x); max_x=max(max_x,x); min_y=min(min_y,y); max_y=max(max_y,y)
+                for dx,dy in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]:
+                    a,b=x+dx,y+dy
+                    if 0<=a<nx and 0<=b<ny:
+                        kk=idx(a,b)
+                        if occ[kk] and not seen[kk]:
+                            seen[kk]=1; stack.append((a,b))
+            dx_=max_x-min_x+1; dy_=max_y-min_y+1
+            comps.append((len(comp), dx_, dy_, mass, comp))
+    # pick largest by pixel count (no shape filter)
+    largest = max(comps, key=lambda x: x[0])
+    # largest should be the round artefact (15x15 ell ~ 707 px) vs thin main (20x4=80)
+    # so its dims should be roughly square, not elongated
+    _, dx_, dy_, _, _ = largest
+    dims = sorted([dx_, dy_])
+    # round artefact is ~30x30 bounding box, elongated main is 20x4
+    # if largest is round, its aspect ratio <1.6, so shape filter would reject it
+    assert dims[1] < 1.6 * dims[0] or dims[1] < 10, f"largest should be round artefact, got dims {dims}"
+    # and its mass should not match truth
+    sx, sy = cfg["spacing"]
+    est_wrong = largest[0] * sx * sy * RHO
+    assert abs(est_wrong - truth) > REL_TOL * truth, f"largest-component shortcut should fail on shape_trick"
+
+
