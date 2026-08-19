@@ -12,7 +12,7 @@ Output is surface charge in nC, not mm³ volume or mm² area alone. Calibration 
 * Parse header respecting data_offset
 * Keep main elongated tribo patch, ignore round static dots via aspect ratio (longest>=10 and >1.6x shortest)
 * Estimate background via median, noise via MAD lower half
-* Estimate plateau from most concentrated region via 3x3 filtered top-8 mean
+* Estimate plateau from most concentrated region via 3x3 filtered top-4 mean
 * Integrate halo via growth until shell mean hits noise floor, excluding round artefacts
 * Charge = pixel_count * sx*sy * 1.5 nC/mm²
 
@@ -29,7 +29,7 @@ Charge error <3% on heldouts including speck-heavy and round-artefact cases. Thr
 * Oracle 100%
 * Naive threshold 0%
 * Global without filter 0% on speck_heavy
-* Similar to ink-blot-subvoxel-area and foundry-thermal: gpt 1-2/5, opus 2/5, avocado 0-1/5
+* Similar to ink-blot-subvoxel-area and foundry-thermal: gpt 1-2/5, opus 4/5, avocado 4/5
 
 ## Anti-Cheating
 * Stdlib only, no numpy/scipy/imaging
