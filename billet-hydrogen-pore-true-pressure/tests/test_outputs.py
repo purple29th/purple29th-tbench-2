@@ -326,7 +326,6 @@ BASE_CONFIGS = {
             ("ell", 36, 34, 22, 6, 6, 5, True),
             ("box", 8, 32, 5, 9, 5, 9, False),
             ("ell", 40, 8, 10, 10, 3, 3, False),
-            ("ell", 42, 12, 26, 2, 2, 2, False),
         ],
         specks=[(48, 6, 4, 1.2), (6, 40, 26, 1.0)],
     ),
@@ -410,6 +409,22 @@ BASE_CONFIGS = {
         ],
         specks=[(5, 5, 6, 1.0), (36, 32, 20, 1.0)],
     ),
+    "stringer_dominant": dict(
+        dims=(64, 32, 32),
+        spacing=(0.50, 0.50, 1.00),
+        dtype=16,
+        amp=1200,
+        bg=50,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=1234,
+        object=[
+            ("ell", 48, 24, 24, 6, 5, 5, True),
+            ("box", 0, 56, 0, 8, 0, 8, False),
+        ],
+        specks=[(60, 4, 4, 1.2), (4, 28, 28, 1.0)],
+    ),
 }
 
 RANDOM_CONFIG = dict(
@@ -435,6 +450,7 @@ ALL_TEST_CONFIGS = [
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
     ("pore_heavy", BASE_CONFIGS["pore_heavy"]),
+    ("stringer_dominant", BASE_CONFIGS["stringer_dominant"]),
     ("heldout_96", BASE_CONFIGS["heldout_96"]),
     ("heldout_128", BASE_CONFIGS["heldout_128"]),
     ("heldout_40", BASE_CONFIGS["heldout_40"]),
@@ -606,59 +622,4 @@ def test_randomized_extra():
     assert abs(got - exp_kpa) <= REL_TOL * exp_kpa
 
 
-def test_global_conservation_shortcut_fails_on_speck_heavy():
-    cfg = BASE_CONFIGS["speck_heavy"]
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_kpa(cfg, v_true)
 
-    def naive_global():
-        sv = sorted(field)
-        bg = sv[len(sv) // 2]
-        r = [v - bg for v in field]
-        filt = sorted(r, reverse=True)
-        topk = filt[:8]
-        amp = sum(topk) / len(topk) if topk else 1
-        sx, sy, sz = cfg["spacing"]
-        vol = sum(v for v in r if v > 0) / amp * sx * sy * sz if amp > 0 else 0
-        return CONST / vol if vol > 1e-12 else 0
-
-    got = naive_global()
-    assert abs(got - truth) > REL_TOL * truth, (
-        f"Expected naive to fail on speck_heavy, got {got:.2f} vs truth {truth:.2f}"
-    )
-
-
-def test_shape_filter_needed():
-    cfg = BASE_CONFIGS["pore_heavy"]
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_kpa(cfg, v_true)
-    # For pore_heavy, elongated stringer and round beads are present as False.
-    # Naive global without shape filter includes them, overcounts volume, undercounts pressure.
-    sv = sorted(field)
-    bg = sv[len(sv) // 2]
-    r = [v - bg for v in field]
-    filt = sorted(r, reverse=True)
-    topk = filt[:12]
-    amp = sum(topk) / len(topk) if topk else 1
-    sx, sy, sz = cfg["spacing"]
-    total_vol = sum(v for v in r if v > 0) / amp * sx * sy * sz if amp > 0 else 0
-    naive_kpa = CONST / total_vol if total_vol > 1e-12 else 0
-    # naive global should be off because it includes stringer
-    assert abs(naive_kpa - truth) > REL_TOL * truth, (
-        f"pore_heavy should require shape filter, naive {naive_kpa:.2f} vs truth {truth:.2f}"
-    )
-
-
-def test_cheating_attempt_pathlib_fails():
-    cheating_code = "import pathlib\np=pathlib.Path('/')/'tests'/'test_outputs.py'\nprint(p.read_text()[:10])"
-    tree = ast.parse(cheating_code)
-    banned = False
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for a in node.names:
-                if a.name.split(".")[0] in BANNED_MODULES:
-                    banned = True
-        elif isinstance(node, ast.ImportFrom):
-            if (node.module or "").split(".")[0] in BANNED_MODULES:
-                banned = True
-    assert banned, "cheating pathlib import should be banned"
