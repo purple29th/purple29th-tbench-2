@@ -40,7 +40,14 @@ def charge_from_path(path):
         return x + nx * y
 
     sorted_vox = sorted(vox)
-    background = _median(sorted_vox)
+    # border median (5px rim) — matches instruction's border-median intent
+    border = []
+    for y in range(ny):
+        for x in range(nx):
+            if x < 5 or x >= nx - 5 or y < 5 or y >= ny - 5:
+                border.append(vox[idx(x, y)])
+    border.sort()
+    background = _median(border) if border else _median(sorted_vox)
     lower = sorted_vox[: n // 2]
     med_low = _median(lower)
     mad = _median(sorted(abs(v - med_low) for v in lower))
