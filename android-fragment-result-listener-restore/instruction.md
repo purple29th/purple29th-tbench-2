@@ -7,7 +7,7 @@ The model: root containers like main hold fragments. Each fragment keeps resultL
 Result handling:
 - SET_RESULT_LISTENER txn fragment key inside a transaction: register listener for key on that fragment. Ignore if fragment not in registry yet. If a pending result already exists for same key, deliver right away: move pending value to delivered, clear pending and listener (listener consumed).
 - CLEAR_RESULT_LISTENER txn fragment key: clear listener.
-- SET_RESULT txn targetFragment key value inside transaction: set result for target. If target currently has a listener for that key, deliver instantly (delivered[key]=value, remove listener and any pending for that key). If no listener, queue as pending[key]=value overwriting any previous pending for same key.
+- SET_RESULT txn targetFragment key value inside transaction: set result for target. Ignore if fragment not in registry yet and do not create pending state. If target currently has a listener for that key, deliver instantly (delivered[key]=value, remove listener and any pending for that key). If no listener, queue as pending[key]=value overwriting any previous pending for same key.
 - REMOVE txn fragment: removes fragment from any container and deletes its listeners, pending, delivered, and all registration. If transaction is marked for backstack, capture its full state before removal so POP restores it with listeners pending delivered and container.
 
 Backstack:

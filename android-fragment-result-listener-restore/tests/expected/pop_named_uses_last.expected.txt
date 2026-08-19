@@ -1,3 +1,0 @@
-container=main fragments=[B]
-fragment=B listeners=[] pending={} delivered={}
-backstack=[dup, other]

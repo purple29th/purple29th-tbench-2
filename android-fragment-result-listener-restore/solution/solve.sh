@@ -11,5 +11,4 @@ cd /app
 rm -rf build
 mkdir -p build
 kotlinc -d build/app.jar $(find src -name '*.kt')
-java -cp build/app.jar:/opt/kotlinc/lib/kotlin-stdlib.jar com.example.app.MainKt
 
