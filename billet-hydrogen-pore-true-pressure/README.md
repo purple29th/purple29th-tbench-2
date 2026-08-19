@@ -21,7 +21,7 @@ This explains why naive counting that keeps elongated stringers fails stringer h
 * environment/Dockerfile installs pytest and copies sample
 * solution/solve.py oracle reference with bespoke code
 * tests/_gen.py generates scene only to avoid stale divergence
-* tests/test_outputs.py secure verifier generating at runtime with random temp names like input_9f3a.hprr and random filenames, includes speck heavy, stringer heavy, 96, 128 data offset, randomized
+* tests/test_outputs.py secure verifier generating at runtime with random temp names like input_9f3a.hprr and random filenames, includes speck heavy, pore heavy, 40/48/80/96/128 data offset, randomized
 
 ## Completion Rates
 
@@ -29,7 +29,7 @@ Each run is k=5 trials. Trial scores 1.0 only if all verifier cases pass.
 
 | Model | Pass rate (k=5) |
 |---|---|
-| Oracle | 3/3 (1.00) deterministic, local harbor 1.0, 14/14 pytest |
+| Oracle | 3/3 (1.00) deterministic, local harbor 1.0, 17/17 pytest |
 | Avocado (meta/avocado-5.14-code) | measured by platform on submission, expected 0-1/5 due to round vs elongated inversion plus inverse pressure plus multi group plus halo steps |
 | Opus 4.6 (claude-opus-4-8) | measured by platform on submission, expected 2/5 |
 | GPT 5.5 (gpt-5.5) | measured by platform on submission, expected 1-2/5 |
