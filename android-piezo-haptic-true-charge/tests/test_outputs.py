@@ -40,7 +40,6 @@ BANNED_MODULES = {
     "posixpath",
     "ntpath",
     "genericpath",
-    "shutil",
 }
 BANNED_CALLS = {
     "eval",
@@ -185,7 +184,7 @@ def build_field(cfg):
     offset_dir = 1 if next(rng2) > 0.5 else -1
     ww1 = wide_width1
     amp_factor1 = (0.26 + next(rng2) * 0.14) * 0.54
-    c2 = c + offset_dir * (width // 2 + ww1 // 2 + int(next(rng2) * 45 + 25))
+    c2 = c + offset_dir * (width // 2 + ww1 // 2 + int(next(rng2) * 35 + 18))
     for i in range(c2 - ww1 // 2, c2 + ww1 // 2):
         if 0 <= i < total:
             field[i] += (
@@ -195,9 +194,9 @@ def build_field(cfg):
     ww2 = wide_width2
     amp_factor2 = (0.22 + next(rng2) * 0.14) * 0.51
     offset_dir2 = -offset_dir if next(rng2) > 0.3 else offset_dir
-    c3 = c + offset_dir2 * (width // 2 + ww2 // 2 + int(next(rng2) * 50 + 60))
+    c3 = c + offset_dir2 * (width // 2 + ww2 // 2 + int(next(rng2) * 35 + 18))
     if abs(c3 - c2) < (ww1 + ww2) // 2 + 15:
-        c3 = c2 + offset_dir2 * ((ww1 + ww2) // 2 + 20)
+        c3 = c2 + offset_dir2 * ((ww1 + ww2) // 2 + 15)
     for i in range(c3 - ww2 // 2, c3 + ww2 // 2):
         if 0 <= i < total:
             field[i] += (
@@ -256,9 +255,9 @@ BASE_CONFIGS = {
         baseline=106,
         amp=1280,
         width=34,
-        psf=4.5,
-        drift=14.0,
-        noise=8.4,
+        psf=5.3,
+        drift=17.0,
+        noise=10.0,
         wide_width1=92,
         wide_width2=88,
         rf_amp=3.6,
@@ -273,9 +272,9 @@ BASE_CONFIGS = {
         baseline=101,
         amp=1200,
         width=32,
-        psf=5.1,
-        drift=20.0,
-        noise=9.8,
+        psf=5.9,
+        drift=23.0,
+        noise=11.5,
         wide_width1=94,
         wide_width2=90,
         rf_amp=4.3,
@@ -290,9 +289,9 @@ BASE_CONFIGS = {
         baseline=111,
         amp=1380,
         width=36,
-        psf=4.3,
-        drift=13.5,
-        noise=7.8,
+        psf=5.2,
+        drift=17.0,
+        noise=9.8,
         wide_width1=90,
         wide_width2=86,
         rf_amp=3.2,
@@ -307,9 +306,9 @@ BASE_CONFIGS = {
         baseline=106,
         amp=1240,
         width=34,
-        psf=4.8,
-        drift=17.0,
-        noise=9.2,
+        psf=5.6,
+        drift=20.0,
+        noise=11.0,
         wide_width1=92,
         wide_width2=88,
         rf_amp=3.9,
@@ -324,9 +323,9 @@ BASE_CONFIGS = {
         baseline=106,
         amp=1160,
         width=32,
-        psf=5.3,
-        drift=24.0,
-        noise=10.8,
+        psf=6.2,
+        drift=27.0,
+        noise=12.5,
         wide_width1=90,
         wide_width2=84,
         rf_amp=4.6,
@@ -341,9 +340,9 @@ BASE_CONFIGS = {
         baseline=108,
         amp=1320,
         width=35,
-        psf=4.6,
-        drift=15.0,
-        noise=7.5,
+        psf=5.5,
+        drift=18.5,
+        noise=10.0,
         wide_width1=94,
         wide_width2=89,
         rf_amp=3.4,
@@ -358,9 +357,9 @@ BASE_CONFIGS = {
         baseline=112,
         amp=1260,
         width=33,
-        psf=4.9,
-        drift=18.0,
-        noise=8.0,
+        psf=5.8,
+        drift=22.0,
+        noise=10.5,
         wide_width1=91,
         wide_width2=87,
         rf_amp=3.7,
@@ -570,6 +569,7 @@ def run_agent_secure(aphc_bytes, expected_uc, name="case"):
         except Exception:
             pass
         secure_code = textwrap.dedent(f"""
+            import shutil  # preload for tempfile
             import sys, os, runpy
             solve_path = sys.argv[1]
             aphc_path = sys.argv[2]
@@ -641,7 +641,7 @@ def run_agent_secure(aphc_bytes, expected_uc, name="case"):
                 elif event == "import":
                     mod = args[0] if args else ""
                     base = mod.split(".")[0]
-                    banned_imports = {{"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","shutil","ctypes","importlib","runpy"}}
+                    banned_imports = {{"numpy","scipy","skimage","cv2","PIL","pandas","torch","tensorflow","subprocess","socket","multiprocessing","glob","pathlib","os","io","posixpath","ntpath","genericpath","ctypes","importlib","runpy"}}
                     if base in banned_imports:
                         raise RuntimeError(f"Blocked import {{mod}}")
             sys.addaudithook(audit_hook)
@@ -735,9 +735,9 @@ def test_randomized_extra():
         baseline=104,
         amp=1300,
         width=34,
-        psf=4.5,
-        drift=13.5,
-        noise=8.2,
+        psf=5.8,
+        drift=18.0,
+        noise=10.5,
         wide_width1=88,
         wide_width2=82,
         rf_amp=3.6,
