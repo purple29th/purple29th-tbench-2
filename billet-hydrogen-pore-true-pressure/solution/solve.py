@@ -102,13 +102,15 @@ def solve(p):
         is_round = dims[2] <= 35 and dims[2] <= 3.0 * dims[0]
         comps_with.append((mass, comp, dx, dy, dz, is_round))
     comps_with.sort(key=lambda x: x[0], reverse=True)
-    largest = comps_with[0][0] if comps_with else 0
+    # Fix R12: compute 0.35 cutoff relative to largest compact round pore, not largest overall (which could be elongated)
+    round_masses = [mass for mass, _, _, _, _, is_round in comps_with if is_round]
+    largest_compact = max(round_masses) if round_masses else 0
     main_groups = []
     for mass, comp, dx, dy, dz, is_round in comps_with:
-        if is_round and mass >= 0.35 * largest:
+        if is_round and mass >= 0.35 * largest_compact:
             main_groups.append(comp)
-    if not main_groups:
-        main_groups = [comps_with[0][1]] if comps_with else []
+    # Never fall back to elongated component when no round clears threshold (leave empty -> pressure 0)
+    # Previously: main_groups = [comps_with[0][1]] if comps_with else [] was buggy and could pick stringer
     best = []
     for g in main_groups:
         best.extend(g)

@@ -410,6 +410,22 @@ BASE_CONFIGS = {
         ],
         specks=[(5, 5, 6, 1.0), (36, 32, 20, 1.0)],
     ),
+    "stringer_dominant": dict(
+        dims=(64, 32, 32),
+        spacing=(0.50, 0.50, 1.00),
+        dtype=16,
+        amp=1200,
+        bg=50,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=1234,
+        object=[
+            ("ell", 48, 24, 24, 6, 5, 5, True),
+            ("box", 0, 56, 0, 8, 0, 8, False),
+        ],
+        specks=[(60, 4, 4, 1.2), (4, 28, 28, 1.0)],
+    ),
 }
 
 RANDOM_CONFIG = dict(
@@ -435,6 +451,7 @@ ALL_TEST_CONFIGS = [
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
     ("pore_heavy", BASE_CONFIGS["pore_heavy"]),
+    ("stringer_dominant", BASE_CONFIGS["stringer_dominant"]),
     ("heldout_96", BASE_CONFIGS["heldout_96"]),
     ("heldout_128", BASE_CONFIGS["heldout_128"]),
     ("heldout_40", BASE_CONFIGS["heldout_40"]),
