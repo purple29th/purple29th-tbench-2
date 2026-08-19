@@ -221,7 +221,7 @@ def pack_hprr(cfg, field):
     dtype = cfg["dtype"]
     n = nx * ny * nz
     off = cfg.get("data_offset", 64)
-    hdr = bytearray(max(64, off))
+    hdr = bytearray(off)
     hdr[0:4] = MAGIC
     struct.pack_into("<I", hdr, 4, 1)
     struct.pack_into("<I", hdr, 8, dtype)
@@ -258,8 +258,8 @@ BASE_CONFIGS = {
         noise=3,
         seed=232,
         object=[
-            ("box", 2, 18, 2, 10, 2, 8),
-            ("box", 22, 38, 18, 26, 14, 20),
+            ("ell", 10, 6, 5, 6, 5, 5),
+            ("ell", 30, 22, 17, 6, 5, 5),
         ],
         specks=[(36, 4, 3, 2.2), (4, 32, 20, 2.0)],
     ),
@@ -274,8 +274,8 @@ BASE_CONFIGS = {
         noise=3,
         seed=333,
         object=[
-            ("box", 2, 18, 2, 10, 10, 16),
-            ("box", 18, 34, 20, 28, 18, 24),
+            ("ell", 10, 6, 13, 6, 5, 4),
+            ("ell", 26, 24, 21, 6, 5, 4),
         ],
         specks=[(32, 4, 5, 2.2), (4, 30, 24, 2.0)],
     ),
@@ -290,8 +290,8 @@ BASE_CONFIGS = {
         noise=3,
         seed=444,
         object=[
-            ("box", 2, 18, 2, 10, 4, 10),
-            ("box", 22, 38, 18, 26, 12, 18),
+            ("ell", 10, 6, 7, 5, 5, 4),
+            ("ell", 30, 22, 15, 6, 5, 5),
         ],
         specks=[(36, 4, 4, 2.2), (4, 34, 20, 2.0)],
     ),
@@ -306,8 +306,8 @@ BASE_CONFIGS = {
         noise=3,
         seed=535,
         object=[
-            ("box", 2, 18, 2, 10, 4, 10),
-            ("box", 24, 40, 22, 30, 16, 22),
+            ("ell", 10, 6, 7, 5, 5, 4),
+            ("ell", 32, 26, 19, 6, 5, 5),
         ],
         specks=[(38, 5, 5, 2.5), (6, 35, 22, 2.2)],
     ),
@@ -322,8 +322,8 @@ BASE_CONFIGS = {
         noise=3,
         seed=555,
         object=[
-            ("box", 8, 20, 18, 30, 12, 24, True),
-            ("box", 30, 42, 28, 40, 16, 28, True),
+            ("ell", 14, 24, 18, 6, 6, 5, True),
+            ("ell", 36, 34, 22, 6, 6, 5, True),
             ("box", 8, 32, 5, 9, 5, 9, False),
             ("ell", 42, 12, 26, 4, 4, 4, False),
         ],
@@ -341,7 +341,7 @@ BASE_CONFIGS = {
         seed=636,
         data_offset=96,
         object=[
-            ("box", 10, 22, 12, 24, 8, 20),
+            ("ell", 16, 18, 14, 6, 5, 5),
         ],
         specks=[(36, 5, 4, 1.4)],
     ),
@@ -357,9 +357,57 @@ BASE_CONFIGS = {
         seed=737,
         data_offset=128,
         object=[
-            ("box", 12, 24, 14, 26, 10, 22),
+            ("ell", 18, 20, 16, 6, 5, 5),
         ],
         specks=[(38, 6, 5, 1.2)],
+    ),
+    "heldout_40": dict(
+        dims=(40, 36, 24),
+        spacing=(0.55, 0.55, 1.70),
+        dtype=16,
+        amp=1120,
+        bg=44,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=838,
+        data_offset=40,
+        object=[
+            ("ell", 16, 18, 12, 6, 5, 5),
+        ],
+        specks=[(5, 5, 5, 1.2), (34, 30, 20, 1.0)],
+    ),
+    "heldout_48": dict(
+        dims=(38, 34, 26),
+        spacing=(0.58, 0.58, 1.75),
+        dtype=16,
+        amp=1180,
+        bg=46,
+        sig_xy=0.9,
+        sig_z=0.5,
+        noise=3,
+        seed=939,
+        data_offset=48,
+        object=[
+            ("ell", 18, 16, 13, 5, 5, 5),
+        ],
+        specks=[(4, 4, 4, 1.0), (32, 28, 22, 1.0)],
+    ),
+    "heldout_80": dict(
+        dims=(42, 38, 26),
+        spacing=(0.52, 0.52, 1.68),
+        dtype=16,
+        amp=1150,
+        bg=50,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=3,
+        seed=1040,
+        data_offset=80,
+        object=[
+            ("ell", 16, 18, 13, 6, 5, 5),
+        ],
+        specks=[(5, 5, 6, 1.0), (36, 32, 20, 1.0)],
     ),
 }
 
@@ -374,7 +422,7 @@ RANDOM_CONFIG = dict(
     noise=2,
     seed=777,
     object=[
-        ("box", 10, 22, 12, 24, 8, 20),
+        ("ell", 16, 20, 14, 6, 5, 5),
     ],
     specks=[(34, 4, 4, 1.0)],
 )
@@ -388,6 +436,9 @@ ALL_TEST_CONFIGS = [
     ("pore_heavy", BASE_CONFIGS["pore_heavy"]),
     ("heldout_96", BASE_CONFIGS["heldout_96"]),
     ("heldout_128", BASE_CONFIGS["heldout_128"]),
+    ("heldout_40", BASE_CONFIGS["heldout_40"]),
+    ("heldout_48", BASE_CONFIGS["heldout_48"]),
+    ("heldout_80", BASE_CONFIGS["heldout_80"]),
     ("randomized", RANDOM_CONFIG),
 ]
 
