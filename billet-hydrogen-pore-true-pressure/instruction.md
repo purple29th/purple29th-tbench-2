@@ -35,13 +35,9 @@ Two artefact types to ignore:
 
 Multi pore handling. Some volumes have 2 separate round pores far apart. Both count. You must sum their volumes first, then convert to pressure via 780 / volume. Keeping only the biggest pore fails by 40 to 50 percent in those cases.
 
-How we decide in lab. I estimate a robust paper background and noise, mark fluorescence clearly above base as candidate, group with connected flood, then keep round pores and reject elongated stringers and far dust by shape and integrated brightness.
-
 Why simple thresholds fail. If you are generous and count everything slightly above background, volume balloons 80–130% over, so pressure collapses 40–55% low. If you are strict and only count very bright voxels, you lose edges, volume shrinks 30–50%, pressure spikes 40–90% high. Each file has different background, gain, and blur.
 
-What saves us is photons are conserved, only spread. Sum of base-subtracted glow over pore plus its faint skirt divided by true interior brightness gives true voxel count. Then volume = count * sx*sy*sz, pressure = 780 / total pore volume in mm3. You first recover true pore volume from smeared cloud, then compute pressure.
-
-If you get background and core right you land within 1 percent. Grading allows 3 percent.
+Recovering true pore volume from the smeared glow is the core challenge — the signal is conserved but spread by the optics. Pressure is then 780 divided by total pore volume in mm³. If you recover volume accurately you land within 1 percent. Grading allows 3 percent.
 
 Coding rules. You must parse bytes yourself, only stdlib. You can use struct sys math random tempfile re. You cannot use numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath or any array imaging or graph library. Banned calls include eval exec compile __import__ chr. Banned tricks include subprocess os system popen exec fork walk listdir scandir pty importlib runpy ctypes filesystem listing or hiding forbidden file names with chr bytes fromhex base64 b64decode bytearray tricks. Do not try to open or list tests folder (the solver naturally needs to open the input file given as argv). Do not reference /tests test_outputs heldout tests/_gen GEOM_TRUTH geometric_truth reference_length in solver. Your solver must work on any random temp path.
 
