@@ -25,13 +25,13 @@ File format — little endian, extension hprr:
 | 32-35 | float32 | sz |
 | 36-39 | uint32  | data_offset |
 
-`data_offset` can be 32, 40, 48, 64, 80, 96, 128 — respect the header value. Bytes between header and payload are zero padding. At `data_offset` you have `nx*ny*nz` samples in the announced dtype, x fastest: index = x + nx*(y + ny*z). `sx`, `sy`, `sz`, `data_offset`, and dtype vary per billet heat and must be read.
+`data_offset` can be 40, 48, 64, 80, 96, 128 — respect the header value. Bytes between header and payload are zero padding. At `data_offset` you have `nx*ny*nz` samples in the announced dtype, x fastest: index = x + nx*(y + ny*z). `sx`, `sy`, `sz`, `data_offset`, and dtype vary per billet heat and must be read.
 
-What counts. Inside each cube there is hydrogen in a few places. The pores that count are round sealed pores that are near spherical. Those are the only pores that count.
+What counts. Inside each cube there is hydrogen in a few places. The pores that count are near-spherical sealed pores whose three axis radii differ by at most 30 percent and whose centres lie in the central billet region (well away from the 5-voxel corner rim). Those are the only pores that count.
 
 Two artefact types to ignore:
-- Elongated MnS stringers that are long along casting direction, typically stretched before smear.
-- Tiny bright specks from dust on window in corners near (5,5,5) and (75,75,20), far from central pores.
+- Elongated MnS stringers that are long along casting direction, typically stretched with longest axis at least four times the shortest, located centrally but strongly anisotropic.
+- Tiny bright specks from dust on window in corners near (5,5,5) and (75,75,20), radius at most 3 voxels and volume under 150 voxels, far from central pores.
 
 Multi pore handling. Some volumes have 2 separate round pores far apart. Both count. You must sum their volumes first, then convert to pressure via 780 / volume. Keeping only the biggest pore fails by 40 to 50 percent in those cases.
 
