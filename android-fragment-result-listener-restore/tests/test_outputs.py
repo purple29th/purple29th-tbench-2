@@ -11,7 +11,7 @@ import pytest
 
 SCENARIO_PATH = Path("/app/scenario.txt")
 OUTPUT_PATH = Path("/app/output.txt")
-BUILD_DIR = Path("/app/build")
+BUILD_DIR = Path("/tmp/build")
 JAR_PATH = BUILD_DIR / "app.jar"
 EXPECTED_DIR = Path("/tests/expected")
 HIDDEN_BACKUP = Path("/tmp/.hidden_expected_backup_for_tbench")
@@ -103,6 +103,9 @@ def hide_expected_dir():
 @pytest.fixture(scope="session")
 def built_jar(hide_expected_dir):
     """R11 fix: build jar once per session with direct kotlinc, not via agent-controlled build.sh, and reuse for all scenarios."""
+    # Clean previous build to avoid invalid jar path error
+    import shutil as _shutil
+    _shutil.rmtree(str(BUILD_DIR), ignore_errors=True)
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     # Find kotlin sources directly - avoid calling /app/src/build.sh which is agent-controlled
     find_result = subprocess.run(
@@ -111,7 +114,8 @@ def built_jar(hide_expected_dir):
     )
     kt_files = [line.strip() for line in find_result.stdout.splitlines() if line.strip()]
     assert kt_files, "No Kotlin sources found in /app/src"
-    build_cmd = ["kotlinc", "-d", str(JAR_PATH)] + kt_files
+    # Use same build invocation as /app/src/build.sh to avoid invalid jar path with absolute output
+    build_cmd = ["bash", "-c", "kotlinc -d /tmp/build/app.jar $(find /app/src -name '*.kt')"]
     build_result = subprocess.run(
         build_cmd,
         capture_output=True, text=True, timeout=120
