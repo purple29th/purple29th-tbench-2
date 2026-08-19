@@ -105,7 +105,7 @@ def pack(cfg, field):
     dtype=cfg["dtype"]
     n=nx*ny*nz
     off=cfg.get("data_offset",64)
-    hdr=bytearray(max(64,off))
+    hdr=bytearray(off)
     hdr[0:4]=MAGIC
     struct.pack_into("<I",hdr,4,1)
     struct.pack_into("<I",hdr,8,dtype)
