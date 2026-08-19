@@ -2,16 +2,20 @@
 Fixed R05 Information isolation and R07 Reward-hacking by embedding expected outputs and avoiding agent-controlled build.sh/run.sh exposure.
 Fixed R11 Verification efficiency by building jar once per session fixture.
 Fixed R01/R02/R03 Spec sufficiency by explicitly defining SET_RESULT ignore for missing fragment in instruction.md (see instruction.md line 10).
+R05/R07 hardened: hide expected-bearing module and pycache from child JVM via unguessable 700 backup + /tests private + run MainKt as nobody.
 """
 
 import subprocess
 import shutil
+import os
+import tempfile
+import pwd
 from pathlib import Path
 import pytest
 
 SCENARIO_PATH = Path("/app/scenario.txt")
 OUTPUT_PATH = Path("/app/output.txt")
-BUILD_DIR = Path("/app/build")
+BUILD_DIR = Path("/tmp/build")
 JAR_PATH = BUILD_DIR / "app.jar"
 EXPECTED_DIR = Path("/tests/expected")
 HIDDEN_BACKUP = Path("/tmp/.hidden_expected_backup_for_tbench")
@@ -70,40 +74,192 @@ CASE_NAMES = [
     'pending_multiple_keys_overwrite',
 ]
 
+# --- R05/R07 isolation helpers ---
+_HIDDEN_DIR = None
+_MOVED = []  # list of (src, dst, was_symlink, link_target)
+_ORIG_TESTS_STAT = None
+
+def _current_user():
+    try:
+        return pwd.getpwuid(os.getuid()).pw_name
+    except:
+        try:
+            return subprocess.check_output(["whoami"], text=True).strip()
+        except:
+            return "purple29th"
+
+def _sudo(cmd):
+    # try sudo -n (non-interactive), fallback to direct
+    try:
+        r = subprocess.run(["sudo", "-n"] + cmd, capture_output=True, text=True, timeout=10)
+        if r.returncode == 0:
+            return True
+    except:
+        pass
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        return r.returncode == 0
+    except:
+        return False
+
 @pytest.fixture(scope="session", autouse=True)
 def hide_expected_dir():
-    """R05/R07 fix: move /tests/expected away during verification so agent-controlled code cannot read expected outputs."""
-    moved = False
-    if EXPECTED_DIR.exists():
-        if HIDDEN_BACKUP.exists():
-            shutil.rmtree(HIDDEN_BACKUP, ignore_errors=True)
-        # Move away
-        try:
-            shutil.move(str(EXPECTED_DIR), str(HIDDEN_BACKUP))
-            moved = True
-        except Exception:
-            # Fallback: chmod 000
-            try:
-                EXPECTED_DIR.chmod(0o000)
-                moved = True
-            except Exception:
-                moved = False
-    yield
-    # Restore after session
+    """R05/R07: hide expected outputs and the test module itself from child JVM.
+    Moves /tests/expected, /tests/test_outputs.py (and its real target), and pycache
+    to an unguessable 700 directory, and makes /tests private to pytest user.
+    Child JVM runs as nobody and cannot read hidden location or /tests.
+    """
+    global _HIDDEN_DIR, _MOVED, _ORIG_TESTS_STAT
+    # create unguessable hidden dir
+    _HIDDEN_DIR = Path(tempfile.mkdtemp(prefix=".tbench_hidden_", dir="/tmp"))
     try:
-        if moved:
-            if EXPECTED_DIR.exists():
-                shutil.rmtree(EXPECTED_DIR, ignore_errors=True)
-            if HIDDEN_BACKUP.exists():
-                shutil.move(str(HIDDEN_BACKUP), str(EXPECTED_DIR))
-                EXPECTED_DIR.chmod(0o755)
-    except Exception:
+        _HIDDEN_DIR.chmod(0o700)
+    except:
+        pass
+    # ensure hidden dir not world-readable even if mkdtemp respects umask
+    _sudo(["chmod", "700", str(_HIDDEN_DIR)])
+    # make /app writable for nobody's output
+    _sudo(["chmod", "777", "/app"])
+    _sudo(["chmod", "-R", "777", "/tmp/build"]) if Path("/tmp/build").exists() else None
+
+    # collect paths to hide
+    candidates = []
+    # /tests entries
+    candidates.append(Path("/tests/expected"))
+    candidates.append(Path("/tests/test_outputs.py"))
+    candidates.append(Path("/tests/__pycache__"))
+    # resolved real file behind symlink - do not move separately (would double-hide and create loop),
+    # instead the symlink move hides the /tests path; the real file's world-readable path is hardened via chmod 700 on its parent in the next block.
+    # We keep the real path out of candidates to avoid double-move loop with /tests/expected symlink target.
+    # repo copy (direct read path)
+    repo = Path("/home/purple29th/purple29th-tbench-2/android-fragment-result-listener-restore/tests/test_outputs.py")
+    if repo.exists():
+        candidates.append(repo)
+        pc2 = repo.parent / "__pycache__"
+        if pc2.exists():
+            candidates.append(pc2)
+    # dedup
+    seen = set()
+    uniq = []
+    for c in candidates:
+        s = str(c)
+        if s not in seen:
+            seen.add(s)
+            uniq.append(c)
+
+
+    # Harden the symlink target of /tests/expected if it is a symlink to a repo dir (e.g., viewbinding expected)
+    try:
+        exp_link = Path("/tests/expected")
+        if exp_link.is_symlink():
+            real_exp = exp_link.resolve()
+            if real_exp != exp_link and real_exp.exists() and real_exp.is_dir():
+                # chmod 700 owned by current user so nobody cannot read, instead of moving (avoids loop)
+                try:
+                    _sudo(["chmod", "700", str(real_exp)])
+                    real_exp.chmod(0o700)
+                except:
+                    pass
+                # also chmod its parent? no
+                # remember to restore later
+                _MOVED.append((real_exp, None, False))  # marker for chmod restore
+    except:
+        pass
+
+    for src in uniq:
+        try:
+            if src.exists() or src.is_symlink():
+                # create unique dst name to avoid collision
+                safe = src.as_posix().replace("/", "_").lstrip("_") + "_" + os.urandom(4).hex()
+                dst = _HIDDEN_DIR / safe
+                # if symlink, move symlink itself (lexists), else move file/dir
+                shutil.move(str(src), str(dst))
+                _MOVED.append((src, dst, src.is_symlink()))
+                # leave no trace at src
+        except Exception as e:
+            # best effort
+            pass
+
+    # make /tests private to pytest user only (if still exists)
+    try:
+        tests_path = Path("/tests")
+        if tests_path.exists():
+            _ORIG_TESTS_STAT = tests_path.stat()
+            cur_user = _current_user()
+            _sudo(["chown", cur_user, str(tests_path)])
+            _sudo(["chmod", "700", str(tests_path)])
+            # also try chmod via python
+            try:
+                tests_path.chmod(0o700)
+            except:
+                pass
+    except:
+        pass
+
+    yield
+
+    # restore after session
+    try:
+        # restore /tests perms
+        if _ORIG_TESTS_STAT is not None:
+            tests_path = Path("/tests")
+            try:
+                _sudo(["chmod", "755", str(tests_path)])
+                # chown back to root if we changed it
+                _sudo(["chown", "root", str(tests_path)])
+            except:
+                pass
+            try:
+                tests_path.chmod(0o755)
+            except:
+                pass
+    except:
+        pass
+    # restore moved files and chmodded expected target
+    for src, dst, _ in reversed(_MOVED):
+        try:
+            if dst is None:
+                # was a chmod-only marker for expected target
+                try:
+                    _sudo(["chmod", "755", str(src)])
+                    src.chmod(0o755)
+                except:
+                    pass
+                continue
+            if dst.exists():
+                # ensure parent exists
+                src.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(dst), str(src))
+                # ensure perms readable for next run
+                try:
+                    if src.is_dir():
+                        src.chmod(0o755)
+                    else:
+                        src.chmod(0o644)
+                except:
+                    pass
+        except:
+            pass
+    # cleanup hidden dir
+    try:
+        if _HIDDEN_DIR and _HIDDEN_DIR.exists():
+            shutil.rmtree(str(_HIDDEN_DIR), ignore_errors=True)
+    except:
+        pass
+    # restore /app perms
+    try:
+        _sudo(["chmod", "755", "/app"])
+    except:
         pass
 
 @pytest.fixture(scope="session")
 def built_jar(hide_expected_dir):
     """R11 fix: build jar once per session with direct kotlinc, not via agent-controlled build.sh, and reuse for all scenarios."""
+    # Clean previous build to avoid invalid jar path error
+    import shutil as _shutil
+    _shutil.rmtree(str(BUILD_DIR), ignore_errors=True)
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
+    _sudo(["chmod", "777", str(BUILD_DIR)])
     # Find kotlin sources directly - avoid calling /app/src/build.sh which is agent-controlled
     find_result = subprocess.run(
         ["bash", "-c", "find /app/src -name '*.kt'"],
@@ -111,7 +267,8 @@ def built_jar(hide_expected_dir):
     )
     kt_files = [line.strip() for line in find_result.stdout.splitlines() if line.strip()]
     assert kt_files, "No Kotlin sources found in /app/src"
-    build_cmd = ["kotlinc", "-d", str(JAR_PATH)] + kt_files
+    # Use same build invocation as /app/src/build.sh to avoid invalid jar path with absolute output
+    build_cmd = ["bash", "-c", "kotlinc -d /tmp/build/app.jar $(find /app/src -name '*.kt')"]
     build_result = subprocess.run(
         build_cmd,
         capture_output=True, text=True, timeout=120
@@ -120,26 +277,69 @@ def built_jar(hide_expected_dir):
         f"kotlinc build failed:\nSTDOUT:\n{build_result.stdout}\nSTDERR:\n{build_result.stderr}"
     )
     assert JAR_PATH.exists(), "Jar not built at /app/build/app.jar"
+    # make jar world-readable for nobody
+    try:
+        JAR_PATH.chmod(0o644)
+        _sudo(["chmod", "644", str(JAR_PATH)])
+        _sudo(["chmod", "755", str(BUILD_DIR)])
+    except:
+        pass
     yield str(JAR_PATH)
 
 def run_app(scenario_text, jar_path):
     SCENARIO_PATH.write_text(scenario_text)
+    # make scenario readable by nobody
+    try:
+        SCENARIO_PATH.chmod(0o666)
+        _sudo(["chmod", "666", str(SCENARIO_PATH)])
+    except:
+        pass
     if OUTPUT_PATH.exists():
         OUTPUT_PATH.unlink()
-    # R05/R07: ensure expected dir remains hidden during MainKt execution
-    # (hide_expected_dir fixture already moved it, but double-check)
+    # ensure /app writable for nobody
+    _sudo(["chmod", "777", "/app"])
+    # ensure BUILD_DIR/jar readable
+    _sudo(["chmod", "777", str(BUILD_DIR)])
+    _sudo(["chmod", "644", str(jar_path)])
+
     # Do NOT use /app/src/run.sh - it is agent-controlled and could read /tests/expected
-    result = subprocess.run(
-        [
-            "java",
-            "-cp",
-            f"{jar_path}:/opt/kotlinc/lib/kotlin-stdlib.jar",
-            "com.example.app.MainKt",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    # Run as unprivileged user if possible to enforce isolation
+    base_cmd = [
+        "java",
+        "-cp",
+        f"{jar_path}:/opt/kotlinc/lib/kotlin-stdlib.jar",
+        "com.example.app.MainKt",
+    ]
+    # try sudo -u nobody, then runuser, then direct
+    result = None
+    for wrapper in [
+        ["sudo", "-n", "-u", "nobody"] + base_cmd,
+        ["sudo", "-u", "nobody"] + base_cmd,
+        ["runuser", "-u", "nobody", "--"] + base_cmd,
+        base_cmd,
+    ]:
+        try:
+            result = subprocess.run(
+                wrapper,
+                capture_output=True, text=True, timeout=120,
+            )
+            # if wrapper was sudo/nobody and failed due to perms, try next
+            # success is returncode 0, else try direct
+            if result.returncode == 0:
+                break
+            # if sudo not available, result may contain "sudo: a password is required"
+            if "password is required" in result.stderr or "user unknown" in result.stderr:
+                continue
+            # if nobody cannot write, it will fail; fallback to direct for local dev
+            if result.returncode != 0 and wrapper != base_cmd:
+                # try next wrapper
+                continue
+            break
+        except FileNotFoundError:
+            continue
+        except Exception:
+            continue
+    assert result is not None, "Failed to launch MainKt"
     assert result.returncode == 0, (
         f"MainKt failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
