@@ -27,13 +27,13 @@ File format — little endian, extension hprr:
 
 `data_offset` can be 40, 48, 64, 80, 96, 128 — respect the header value. Bytes between header and payload are zero padding. At `data_offset` you have `nx*ny*nz` samples in the announced dtype, x fastest: index = x + nx*(y + ny*z). `sx`, `sy`, `sz`, `data_offset`, and dtype vary per billet heat and must be read.
 
-What counts. Inside each cube there is hydrogen in a few places. The pores that count are near-spherical sealed pores whose three axis radii differ by at most 30 percent. Those are the only pores that count; pores may appear anywhere in the volume including near the rim, and all near-spherical pores count regardless of position.
+What counts. Inside each cube there is hydrogen in a few places. The pores that count are near-spherical sealed pores that appear compact after accounting for smear. In practice a counted pore has a bounding-box longest span at most 35 voxels and at most 3× its shortest span (e.g., radii like 6,5,4 or 6,5,5 are counted; strongly elongated shapes are not). Those are the only pores that count; pores may appear anywhere in the volume including near the rim, and all compact pores count regardless of position.
 
 Two artefact types to ignore:
-- Elongated MnS stringers that are long along casting direction, typically axis-aligned boxes with longest side at least three times the shortest side, and strongly anisotropic ellipsoids with radii differing by more than a factor of two.
-- Tiny bright specks from dust on window, identified by small size: radius at most 3 voxels and volume under 150 voxels (much smaller than true pores which are several hundred voxels), or more generally any round blob whose integrated mass is less than 0.35× the mass of the largest round pore in that volume. Dust may appear near corners but is distinguished by size/mass, not solely by position.
+- Elongated MnS stringers that are long along casting direction, typically axis-aligned boxes with longest side at least three times the shortest side, and strongly anisotropic ellipsoids whose bounding-box longest span exceeds 3× the shortest (or radii differ by more than ~2×).
+- Tiny bright specks from dust on window, identified by small size: radius at most 3 voxels and volume under 150 voxels (much smaller than true pores which are several hundred voxels), or more generally any compact blob whose integrated mass is less than 0.35× the mass of the largest compact pore in that volume. Dust may appear near corners but is distinguished by size/mass, not solely by position.
 
-Multi pore handling. Some volumes have 2 separate round pores far apart. Both count. You must sum their volumes first, then convert to pressure via 780 / volume. Keeping only the biggest pore fails by 40 to 50 percent in those cases.
+Multi pore handling. Some volumes have 2 or 3 separate round pores far apart. All compact pores above the 0.35× mass threshold count. You must sum their volumes first, then convert to pressure via 780 / volume. Keeping only the biggest pore fails by 40 to 50 percent in those cases.
 
 Why simple thresholds fail. If you are generous and count everything slightly above background, volume balloons 80–130% over, so pressure collapses 40–55% low. If you are strict and only count very bright voxels, you lose edges, volume shrinks 30–50%, pressure spikes 40–90% high. Each file has different background, gain, and blur.
 
