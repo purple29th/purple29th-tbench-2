@@ -347,21 +347,21 @@ RANDOM_CONFIG = dict(
 
 # Additional configs to break half-max and test shape/aniso
 GRADIENT_CONFIG = dict(
-    dims=(80, 76),
+    dims=(80, 80),
     spacing=(0.10, 0.10),
     dtype=16,
     amp=1200,
-    bg=45,
+    bg=50,
     sig=1.6,
     noise=3,
     seed=555,
-    gradient=0.18,
+    # split patch: two boxes with 4px gap, requires halo integration to connect
     object=[
-        ("box", 12, 68, 32, 40, True),
-        ("ell", 40, 36, 22, 6, True),
-        ("ell", 70, 14, 4, 4, False),
+        ("box", 20, 45, 30, 50, True),
+        ("box", 49, 62, 30, 50, True),
+        ("ell", 70, 70, 4, 4, False),
     ],
-    specks=[(5, 5, 1.0), (75, 75, 1.0)],
+    specks=[(5, 5, 1.0), (75, 5, 1.0)],
 )
 SHAPE_TRICK_CONFIG = dict(
     dims=(80, 80),
@@ -372,11 +372,10 @@ SHAPE_TRICK_CONFIG = dict(
     sig=1.3,
     noise=3,
     seed=666,
+    # main 30x8 (240 px) vs elongated distractor 26x16 (13x8 ell, 34% larger) - cheat picks distractor, legit picks main via y/x check
     object=[
-        # elongated main patch (30x8, 240 px) — correctly elongated, moderate thickness
         ("box", 30, 60, 36, 44, True),
-        # large round artefact (13x13 ell, ~530 px) — largest by area but round, should be ignored; placed centrally to avoid truncation
-        ("ell", 15, 15, 13, 13, False),
+        ("ell", 15, 15, 13, 8, False),
         ("ell", 65, 65, 4, 4, False),
     ],
     specks=[(5, 75, 1.0), (75, 5, 1.0)],
@@ -398,21 +397,40 @@ ANISO_SPACING_CONFIG = dict(
     specks=[(5, 5, 1.0), (75, 75, 1.0)],
 )
 OFFSET_CONFIG = dict(
-    dims=(80, 80),
-    spacing=(0.10, 0.10),
-    dtype=16,
-    amp=1150,
-    bg=60,
-    sig=1.4,
+    dims=(84, 76),
+    spacing=(0.11, 0.09),
+    dtype=2,
+    amp=1400,
+    bg=55,
+    sig=1.5,
     noise=3,
     seed=888,
     data_offset=96,
     object=[
-        ("box", 12, 68, 32, 40, True),
-        ("ell", 40, 36, 20, 8, True),
-        ("ell", 70, 14, 4, 4, False),
+        ("box", 14, 70, 30, 38, True),
+        ("ell", 42, 34, 18, 6, True),
+        ("ell", 70, 12, 4, 4, False),
     ],
     specks=[(5, 5, 1.0), (75, 75, 1.0)],
+)
+
+
+Y_ELONGATED_CONFIG = dict(
+    dims=(80, 80),
+    spacing=(0.10, 0.10),
+    dtype=16,
+    amp=1100,
+    bg=50,
+    sig=1.3,
+    noise=3,
+    seed=777,
+    # y-elongated main 12x30 (360 px) vs x-elongated distractor 30x8 (240 px) - tests long axis along x clause, main larger
+    object=[
+        ("box", 10, 22, 10, 40, True),
+        ("box", 50, 80, 60, 68, False),
+        ("ell", 70, 10, 4, 4, False),
+    ],
+    specks=[(5, 75, 1.0), (75, 5, 1.0)],
 )
 
 ALL_TEST_CONFIGS = [
@@ -426,6 +444,7 @@ ALL_TEST_CONFIGS = [
     ("shape_trick", SHAPE_TRICK_CONFIG),
     ("aniso_spacing", ANISO_SPACING_CONFIG),
     ("offset_heavy", OFFSET_CONFIG),
+    ("y_elongated", Y_ELONGATED_CONFIG),
 ]
 
 SECURE_RUNNER_CODE = r"""
@@ -621,32 +640,124 @@ def test_global_fails_on_speck_heavy():
 
 
 def test_relative_cutoff_fails():
-    # Relative cutoff 0.45*max should fail on gradient_heavy / aniso configs (breaks half-max)
-    for cfg_name in ["gradient_heavy", "aniso_spacing", "shape_trick"]:
-        cfg = GRADIENT_CONFIG if cfg_name == "gradient_heavy" else (ANISO_SPACING_CONFIG if cfg_name == "aniso_spacing" else SHAPE_TRICK_CONFIG)
-        field, v_true = build_field(cfg)
-        truth = geometric_truth_nC(cfg, v_true)
+    # Component-aware 0.45*max + 8-connectivity + aspect should still fail on split patch (gradient_heavy)
+    # This is the true shortcut that previously passed 17/17
+    def cheat_count(cfg, field):
+        nx, ny = cfg["dims"]
+        n = nx*ny
+        sx, sy = cfg["spacing"]
         sv = sorted(field)
         bg = sv[len(sv)//2]
         mx = max(field)
         thr = bg + 0.45 * (mx - bg)
-        cnt = sum(1 for v in field if v > thr)
-        sx, sy = cfg["spacing"]
-        est = cnt * sx * sy * RHO
-        # relative cutoff must be off by >3% on at least one of these
-        assert abs(est - truth) > REL_TOL * truth, f"relative cutoff should fail on {cfg_name}: got {est:.2f} vs truth {truth:.2f}"
-    # also ensure at least one fraction in 0.40-0.60 fails on gradient_heavy
+        occ = [v > thr for v in field]
+        seen = bytearray(n)
+        NEIGH8 = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
+        def idx(x,y): return x + nx*y
+        comps = []
+        for y0 in range(ny):
+            for x0 in range(nx):
+                s = idx(x0,y0)
+                if not occ[s] or seen[s]:
+                    continue
+                stack=[(x0,y0)]
+                seen[s]=1
+                comp=[]
+                min_x=max_x=x0
+                min_y=max_y=y0
+                while stack:
+                    x,y = stack.pop()
+                    k=idx(x,y)
+                    comp.append(k)
+                    min_x=min(min_x,x); max_x=max(max_x,x)
+                    min_y=min(min_y,y); max_y=max(max_y,y)
+                    for dx,dy in NEIGH8:
+                        a,b=x+dx,y+dy
+                        if 0<=a<nx and 0<=b<ny:
+                            kk=idx(a,b)
+                            if occ[kk] and not seen[kk]:
+                                seen[kk]=1
+                                stack.append((a,b))
+                dx_=max_x-min_x+1
+                dy_=max_y-min_y+1
+                comps.append((len(comp), dx_, dy_, comp))
+        if not comps:
+            return 0
+        filtered = []
+        for cnt, dx_, dy_, comp in comps:
+            dims = sorted([dx_, dy_])
+            if dims[1] >=10 and dims[1] > 1.6*dims[0] and dx_ > dy_:
+                filtered.append((cnt, comp))
+        if filtered:
+            cnt = max(filtered, key=lambda x: x[0])[0]
+        else:
+            for cnt, dx_, dy_, comp in comps:
+                dims = sorted([dx_, dy_])
+                if dims[1] >=10 and dims[1] > 1.6*dims[0]:
+                    filtered.append((cnt, comp))
+            if filtered:
+                cnt = max(filtered, key=lambda x: x[0])[0]
+            else:
+                cnt = max(comps, key=lambda x: x[0])[0]
+        return cnt * sx * sy * RHO
+
+    # gradient_heavy (now split patch) must fail even with component-aware cheat
+    for cfg_name in ["gradient_heavy", "y_elongated", "shape_trick"]:
+        cfg = {"gradient_heavy": GRADIENT_CONFIG, "y_elongated": Y_ELONGATED_CONFIG, "shape_trick": SHAPE_TRICK_CONFIG}[cfg_name]
+        field, v_true = build_field(cfg)
+        truth = geometric_truth_nC(cfg, v_true)
+        est = cheat_count(cfg, field)
+        assert abs(est - truth) > REL_TOL * truth, f"component-aware 0.45 cutoff should fail on {cfg_name}: got {est:.2f} vs truth {truth:.2f}"
+
+    # also ensure sweep 0.40-0.60 fails at least 3 fractions on gradient_heavy even with component-aware
     cfg = GRADIENT_CONFIG
     field, v_true = build_field(cfg)
     truth = geometric_truth_nC(cfg, v_true)
-    sv = sorted(field)
-    bg = sv[len(sv)//2]
-    mx = max(field)
     fails = 0
     for frac in [0.40, 0.45, 0.50, 0.55, 0.60]:
-        thr = bg + frac * (mx - bg)
-        cnt = sum(1 for v in field if v > thr)
+        # component-aware for each frac
+        nx, ny = cfg["dims"]
         sx, sy = cfg["spacing"]
+        sv = sorted(field)
+        bg = sv[len(sv)//2]
+        mx = max(field)
+        thr = bg + frac * (mx - bg)
+        occ = [v > thr for v in field]
+        seen = bytearray(nx*ny)
+        NEIGH8 = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
+        def idx(x,y): return x + nx*y
+        comps = []
+        for y0 in range(ny):
+            for x0 in range(nx):
+                s = idx(x0,y0)
+                if not occ[s] or seen[s]:
+                    continue
+                stack=[(x0,y0)]
+                seen[s]=1
+                comp=[]
+                min_x=max_x=x0
+                min_y=max_y=y0
+                while stack:
+                    x,y = stack.pop()
+                    k=idx(x,y)
+                    comp.append(k)
+                    min_x=min(min_x,x); max_x=max(max_x,x)
+                    min_y=min(min_y,y); max_y=max(max_y,y)
+                    for dx,dy in NEIGH8:
+                        a,b=x+dx,y+dy
+                        if 0<=a<nx and 0<=b<ny:
+                            kk=idx(a,b)
+                            if occ[kk] and not seen[kk]:
+                                seen[kk]=1
+                                stack.append((a,b))
+                dx_=max_x-min_x+1
+                dy_=max_y-min_y+1
+                comps.append((len(comp), dx_, dy_, comp))
+        if not comps:
+            fails += 1
+            continue
+        filtered = [c for c in comps if sorted([c[1],c[2]])[1] >=10 and sorted([c[1],c[2]])[1] > 1.6*sorted([c[1],c[2]])[0]]
+        cnt = max(filtered, key=lambda x: x[0])[0] if filtered else max(comps, key=lambda x: x[0])[0]
         est = cnt * sx * sy * RHO
         if abs(est - truth) > REL_TOL * truth:
             fails += 1
