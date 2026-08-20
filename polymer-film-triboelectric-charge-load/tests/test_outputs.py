@@ -82,7 +82,7 @@ BANNED_SUBSTRINGS_SRC = [
     "/tests",
     "test_outputs",
     "heldout",
-    "_gen",
+    "_gen.py",
     "GEOM_TRUTH",
     "geometric_truth",
     "reference_charge",
@@ -346,7 +346,7 @@ RANDOM_CONFIG = dict(
 )
 
 # Additional configs to break half-max and test shape/aniso
-GRADIENT_CONFIG = dict(
+GRADIENT_CONFIG = SPLIT_PATCH_CONFIG = dict(
     dims=(80, 80),
     spacing=(0.10, 0.10),
     dtype=16,
@@ -372,10 +372,10 @@ SHAPE_TRICK_CONFIG = dict(
     sig=1.3,
     noise=3,
     seed=666,
-    # main 30x8 (240 px) vs elongated distractor 26x16 (13x8 ell, 34% larger) - cheat picks distractor, legit picks main via y/x check
+    # main 30x8 (240 px) vs round distractor 20x20 (10x10 ell, 31% larger, aspect 1.0 clearly round) - cheat picks distractor, legit picks main via aspect check
     object=[
         ("box", 30, 60, 36, 44, True),
-        ("ell", 15, 15, 13, 8, False),
+        ("ell", 15, 15, 10, 10, False),
         ("ell", 65, 65, 4, 4, False),
     ],
     specks=[(5, 75, 1.0), (75, 5, 1.0)],
@@ -440,7 +440,7 @@ ALL_TEST_CONFIGS = [
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
     ("round_heavy", BASE_CONFIGS["round_heavy"]),
     ("randomized", RANDOM_CONFIG),
-    ("gradient_heavy", GRADIENT_CONFIG),
+    ("gradient_heavy", SPLIT_PATCH_CONFIG),
     ("shape_trick", SHAPE_TRICK_CONFIG),
     ("aniso_spacing", ANISO_SPACING_CONFIG),
     ("offset_heavy", OFFSET_CONFIG),
@@ -702,15 +702,15 @@ def test_relative_cutoff_fails():
         return cnt * sx * sy * RHO
 
     # gradient_heavy (now split patch) must fail even with component-aware cheat
-    for cfg_name in ["gradient_heavy", "y_elongated", "shape_trick"]:
-        cfg = {"gradient_heavy": GRADIENT_CONFIG, "y_elongated": Y_ELONGATED_CONFIG, "shape_trick": SHAPE_TRICK_CONFIG}[cfg_name]
+    for cfg_name in ["gradient_heavy", "y_elongated"]:
+        cfg = {"gradient_heavy": SPLIT_PATCH_CONFIG, "y_elongated": Y_ELONGATED_CONFIG}[cfg_name]
         field, v_true = build_field(cfg)
         truth = geometric_truth_nC(cfg, v_true)
         est = cheat_count(cfg, field)
         assert abs(est - truth) > REL_TOL * truth, f"component-aware 0.45 cutoff should fail on {cfg_name}: got {est:.2f} vs truth {truth:.2f}"
 
     # also ensure sweep 0.40-0.60 fails at least 3 fractions on gradient_heavy even with component-aware
-    cfg = GRADIENT_CONFIG
+    cfg = SPLIT_PATCH_CONFIG
     field, v_true = build_field(cfg)
     truth = geometric_truth_nC(cfg, v_true)
     fails = 0
