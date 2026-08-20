@@ -176,25 +176,8 @@ def build_field(cfg):
             if is_main:
                 add_box(x0, x1, y0, y1, true_patch)
     amp = cfg["amp"]
-    # support gradient along x (draw direction) if cfg has gradient factor
-    grad = cfg.get("gradient", None)  # e.g. 0.4 means amp varies 0.8..1.2 across patch width
     for i in true_all:
-        if grad is not None:
-            # find x coordinate of this voxel to apply gradient
-            # decode x from idx
-            # to avoid O(n^2), just apply per-pixel later via clean array scan
-            clean[i] = float(amp)
-        else:
-            clean[i] = float(amp)
-    if grad is not None:
-        # apply linear gradient along x across the whole clean map (only where true_all has signal)
-        for y in range(ny):
-            for x in range(nx):
-                k = idx(x, y)
-                if k in true_all:
-                    # gradient 1 - grad/2 to 1 + grad/2 across nx
-                    factor = 1.0 + grad * ((x / max(1, nx-1)) - 0.5)
-                    clean[k] = float(amp) * factor
+        clean[i] = float(amp)
     for sx0, sy0, sr in cfg["specks"]:
         for y in range(ny):
             for x in range(nx):
@@ -234,7 +217,6 @@ def pack_trch(cfg, field):
 def geometric_truth_nC(cfg, v_true):
     sx, sy = cfg["spacing"]
     return v_true * sx * sy * RHO
-
 
 
 BASE_CONFIGS = {
@@ -346,7 +328,7 @@ RANDOM_CONFIG = dict(
 )
 
 # Additional configs to break half-max and test shape/aniso
-GRADIENT_CONFIG = SPLIT_PATCH_CONFIG = dict(
+SPLIT_PATCH_CONFIG = dict(
     dims=(80, 80),
     spacing=(0.10, 0.10),
     dtype=16,
@@ -363,6 +345,25 @@ GRADIENT_CONFIG = SPLIT_PATCH_CONFIG = dict(
     ],
     specks=[(5, 5, 1.0), (75, 5, 1.0)],
 )
+
+GRADIENT_CONFIG = dict(
+    dims=(80, 80),
+    spacing=(0.10, 0.10),
+    dtype=16,
+    amp=1200,
+    bg=50,
+    sig=1.6,
+    noise=3,
+    seed=556,
+    # second split patch variant with 6px gap, requires halo growth to connect
+    object=[
+        ("box", 15, 40, 30, 50, True),
+        ("box", 46, 65, 30, 50, True),
+        ("ell", 70, 70, 4, 4, False),
+    ],
+    specks=[(5, 5, 1.0), (75, 5, 1.0)],
+)
+
 SHAPE_TRICK_CONFIG = dict(
     dims=(80, 80),
     spacing=(0.10, 0.10),
@@ -433,6 +434,25 @@ Y_ELONGATED_CONFIG = dict(
     specks=[(5, 75, 1.0), (75, 5, 1.0)],
 )
 
+# B1 fix: large blur breaks fixed relative cutoff counting (frac*max) while intensity conservation still works
+# sig=2.42 is larger than existing max 1.8, so no single frac 0.35-0.60 works across suite
+# This config fails for ALL fracs 0.35-0.60 for both noise-based (bg+4σ) and relative (bg+frac*(max-bg)) segmentation
+LARGE_BLUR_CONFIG = dict(
+    dims=(88, 72),
+    spacing=(0.12, 0.12),
+    dtype=16,
+    amp=912,
+    bg=45,
+    sig=2.42,
+    noise=5,
+    seed=684,
+    object=[
+        ("box", 14, 38, 23, 34, True),
+        ("ell", 70, 10, 4, 4, False),
+    ],
+    specks=[(5, 5, 1.0), (75, 5, 1.0)],
+)
+
 ALL_TEST_CONFIGS = [
     ("heldout_1", BASE_CONFIGS["heldout_1"]),
     ("heldout_2", BASE_CONFIGS["heldout_2"]),
@@ -440,11 +460,13 @@ ALL_TEST_CONFIGS = [
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
     ("round_heavy", BASE_CONFIGS["round_heavy"]),
     ("randomized", RANDOM_CONFIG),
-    ("gradient_heavy", SPLIT_PATCH_CONFIG),
+    ("split_patch", SPLIT_PATCH_CONFIG),
+    ("gradient_heavy", GRADIENT_CONFIG),
     ("shape_trick", SHAPE_TRICK_CONFIG),
     ("aniso_spacing", ANISO_SPACING_CONFIG),
     ("offset_heavy", OFFSET_CONFIG),
     ("y_elongated", Y_ELONGATED_CONFIG),
+    ("large_blur", LARGE_BLUR_CONFIG),
 ]
 
 SECURE_RUNNER_CODE = r"""
@@ -559,7 +581,14 @@ def test_from_scratch():
                 base_name = val.id
             elif isinstance(val, ast.Attribute) and isinstance(val.value, ast.Name):
                 base_name = val.value.id
-            if base_name in ("os", "posixpath", "ntpath", "genericpath", "pathlib", "sys") or node.attr.startswith("__"):
+            if base_name in (
+                "os",
+                "posixpath",
+                "ntpath",
+                "genericpath",
+                "pathlib",
+                "sys",
+            ) or node.attr.startswith("__"):
                 assert node.attr not in BANNED_ATTRS, f"banned attr {node.attr}"
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             low = node.value.lower()
@@ -640,138 +669,143 @@ def test_global_fails_on_speck_heavy():
 
 
 def test_relative_cutoff_fails():
-    # Component-aware 0.45*max + 8-connectivity + aspect should still fail on split patch (gradient_heavy)
-    # This is the true shortcut that previously passed 17/17
-    def cheat_count(cfg, field):
+    """B1 fix: class guard that breaks fixed relative cutoff cheat.
+
+    Cheat (from AFT review):
+      - segment at bg + 4*σ_MAD (noise-based) OR bg + frac*(max-bg) (relative)
+      - 8-connectivity + shape filter elongated (longest>=10 and >1.6*shortest)
+      - pick largest by count
+      - count pixels > bg + count_frac*(max-bg) inside that component
+    No intensity conservation, no plateau.
+
+    Previous suite: frac 0.42-0.52 all passed 11 configs with worst 1.67% error.
+    New LARGE_BLUR (sig=2.42) fails for ALL fracs 0.35-0.60 for both seg types,
+    with errors 4.5%-26%.
+
+    Guard: parameterize seg_type ∈ {noise, relative} × count_frac ∈ 0.35-0.60
+    and assert every member fails at least one config.
+    """
+
+    def cheat_estimate(cfg, field, seg_type="noise", seg_frac=0.45, count_frac=0.5):
         nx, ny = cfg["dims"]
-        n = nx*ny
+        n = nx * ny
         sx, sy = cfg["spacing"]
         sv = sorted(field)
-        bg = sv[len(sv)//2]
+        bg = sv[len(sv) // 2]
+        lower = sorted(sv[: len(sv) // 2])
+        med_low = lower[len(lower) // 2]
+        mad = sorted(abs(v - med_low) for v in lower)[len(lower) // 2]
+        sigma = max(1e-6, 1.4826 * mad)
         mx = max(field)
-        thr = bg + 0.45 * (mx - bg)
-        occ = [v > thr for v in field]
+        if seg_type == "noise":
+            occ_thr = bg + 4.0 * sigma
+        else:
+            occ_thr = bg + seg_frac * (mx - bg)
+        occ = [v > occ_thr for v in field]
+
+        def idx(x, y):
+            return x + nx * y
+
         seen = bytearray(n)
-        NEIGH8 = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
-        def idx(x,y): return x + nx*y
         comps = []
+        NEIGH8 = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
         for y0 in range(ny):
             for x0 in range(nx):
-                s = idx(x0,y0)
+                s = idx(x0, y0)
                 if not occ[s] or seen[s]:
                     continue
-                stack=[(x0,y0)]
-                seen[s]=1
-                comp=[]
-                min_x=max_x=x0
-                min_y=max_y=y0
+                stack = [(x0, y0)]
+                seen[s] = 1
+                comp = []
+                min_x = max_x = x0
+                min_y = max_y = y0
+                max_val = field[s]
                 while stack:
-                    x,y = stack.pop()
-                    k=idx(x,y)
+                    x, y = stack.pop()
+                    k = idx(x, y)
                     comp.append(k)
-                    min_x=min(min_x,x); max_x=max(max_x,x)
-                    min_y=min(min_y,y); max_y=max(max_y,y)
-                    for dx,dy in NEIGH8:
-                        a,b=x+dx,y+dy
-                        if 0<=a<nx and 0<=b<ny:
-                            kk=idx(a,b)
+                    if field[k] > max_val:
+                        max_val = field[k]
+                    min_x = min(min_x, x)
+                    max_x = max(max_x, x)
+                    min_y = min(min_y, y)
+                    max_y = max(max_y, y)
+                    for dx, dy in NEIGH8:
+                        a, b = x + dx, y + dy
+                        if 0 <= a < nx and 0 <= b < ny:
+                            kk = idx(a, b)
                             if occ[kk] and not seen[kk]:
-                                seen[kk]=1
-                                stack.append((a,b))
-                dx_=max_x-min_x+1
-                dy_=max_y-min_y+1
-                comps.append((len(comp), dx_, dy_, comp))
+                                seen[kk] = 1
+                                stack.append((a, b))
+                dx_ = max_x - min_x + 1
+                dy_ = max_y - min_y + 1
+                comps.append((len(comp), dx_, dy_, comp, max_val))
         if not comps:
             return 0
         filtered = []
-        for cnt, dx_, dy_, comp in comps:
+        for cnt, dx_, dy_, comp, max_val in comps:
             dims = sorted([dx_, dy_])
-            if dims[1] >=10 and dims[1] > 1.6*dims[0] and dx_ > dy_:
-                filtered.append((cnt, comp))
-        if filtered:
-            cnt = max(filtered, key=lambda x: x[0])[0]
-        else:
-            for cnt, dx_, dy_, comp in comps:
-                dims = sorted([dx_, dy_])
-                if dims[1] >=10 and dims[1] > 1.6*dims[0]:
-                    filtered.append((cnt, comp))
-            if filtered:
-                cnt = max(filtered, key=lambda x: x[0])[0]
-            else:
-                cnt = max(comps, key=lambda x: x[0])[0]
-        return cnt * sx * sy * RHO
+            if dims[1] >= 10 and dims[1] > 1.6 * dims[0]:
+                filtered.append((cnt, dx_, dy_, comp, max_val))
+        comps_to_use = filtered if filtered else comps
+        largest = max(comps_to_use, key=lambda x: x[0])
+        cnt, dx_, dy_, comp, max_val = largest
+        thr = bg + count_frac * (max_val - bg)
+        count = sum(1 for k in comp if field[k] > thr)
+        return count * sx * sy * RHO
 
-    # gradient_heavy (now split patch) must fail even with component-aware cheat
-    for cfg_name in ["gradient_heavy", "y_elongated"]:
-        cfg = {"gradient_heavy": SPLIT_PATCH_CONFIG, "y_elongated": Y_ELONGATED_CONFIG}[cfg_name]
-        field, v_true = build_field(cfg)
-        truth = geometric_truth_nC(cfg, v_true)
-        est = cheat_count(cfg, field)
-        assert abs(est - truth) > REL_TOL * truth, f"component-aware 0.45 cutoff should fail on {cfg_name}: got {est:.2f} vs truth {truth:.2f}"
+    fracs = [0.35, 0.40, 0.42, 0.45, 0.50, 0.52, 0.55, 0.60]
+    seg_types = ["noise", "relative"]
 
-    # also ensure sweep 0.40-0.60 fails at least 3 fractions on gradient_heavy even with component-aware
-    cfg = SPLIT_PATCH_CONFIG
+    # Class guard: every cheat variant must fail at least one config
+    for seg_type in seg_types:
+        for count_frac in fracs:
+            failed_any = False
+            for cfg_name, cfg in ALL_TEST_CONFIGS:
+                field, v_true = build_field(cfg)
+                truth = geometric_truth_nC(cfg, v_true)
+                est = cheat_estimate(
+                    cfg,
+                    field,
+                    seg_type=seg_type,
+                    seg_frac=count_frac,
+                    count_frac=count_frac,
+                )
+                if abs(est - truth) > REL_TOL * truth:
+                    failed_any = True
+                    break
+            assert failed_any, (
+                f"B1 guard: cheat seg={seg_type} count_frac={count_frac} passed ALL {len(ALL_TEST_CONFIGS)} configs "
+                f"(e.g., would pass large_blur check). Expected to fail at least one. "
+                f"This means instruction claim 'No single fixed relative cutoff works' is false."
+            )
+
+    # Explicit check that large_blur fails for all fracs (the new config that fixes B1)
+    cfg = LARGE_BLUR_CONFIG
     field, v_true = build_field(cfg)
     truth = geometric_truth_nC(cfg, v_true)
-    fails = 0
-    for frac in [0.40, 0.45, 0.50, 0.55, 0.60]:
-        # component-aware for each frac
-        nx, ny = cfg["dims"]
-        sx, sy = cfg["spacing"]
-        sv = sorted(field)
-        bg = sv[len(sv)//2]
-        mx = max(field)
-        thr = bg + frac * (mx - bg)
-        occ = [v > thr for v in field]
-        seen = bytearray(nx*ny)
-        NEIGH8 = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]
-        def idx(x,y): return x + nx*y
-        comps = []
-        for y0 in range(ny):
-            for x0 in range(nx):
-                s = idx(x0,y0)
-                if not occ[s] or seen[s]:
-                    continue
-                stack=[(x0,y0)]
-                seen[s]=1
-                comp=[]
-                min_x=max_x=x0
-                min_y=max_y=y0
-                while stack:
-                    x,y = stack.pop()
-                    k=idx(x,y)
-                    comp.append(k)
-                    min_x=min(min_x,x); max_x=max(max_x,x)
-                    min_y=min(min_y,y); max_y=max(max_y,y)
-                    for dx,dy in NEIGH8:
-                        a,b=x+dx,y+dy
-                        if 0<=a<nx and 0<=b<ny:
-                            kk=idx(a,b)
-                            if occ[kk] and not seen[kk]:
-                                seen[kk]=1
-                                stack.append((a,b))
-                dx_=max_x-min_x+1
-                dy_=max_y-min_y+1
-                comps.append((len(comp), dx_, dy_, comp))
-        if not comps:
-            fails += 1
-            continue
-        filtered = [c for c in comps if sorted([c[1],c[2]])[1] >=10 and sorted([c[1],c[2]])[1] > 1.6*sorted([c[1],c[2]])[0]]
-        cnt = max(filtered, key=lambda x: x[0])[0] if filtered else max(comps, key=lambda x: x[0])[0]
-        est = cnt * sx * sy * RHO
-        if abs(est - truth) > REL_TOL * truth:
-            fails += 1
-    assert fails >= 3, f"expected at least 3 fractions to fail on gradient_heavy, got {fails}"
+    for seg_type in seg_types:
+        for frac in fracs:
+            est = cheat_estimate(
+                cfg, field, seg_type=seg_type, seg_frac=frac, count_frac=frac
+            )
+            assert abs(est - truth) > REL_TOL * truth, (
+                f"large_blur should break cutoff: seg={seg_type} frac={frac} got {est:.2f} vs truth {truth:.2f} "
+                f"err {abs(est - truth) / truth * 100:.1f}% (should be >{REL_TOL * 100}%)"
+            )
 
 
 def test_aniso_spacing_requires_sy():
+
     cfg = ANISO_SPACING_CONFIG
     field, v_true = build_field(cfg)
     # correct truth uses sx*sy, wrong uses sx*sx should be off
     sx, sy = cfg["spacing"]
     truth = v_true * sx * sy * RHO
     wrong = v_true * sx * sx * RHO
-    assert abs(wrong - truth) > REL_TOL * truth, f"sx*sx should differ from sx*sy on aniso config"
+    assert abs(wrong - truth) > REL_TOL * truth, (
+        f"sx*sx should differ from sx*sy on aniso config"
+    )
 
 
 def test_shape_filter_needed_on_shape_trick():
@@ -780,34 +814,59 @@ def test_shape_filter_needed_on_shape_trick():
     truth = geometric_truth_nC(cfg, v_true)
     # naive largest-component by count (without shape filter) picks the large round artefact
     sv = sorted(field)
-    bg = sv[len(sv)//2]
-    lower = sorted(sv[: len(sv)//2])
-    med_low = lower[len(lower)//2]
-    mad = sorted(abs(v - med_low) for v in lower)[len(lower)//2]
+    bg = sv[len(sv) // 2]
+    lower = sorted(sv[: len(sv) // 2])
+    med_low = lower[len(lower) // 2]
+    mad = sorted(abs(v - med_low) for v in lower)[len(lower) // 2]
     sigma = max(1e-6, 1.4826 * mad)
     r = [v - bg for v in field]
     nx, ny = cfg["dims"]
-    def idx(x,y): return x + nx*y
+
+    def idx(x, y):
+        return x + nx * y
+
     occ_thr = 4.0 * sigma
     occ = [v > occ_thr for v in r]
     seen = bytearray(len(r))
     comps = []
     for y0 in range(ny):
         for x0 in range(nx):
-            s = idx(x0,y0)
-            if not occ[s] or seen[s]: continue
-            stack=[(x0,y0)]; seen[s]=1; comp=[]; mass=0; min_x=max_x=x0; min_y=max_y=y0
+            s = idx(x0, y0)
+            if not occ[s] or seen[s]:
+                continue
+            stack = [(x0, y0)]
+            seen[s] = 1
+            comp = []
+            mass = 0
+            min_x = max_x = x0
+            min_y = max_y = y0
             while stack:
-                x,y = stack.pop()
-                k=idx(x,y); comp.append(k); mass+=r[k]
-                min_x=min(min_x,x); max_x=max(max_x,x); min_y=min(min_y,y); max_y=max(max_y,y)
-                for dx,dy in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)]:
-                    a,b=x+dx,y+dy
-                    if 0<=a<nx and 0<=b<ny:
-                        kk=idx(a,b)
+                x, y = stack.pop()
+                k = idx(x, y)
+                comp.append(k)
+                mass += r[k]
+                min_x = min(min_x, x)
+                max_x = max(max_x, x)
+                min_y = min(min_y, y)
+                max_y = max(max_y, y)
+                for dx, dy in [
+                    (-1, 0),
+                    (1, 0),
+                    (0, -1),
+                    (0, 1),
+                    (-1, -1),
+                    (-1, 1),
+                    (1, -1),
+                    (1, 1),
+                ]:
+                    a, b = x + dx, y + dy
+                    if 0 <= a < nx and 0 <= b < ny:
+                        kk = idx(a, b)
                         if occ[kk] and not seen[kk]:
-                            seen[kk]=1; stack.append((a,b))
-            dx_=max_x-min_x+1; dy_=max_y-min_y+1
+                            seen[kk] = 1
+                            stack.append((a, b))
+            dx_ = max_x - min_x + 1
+            dy_ = max_y - min_y + 1
             comps.append((len(comp), dx_, dy_, mass, comp))
     # pick largest by pixel count (no shape filter)
     largest = max(comps, key=lambda x: x[0])
@@ -817,10 +876,12 @@ def test_shape_filter_needed_on_shape_trick():
     dims = sorted([dx_, dy_])
     # round artefact is ~30x30 bounding box, elongated main is 20x4
     # if largest is round, its aspect ratio <1.6, so shape filter would reject it
-    assert dims[1] < 1.6 * dims[0] or dims[1] < 10, f"largest should be round artefact, got dims {dims}"
+    assert dims[1] < 1.6 * dims[0] or dims[1] < 10, (
+        f"largest should be round artefact, got dims {dims}"
+    )
     # and its mass should not match truth
     sx, sy = cfg["spacing"]
     est_wrong = largest[0] * sx * sy * RHO
-    assert abs(est_wrong - truth) > REL_TOL * truth, f"largest-component shortcut should fail on shape_trick"
-
-
+    assert abs(est_wrong - truth) > REL_TOL * truth, (
+        f"largest-component shortcut should fail on shape_trick"
+    )
