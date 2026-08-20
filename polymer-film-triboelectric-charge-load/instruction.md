@@ -16,7 +16,7 @@ Offset 20 two float32 sx sy mm per pixel per axis. These change per file and mus
 Offset 28 uint32 data offset where pixels start. You must use this offset field; do not assume 64.
 After offset nx times ny values in announced dtype x fastest so index for x y is x plus nx times y.
 
-Each map contains one main triboelectric patch that is elongated along draw direction long axis along x and it is the only patch that counts plus some round static dot artefacts that are near circular and must be ignored. You can tell them apart by shape: elongated patches are noticeably longer in one direction than the other, while round artefacts are near-circular. Also one to three tiny dust specks must be ignored — most are far away. Keep only main elongated patch using 8 neighbour connectivity plus shape filtering.
+Each map contains one main triboelectric patch that is elongated along draw direction and it is the only patch that counts plus some round static dot artefacts that are near circular and must be ignored. You can tell them apart by shape: elongated patches are noticeably longer in one direction than the other (longest side at least 10 voxels and more than 1.6 times the shortest), while round artefacts are near-circular. Do not rely on absolute axis direction; an elongated patch may be longer along either x or y. Also one to three tiny dust specks must be ignored — most are far away. Keep only main elongated patch using 8 neighbour connectivity plus shape filtering.
 
 Calibration lab shows each square mm of charged patch holds 1.5 nC. So charge in nC equals patch area mm2 times 1.5. Area itself must be recovered despite blur.
 
