@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/openanvil-gradle-cache-void-volume"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Write a from scratch Python script that parses custom OpenAnvil Gradle build void volume ANVL and reports void volume in mm3. Android grader Gradle cache gap is elongated along build X, X-ray point spread smears signal, thresholding fails, correct method is attenuation conservation with elongated vs compact shape filtering. OpenAnvil related."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["openanvil", "android", "gradle", "cache", "void", "xray", "microct", "binaryparsing", "fromscratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["openanvil", "android-grader", "gradle-cache", "void-volume", "rn-build", "microct", "attenuation-conservation", "from-scratch", "binary-parsing", "anvl"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 210.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
