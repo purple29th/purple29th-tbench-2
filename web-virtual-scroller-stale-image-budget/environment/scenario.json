@@ -1,0 +1,4 @@
+MOUNT n1 item1 TitleOne 10
+RESOLVE item1 https://img.com/one.jpg
+ADVANCE 10
+INSPECT n1

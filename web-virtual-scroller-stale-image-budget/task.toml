@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/web-virtual-scroller-stale-image-budget"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Fix a buggy web virtual scroller where async image loads scheduled before a node is unmounted or rebound corrupt the node's later state, with a decode budget that caps concurrent decodes."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["javascript", "web", "virtual-list", "stale-callback", "budget", "concurrency"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "bug-fixing"
+category_usecase = "state_management"
+category_subdomain = "web_frontend"
+reward_type = "binary"
+languages = ["javascript", "typescript"]
+tags = ["javascript", "web_frontend", "virtual-list", "stale-callback", "decode-budget", "binding-token", "inspired-by-android-recycler"]
+expert_time_estimate_min = 45.0
+junior_time_estimate_min = 150.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 1500.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
