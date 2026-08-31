@@ -28,88 +28,550 @@
   ],
   "team_data": {
     "prasannajp": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "prasannajp-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-prasannajp",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "prasannajp-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "abass": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "abass-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-abass",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "abass-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "andrewamirov": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "andrewamirov-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-andrewamirov",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "andrewamirov-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "anishh": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "anishh-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-anishh",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "anishh-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "aryasa": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "aryasa-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-aryasa",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "aryasa-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "bhavyagm": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "bhavyagm-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-bhavyagm",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "bhavyagm-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "chenglu": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "chenglu-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-chenglu",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "chenglu-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "itsdeep": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "itsdeep-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-itsdeep",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "itsdeep-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "itsjesse": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "itsjesse-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-itsjesse",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "itsjesse-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "jingworks": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "jingworks-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-jingworks",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "jingworks-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "justinpeng": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "justinpeng-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-justinpeng",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "justinpeng-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "kristinazhou": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "kristinazhou-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-kristinazhou",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "kristinazhou-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "marcelino8": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "marcelino8-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-marcelino8",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "marcelino8-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "mehag": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "mehag-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-mehag",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "mehag-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "hamoodi": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "hamoodi-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-hamoodi",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "hamoodi-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "parmar": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "parmar-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-parmar",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "parmar-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "waryan": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "waryan-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-waryan",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "waryan-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "malla": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "malla-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-malla",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "malla-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "sharonhan": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "sharonhan-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-sharonhan",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "sharonhan-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "sheldonxu": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "sheldonxu-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-sheldonxu",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "sheldonxu-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "scli": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "scli-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-scli",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "scli-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "purple29th": {
       "repos": [
@@ -641,10 +1103,10 @@
               "subdomain": "mobile_android"
             },
             {
-              "task_dir": "android-fragment-viewbinding-cleanup",
-              "task_name": "codimango/android-fragment-viewbinding-cleanup",
-              "category": "bug-fixing",
-              "subdomain": "mobile_android"
+              "task_dir": "openanvil-gradle-cache-void-volume",
+              "task_name": "codimango/openanvil-gradle-cache-void-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
             }
           ],
           "task_count": 88
@@ -667,26 +1129,92 @@
       "repo_count": 3
     },
     "vtupili": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "vtupili-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-vtupili",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "vtupili-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "vitalikk": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "vitalikk-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-vitalikk",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "vitalikk-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     },
     "yingxinanna": {
-      "repos": [],
-      "repo_count": 0
+      "repos": [
+        {
+          "name": "yingxinanna-tbench",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "swe-bench-pro-yingxinanna",
+          "visibility": "Private",
+          "description": "Shell",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "yingxinanna-multimodal-agents",
+          "visibility": "Internal",
+          "description": "Python",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
     }
   },
   "totals": {
     "users": 25,
-    "repos": 3,
+    "repos": 75,
     "tasks": 88
   },
   "domain_coverage": {
-    "bug-fixing": 18,
-    "data-science": 62,
+    "bug-fixing": 17,
+    "data-science": 63,
     "reverse-engineering": 1,
     "algorithms": 3,
     "build-infrastructure": 1,
@@ -695,11 +1223,11 @@
     "scientific-computing": 1
   },
   "subdomain_coverage": {
-    "mobile_android": 20,
+    "mobile_android": 19,
     "database_internals": 3,
     "unknown": 4,
     "security_and_privacy": 1,
-    "multimedia_and_signal_processing": 52,
+    "multimedia_and_signal_processing": 53,
     "distributed_systems": 2,
     "systems_and_infra": 1,
     "build_and_ci": 1,

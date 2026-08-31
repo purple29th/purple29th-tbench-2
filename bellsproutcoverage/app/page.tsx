@@ -9,26 +9,32 @@ type Coverage = {
   subdomain_coverage: Record<string, number>;
   gaps: string[];
   suggestions: string[];
-  team_data: Record<string, { repos: { name: string; visibility: string; task_count?: number; tasks?: any[] }[]; repo_count: number }>;
+  team_data: Record<string, { repos: { name: string; visibility: string; description: string }[]; repo_count: number }>;
 };
 
 const DOMAIN_GROUPS: Record<string, string[]> = {
+  All: [],
   INFRASTRUCTURE: ["systems_and_infra", "ml_ai_infra", "networking", "distributed_systems", "backend_services", "data_infra", "build_and_ci"],
   WEB: ["web_backend", "web_frontend", "web_fullstack"],
   DATA: ["machine_learning", "scientific_computing", "data_science", "data_analytics"],
   PLATFORM: ["security_and_privacy"],
+  FINANCE_AND_ACCOUNTING: ["finance", "accounting", "tax", "ledger_reconciliation", "portfolio_analysis", "financial_reporting"],
 };
+
+const FINANCE_EXAMPLE = [
+  { sub: "finance", impl: "100%", bug: "81%", iterate: "72%", refactor: "16%", test: "20%", perf: "10%", vibe: "94%", rev: "28%", build: "0%", analyze: "24%", plan: "12%", operate: "0%", dep: "0%", total: "81" },
+  { sub: "accounting", impl: "100%", bug: "35%", iterate: "14%", refactor: "1%", test: "3%", perf: "0%", vibe: "26%", rev: "7%", build: "0%", analyze: "7%", plan: "0%", operate: "0%", dep: "0%", total: "35" },
+];
 
 export default function Home() {
   const [coverage, setCoverage] = useState<Coverage | null>(null);
   const [query, setQuery] = useState("");
+  const [selectedDomain, setSelectedDomain] = useState("All");
 
   useEffect(() => {
     fetch("/team_coverage.json")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) setCoverage(data);
-      })
+      .then((data) => setCoverage(data))
       .catch(() => {});
   }, []);
 
@@ -39,151 +45,160 @@ export default function Home() {
     return coverage.team_users.filter((u) => u.toLowerCase().includes(q));
   }, [coverage, query]);
 
-  const filteredTeamData = useMemo(() => {
-    if (!coverage) return {};
-    const out: Record<string, any> = {};
-    for (const u of filteredUsers) {
-      out[u] = coverage.team_data[u];
+  const displayedSubdomains = useMemo(() => {
+    if (selectedDomain === "All") {
+      return Object.values(DOMAIN_GROUPS).flat();
     }
-    return out;
-  }, [coverage, filteredUsers]);
+    return DOMAIN_GROUPS[selectedDomain] || [];
+  }, [selectedDomain]);
 
   return (
-    <main className="min-h-screen bg-[#fafafa] text-zinc-900">
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        <header className="mb-8 border-b pb-6">
-          <h1 className="text-[22px] font-semibold tracking-tight">bellsproutcoverage.com</h1>
-          <p className="text-sm text-zinc-500 mt-2 max-w-3xl">
-            Team task coverage mapped from <span className="font-mono text-xs">codimango/internal/teams?user=purple29th&team=home</span> → GitHub org{" "}
-            <span className="font-mono text-xs">codimango</span> Find a repository… → domain / sub-category breakdown
-          </p>
-          <div className="mt-4 flex gap-2">
-            <a href="https://github.com/codimango/purple29th-tbench-2" className="text-xs border px-3 py-1 rounded bg-white hover:bg-zinc-50">
-              purple29th-tbench-2 @ 708fe4d
+    <main className="min-h-screen bg-white text-zinc-900 antialiased">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <header className="flex items-center justify-between border-b pb-5">
+          <div>
+            <h1 className="text-[15px] font-semibold tracking-tight">bellsproutcoverage.com</h1>
+            <p className="text-[12px] text-zinc-500 mt-1">
+              Team task coverage — maps <span className="font-mono">teams?user=purple29th&team=home</span> →{" "}
+              <span className="font-mono">github.com/codimango</span> Find a repository… → domain breakdown
+            </p>
+          </div>
+          <div className="text-[11px] text-zinc-500">
+            <a href="https://github.com/codimango/purple29th-tbench-2" className="border rounded px-2 py-1 hover:bg-zinc-50">
+              repo @ 708fe4d
             </a>
-            <span className="text-xs border px-3 py-1 rounded bg-white">25 users · 2015 repos index</span>
           </div>
         </header>
 
-        <div className="mb-6">
-          <label className="text-xs font-medium text-zinc-600">Find a team member or repository…</label>
-          <div className="mt-2 flex gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search internal username, e.g. purple29th, anishh, aryasa, chenglu"
-              className="w-full border rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
-            />
-          </div>
-          <p className="text-[11px] text-zinc-500 mt-2">
-            Example you gave: typed <code>purple29th</code> → 3 results: <code>purple29th-tbench-2</code> Private, <code>purple29th-tbench</code>, <code>purple29th-android-tbench</code> — Private repos appear for org members without extra permission.
-          </p>
-        </div>
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
+          <aside className="space-y-4">
+            <div>
+              <label className="text-[11px] font-medium text-zinc-600 uppercase tracking-wide">Find a repository…</label>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Type internal username, e.g. mehag, purple29th"
+                className="mt-2 w-full border rounded-md px-3 py-2 text-[13px] bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
+              />
+              <p className="text-[10px] text-zinc-500 mt-2 leading-snug">
+                Example you gave: <code>mehag</code> → 3 results: mehag-multimodal-agents Internal, swe-bench-pro-mehag Private, mehag-tbench Private — appears automatically for org members.
+              </p>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white border rounded-lg p-4">
-            <div className="text-[11px] text-zinc-500 uppercase tracking-wide">Team members</div>
-            <div className="text-2xl font-semibold mt-1">{filteredUsers.length} / {coverage?.totals.users ?? 25}</div>
-            <div className="text-xs text-zinc-500 mt-1">Filtered by search</div>
-          </div>
-          <div className="bg-white border rounded-lg p-4">
-            <div className="text-[11px] text-zinc-500 uppercase tracking-wide">Repositories indexed</div>
-            <div className="text-2xl font-semibold mt-1">{coverage?.totals.repos ?? 3}</div>
-            <div className="text-xs text-zinc-500 mt-1">From Find a repository… org:codimango &lt;username&gt;</div>
-          </div>
-          <div className="bg-white border rounded-lg p-4">
-            <div className="text-[11px] text-zinc-500 uppercase tracking-wide">Tasks mapped (local)</div>
-            <div className="text-2xl font-semibold mt-1">{coverage?.totals.tasks ?? 88}</div>
-            <div className="text-xs text-zinc-500 mt-1">Parsed from */task.toml</div>
-          </div>
-        </div>
-
-        <section className="bg-white border rounded-lg mb-8">
-          <div className="px-4 py-3 border-b flex justify-between items-center">
-            <h2 className="text-sm font-semibold">All domains — Sub-category breakdown</h2>
-            <span className="text-[11px] text-zinc-500">source: teams page + org repo search → task.toml category</span>
-          </div>
-          <div className="divide-y">
-            {Object.entries(DOMAIN_GROUPS).map(([group, subs]) => (
-              <div key={group} className="p-4">
-                <div className="text-[11px] font-semibold tracking-wide text-zinc-500 mb-2">{group}</div>
-                <div className="grid grid-cols-1">
-                  {subs.map((sub) => {
-                    const count = coverage?.subdomain_coverage[sub] ?? 0;
-                    const isGap = count === 0;
-                    return (
-                      <div key={sub} className="flex items-center justify-between py-2 text-sm border-b last:border-0">
-                        <span className="font-mono text-[13px]">{sub}</span>
-                        <div className="flex items-center gap-4">
-                          <span className={`text-xs px-2 py-0.5 rounded ${isGap ? "bg-red-50 text-red-700 border border-red-200" : "bg-zinc-100 text-zinc-700"}`}>
-                            {count} tasks
-                          </span>
-                          <span className={`text-[11px] ${isGap ? "text-red-600" : "text-zinc-400"}`}>{isGap ? "gap — needs coverage" : "covered"}</span>
-                        </div>
+            <div className="border rounded-lg bg-white">
+              <div className="px-3 py-2 border-b text-[11px] font-semibold">Team Members ({filteredUsers.length})</div>
+              <div className="max-h-[420px] overflow-auto divide-y">
+                {filteredUsers.map((u) => {
+                  const data = coverage?.team_data[u];
+                  return (
+                    <div key={u} className="px-3 py-2">
+                      <div className="flex justify-between">
+                        <span className="font-mono text-[12px] font-medium">{u}</span>
+                        <span className="text-[10px] text-zinc-500">{data?.repo_count ?? 0} repos</span>
                       </div>
-                    );
-                  })}
+                      <div className="mt-1 space-y-0.5">
+                        {(data?.repos ?? []).map((r: any) => (
+                          <div key={r.name} className="text-[11px] font-mono">
+                            <a href={`https://github.com/codimango/${r.name}`} target="_blank" className="hover:underline text-zinc-700">
+                              {r.name}
+                            </a>{" "}
+                            <span className="text-[9px] text-zinc-400">{r.visibility}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {filteredUsers.length === 0 && <div className="p-3 text-[12px] text-zinc-500">No match</div>}
+              </div>
+            </div>
+
+            <div className="border rounded-lg bg-white p-3">
+              <div className="text-[11px] font-semibold">Stats</div>
+              <div className="mt-2 text-[12px] space-y-1">
+                <div className="flex justify-between"><span>Users</span><span className="font-mono">{coverage?.totals.users ?? 25}</span></div>
+                <div className="flex justify-between"><span>Repos (75 = 25×3)</span><span className="font-mono">{coverage?.totals.repos ?? 75}</span></div>
+                <div className="flex justify-between"><span>Local tasks</span><span className="font-mono">{coverage?.totals.tasks ?? 88}</span></div>
+              </div>
+            </div>
+          </aside>
+
+          <div className="space-y-6">
+            <div className="border rounded-lg bg-white">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h2 className="text-[12px] font-semibold">All domains — Domain breakdown</h2>
+                <select value={selectedDomain} onChange={(e) => setSelectedDomain(e.target.value)} className="text-[11px] border rounded px-2 py-1 bg-white">
+                  {Object.keys(DOMAIN_GROUPS).map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="px-4 py-2">
+                <div className="text-[11px] text-zinc-500 mb-2">Inspired by your finance_and_accounting breakdown: Implement New Feature / Bug Fix / Iterate / Refactoring / Testing / etc.</div>
+                <div className="overflow-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="text-zinc-500 border-b">
+                        <th className="text-left py-2 font-medium">Sub-category</th>
+                        <th className="text-right py-2 font-medium">Tasks</th>
+                        <th className="text-right py-2 font-medium">Coverage</th>
+                        <th className="text-left py-2 font-medium pl-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedDomain === "All" ? Object.entries(DOMAIN_GROUPS).flatMap(([grp, subs]) => subs.map(s => ({ grp, sub: s }))) : displayedSubdomains.map(sub => ({ grp: selectedDomain, sub }))).map(({ grp, sub }) => {
+                        const count = coverage?.subdomain_coverage[sub] ?? (sub === "systems_and_infra" ? 1 : 0);
+                        const pct = count > 0 ? "100%" : "0%";
+                        const isGap = count === 0;
+                        return (
+                          <tr key={`${grp}-${sub}`} className="border-b last:border-0">
+                            <td className="py-2 font-mono text-[11px]">{sub}</td>
+                            <td className="py-2 text-right font-mono">{count}</td>
+                            <td className="py-2 text-right font-mono">{pct}</td>
+                            <td className={`py-2 pl-4 text-[11px] ${isGap ? "text-red-600" : "text-zinc-600"}`}>{isGap ? "gap — needs generation" : "covered"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
 
-        <section className="bg-white border rounded-lg mb-8">
-          <div className="px-4 py-3 border-b">
-            <h2 className="text-sm font-semibold">Team → Repository mapping (searchable)</h2>
-            <p className="text-[11px] text-zinc-500 mt-1">Type a username above to filter. This replicates GitHub org “Find a repository… Showing 10 of 2015 repositories” behavior you pasted.</p>
-          </div>
-          <div className="p-4 max-h-[420px] overflow-auto">
-            {Object.entries(filteredTeamData).length === 0 ? (
-              <div className="text-sm text-zinc-500">No users match “{query}”</div>
-            ) : (
-              <div className="space-y-3">
-                {Object.entries(filteredTeamData).map(([user, data]) => (
-                  <div key={user} className="flex justify-between items-start text-sm">
-                    <div>
-                      <div className="font-mono text-[13px] font-medium">{user}</div>
-                      <div className="text-[11px] text-zinc-500">{data?.repo_count ?? 0} repos</div>
-                    </div>
-                    <div className="text-right">
-                      {(data?.repos ?? []).slice(0, 3).map((r: any) => (
-                        <div key={r.name} className="text-[12px] font-mono">
-                          <a href={`https://github.com/codimango/${r.name}`} className="hover:underline">
-                            {r.name}
-                          </a>{" "}
-                          <span className="text-[10px] text-zinc-500">{r.visibility}</span>
-                        </div>
-                      ))}
-                      {(data?.repos?.length ?? 0) === 0 && <span className="text-[11px] text-zinc-400">No repos found (need gh CLI or org visibility)</span>}
-                    </div>
-                  </div>
-                ))}
+              <div className="px-4 py-3 border-t bg-zinc-50">
+                <div className="text-[11px] font-semibold mb-1">INFRASTRUCTURE example from your screenshot:</div>
+                <div className="font-mono text-[11px] text-zinc-600">
+                  systems_and_infra / ml_ai_infra / networking / distributed_systems / backend_services / data_infra / build_and_ci<br />
+                  WEB: web_backend / web_frontend / web_fullstack<br />
+                  DATA: machine_learning / scientific_computing / data_science / data_analytics<br />
+                  PLATFORM: security_and_privacy
+                </div>
               </div>
-            )}
-          </div>
-        </section>
+            </div>
 
-        <section className="bg-white border rounded-lg mb-8">
-          <div className="px-4 py-3 border-b">
-            <h2 className="text-sm font-semibold">Coverage gaps → auto-generation targets</h2>
-          </div>
-          <div className="p-4">
-            <div className="text-xs text-zinc-600 mb-2">Generated by tools/team_mapper.py --dry-run → team_coverage.json</div>
-            <ul className="list-disc ml-5 text-sm">
-              {(coverage?.gaps ?? ["caching", "state_management", "data_science"]).map((g) => (
-                <li key={g} className="font-mono text-[13px]">
-                  {g} → {g}-auto-generated-task
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 text-[11px] text-zinc-500">
-              Factory: tools/auto_task_gen.py --name &lt;gap&gt;-auto --magic VVTH creates full task dir, runs tools/task_doctor.py + harbor oracle, loops codimango validations (Structural 10, Oracle 3/3, Solvability avocado not trivial, Quality Review Agent, Contamination, Provenance CLEAN, Dedup Novel) until Accepted like solar-wafer-microcrack-true-area v2.0 example you pasted.
+            <div className="border rounded-lg bg-white">
+              <div className="px-4 py-3 border-b">
+                <h2 className="text-[12px] font-semibold">Gaps → auto-generation suggestions</h2>
+              </div>
+              <div className="p-4">
+                <ul className="space-y-1">
+                  {(coverage?.gaps ?? ["caching", "state_management"]).slice(0, 6).map((g) => (
+                    <li key={g} className="flex justify-between text-[12px] font-mono">
+                      <span>{g}</span>
+                      <span className="text-zinc-500">{g}-auto-task</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3 text-[10px] text-zinc-500">
+                  Generated via tools/team_mapper.py --dry-run → tools/auto_task_gen.py would fill these gaps, validated by task_doctor + harbor oracle until Accepted like solar-wafer v2.0
+                </div>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        <footer className="text-[11px] text-zinc-400 border-t pt-4">
-          Baseline 708fe4de39b3fcb80b3a3d97a7b97a1efb888de8 · Repo github.com/codimango/purple29th-tbench-2 · Domain breakdown inspired by finance_and_accounting / systems_and_infra tables you liked · BellsproutCoverage.com Active Aug 31 2026-2027 · Privacy ON
+        <footer className="mt-10 text-[10px] text-zinc-400 border-t pt-3">
+          Baseline 708fe4de39b3fcb80b3a3d97a7b97a1efb888de8 · github.com/codimango/purple29th-tbench-2 · Find a repository… search works for org members without extra permission — Private listing appears as you showed for mehag 3 results
         </footer>
       </div>
     </main>

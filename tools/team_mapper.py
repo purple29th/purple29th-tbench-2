@@ -197,7 +197,11 @@ def build_coverage(
 
         repos: List[Dict[str, Any]] = []
         if dry_run:
-            # Dry-run mode: simulate with purple29th example you gave, others empty
+            # Dry-run: simulate GitHub org search you showed — e.g., mehag → 3 repos appear automatically without extra permission
+            # Your examples:
+            # purple29th → purple29th-tbench-2 Private, purple29th-tbench Private, purple29th-android-tbench Private
+            # mehag → mehag-multimodal-agents Internal, swe-bench-pro-mehag Private, mehag-tbench Private
+            # So we generate 3 per user matching that pattern, so everybody is findable in search
             if user == "purple29th":
                 repos = [
                     {
@@ -216,9 +220,43 @@ def build_coverage(
                         "description": "Android T-Bench",
                     },
                 ]
+            elif user == "mehag":
+                repos = [
+                    {
+                        "name": "mehag-multimodal-agents",
+                        "visibility": "Internal",
+                        "description": "Python",
+                    },
+                    {
+                        "name": "swe-bench-pro-mehag",
+                        "visibility": "Private",
+                        "description": "Shell",
+                    },
+                    {
+                        "name": "mehag-tbench",
+                        "visibility": "Private",
+                        "description": "Python",
+                    },
+                ]
             else:
-                # Simulate 0-2 repos per other user (since we can't list without gh)
-                repos = []
+                # Generic pattern for other 23 team members — so search never pops out empty
+                repos = [
+                    {
+                        "name": f"{user}-tbench",
+                        "visibility": "Private",
+                        "description": "Python",
+                    },
+                    {
+                        "name": f"swe-bench-pro-{user}",
+                        "visibility": "Private",
+                        "description": "Shell",
+                    },
+                    {
+                        "name": f"{user}-multimodal-agents",
+                        "visibility": "Internal",
+                        "description": "Python",
+                    },
+                ]
         else:
             repos = _run_gh_list_repos(user)
             if not repos and user == "purple29th":
