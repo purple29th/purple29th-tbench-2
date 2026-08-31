@@ -1119,9 +1119,15 @@
               "task_name": "codimango/zinc-whisker-subvoxel-mass-load",
               "category": "data-science",
               "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "copper-interconnect-void-mass-load",
+              "task_name": "codimango/copper-interconnect-void-mass-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
             }
           ],
-          "task_count": 90
+          "task_count": 91
         },
         {
           "name": "purple29th-tbench",
@@ -1222,11 +1228,11 @@
   "totals": {
     "users": 25,
     "repos": 75,
-    "tasks": 90
+    "tasks": 91
   },
   "domain_coverage": {
     "bug-fixing": 17,
-    "data-science": 64,
+    "data-science": 65,
     "reverse-engineering": 1,
     "algorithms": 3,
     "build-infrastructure": 1,
@@ -1239,7 +1245,7 @@
     "database_internals": 3,
     "unknown": 4,
     "security_and_privacy": 1,
-    "multimedia_and_signal_processing": 54,
+    "multimedia_and_signal_processing": 55,
     "distributed_systems": 3,
     "systems_and_infra": 1,
     "build_and_ci": 1,
