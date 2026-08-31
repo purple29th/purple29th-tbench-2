@@ -1,56 +1,36 @@
-# Web Virtual Scroller – Stale Image Loads Must Not Corrupt Reused Nodes
+web virtual scroller stale image with decode budget
 
-## Setting
+my web perf lab has a virtual list like react window. small pool of dom nodes reused while scrolling. mounting a node sets its title right away and schedules an async image load due on a later tick. in prod we see wrong image, a load scheduled for an item the node used to show lands after node was unmounted or rebound to another item, and when several loads land on same tick a superseded one overwrites correct image. bug lives in js pool that handles binding token and decode budget.
 
-You have a virtual list like React Window. A small pool of DOM nodes is reused as the user scrolls. Mounting a node sets its title right away and schedules an async image load that will complete on a later tick. In production we see wrong images: a load that was scheduled for an item a node used to show sometimes lands after the node has been unmounted or rebound to another item. When several loads become due on the same tick, a superseded load can overwrite the correct image. The bug lives in the JS pool that manages binding tokens and the decode budget.
+this is inspired by android-recycler-staleness from my accepted portfolio, that one was kotlin recyclerview cell pool with similar staleness and budget, but this time it is web frontend, different operations and numbers, not a copy, to fill low coverage web_frontend which is red in taxonomy dashboard.
 
-This task is inspired by `android-recycler-staleness` from your accepted portfolio, but moved to web frontend and with different operations and budget wording so it is not a replication. Your portfolio was heavy on scientific and Android, this one fills low coverage `web_frontend`.
+input operations are one per line from stdin.
 
-## Input operations (stdin)
+MOUNT nodeId itemId title dueAt - attach node to item, set title now, schedule image load for that item due at dueAt.
+UPDATE_TITLE nodeId newTitle - change title of bound node, no load.
+PREFETCH nodeId dueAt - schedule another load for node's current binding due at dueAt. if node unbound does nothing.
+UNMOUNT nodeId - detach node, becomes unbound. future loads for old binding must not touch it.
+BUDGET num den cap - put decoder under budget. without this decoding is unlimited. see expected.
+RESOLVE itemId url - queue deterministic url for next pending load of that item. if no queued resolution, use auto:itemId fallback.
+ADVANCE now - advance logical time to now and process loads where dueAt <= now. when several due, process in scheduling order then by nodeId.
+INSPECT nodeId - record snapshot to print at end in inspection order.
 
-One operation per line, read from stdin:
+output after all input, one line per INSPECT in order.
 
-- `MOUNT <nodeId> <itemId> <title> <dueAt>` – attach node to item, set title immediately, schedule image load for that item due at `dueAt` tick.
-- `UPDATE_TITLE <nodeId> <newTitle>` – change title of currently bound node, does not schedule a load.
-- `PREFETCH <nodeId> <dueAt>` – schedule another image load for the node's current binding due at `dueAt`. If node is unbound, does nothing.
-- `UNMOUNT <nodeId>` – detach node from any item, it becomes unbound. Future loads for its old binding must not touch it.
-- `BUDGET <num> <den> <cap>` – put the image decoder under a budget. Without this, decoding is unlimited. See expected behavior.
-- `RESOLVE <itemId> <url>` – queue a deterministic URL that will be used for the next pending load of that itemId. If no queued resolution exists, use fallback `auto:<itemId>`.
-- `ADVANCE <now>` – advance logical time to `now` and process all loads where `dueAt <= now`. When several are due, process in order of scheduling time, then by `nodeId` to break ties.
-- `INSPECT <nodeId>` – record a snapshot of the node's state to be printed at the end, in inspection order.
+bound node: nodeId item=itemId title=title image=urlOrNONE
+unbound with no image: nodeId unbound
+unbound that still holds image (bug): nodeId unbound image=url - correct code never produces this unless stale corrupted it.
 
-## Output format
+expected
 
-After processing all input, print one line per `INSPECT` in the order they appeared:
+a node must only ever display image fetched for its current binding. unmounting a node or mounting it again to different item or same itemId again all start new binding generation. any load scheduled under old generation must not write to node even if itemId same. when multiple loads for same node due on same tick, only the one belonging to binding still valid at write time may apply, once node has taken its image for current binding, later superseded result on same tick must not overwrite it.
 
-- Bound node: `<nodeId> item=<itemId> title=<title> image=<urlOrNONE>`
-- Unbound node with no image: `<nodeId> unbound`
-- Unbound node that still holds an image (bug): `<nodeId> unbound image=<url>` – correct implementation never produces this unless a stale load corrupted it.
+pending loads are consumed in scheduling order. handling a load always consumes next queued resolution for its item or auto:itemId fallback when none remain. this holds even when load is stale, stale result is consumed and discarded never put back, so later valid load does not get it.
 
-## Expected behavior
+when BUDGET set, decoding costs one credit. loader accrues credits continuously at num/den per tick of elapsed time, single running quantity that keeps fractional part across ticks rather than recomputed per tick, capped at cap. on ADVANCE after crediting elapsed time, due loads are taken in usual order and each valid non stale pays one credit to decode, when next valid in order cannot afford credit, stop decoding for that tick and that load and everything behind it stays pending for later tick. stale never decodes and costs nothing but still consumes queued resolution. with no BUDGET op budget is unlimited.
 
-A node must only display an image that was fetched for its current binding. Unmounting a node, or mounting it again to a different item, or remounting to the same itemId again, all start a new binding generation. Any load scheduled under an old generation must not write to the node, even if the itemId is the same. When multiple loads for the same node become due on the same tick, only the one that belongs to the binding still valid at write time may apply. Once a node has taken its image for the current binding, a later superseded result on that same tick must not overwrite it.
+contract tests live in /app/test/contract.test.js or /app/tests/test_outputs.py depending on setup, run with npm test or pytest.
 
-Pending loads that become due are consumed in scheduling order. Handling a load always consumes the next queued resolution for its item, or the `auto:<itemId>` fallback when none remain. This holds even when the load is stale: a stale result is consumed and discarded, never put back, so a later valid load does not get it.
+run with node src/index.js or python src/main.py < scenario.json > output.txt, verifier checks output.
 
-When `BUDGET` has been set, decoding an image costs one credit. Credits accrue continuously at `num/den` credits per tick of elapsed time, as a single running quantity that keeps its fractional part across ticks, capped at `cap`. On `ADVANCE`, first add `elapsed * num / den` to budget (integer division after multiply), cap it, then process due loads in order. Each valid, non-stale load pays one credit to decode. When the next valid load in order cannot afford a credit, stop decoding for that tick and leave that load and everything behind it pending for a later tick. Stale loads never decode and cost nothing, but they still consume their queued resolution.
-
-## Contract tests
-
-Contract tests that capture the intended behavior live in:
-
-  /app/test/contract.test.js
-
-Run them with:
-
-  npm test
-
-Your fix should make all contract tests pass without cheating by editing test files.
-
-## Build and run
-
-Run the program with:
-
-  node /app/src/index.js < /app/scenario.json > /app/output.txt
-
-The verifier checks `output.txt` against expected snapshots.
+do not hardcode any urls from sample, hidden grading uses other items and ticks.
