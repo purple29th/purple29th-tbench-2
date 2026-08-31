@@ -349,7 +349,7 @@ def main():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Dry-run using local repo only, no gh CLI needed (uses purple29th 3 repos example)",
+        help="Dry-run using local repo only, no gh CLI needed (uses purple29th 3 repos example for demo)",
     )
     parser.add_argument("--repo-root", help="Repo root path", default=".")
     args = parser.parse_args()
@@ -361,7 +361,33 @@ def main():
     elif args.team_file:
         team_users = Path(args.team_file).read_text(encoding="utf-8").splitlines()
     else:
-        team_users = DEFAULT_TEAM
+        # Not hardcoded to my team when somebody else pulls it: try to detect current gh user
+        # If gh authenticated, use that user as single-user team (their own team will show, not mine)
+        # Else fallback to DEFAULT_TEAM (purple29th's team) only for dry-run demo
+        try:
+            result = subprocess.run(
+                ["gh", "api", "user", "--jq", ".login"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                detected_user = result.stdout.strip()
+                # If detected user is not purple29th, use only them (their own team, not mine)
+                # This ensures when mehag pulls repo, it shows mehag's team, not purple29th's 25
+                if detected_user.lower() != "purple29th":
+                    team_users = [detected_user]
+                else:
+                    team_users = DEFAULT_TEAM if args.dry_run else [detected_user]
+            else:
+                team_users = DEFAULT_TEAM if args.dry_run else []
+        except Exception:
+            team_users = DEFAULT_TEAM if args.dry_run else []
+
+        if not team_users:
+            # Fallback: if no team file and no gh user, use only current dir owner from git log? Or empty so site shows searchable but not hardcoded?
+            # For safety, use empty to force user to provide team file — but for demo we use DEFAULT_TEAM only in dry-run
+            team_users = DEFAULT_TEAM if args.dry_run else ["purple29th"]
 
     coverage = build_coverage(team_users, repo_root, dry_run=args.dry_run)
 

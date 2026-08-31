@@ -1107,9 +1107,21 @@
               "task_name": "codimango/openanvil-gradle-cache-void-volume",
               "category": "data-science",
               "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "openanvil-manifest-stale-write-guard",
+              "task_name": "codimango/openanvil-manifest-stale-write-guard-purple29th",
+              "category": "software-engineering",
+              "subdomain": "distributed_systems"
+            },
+            {
+              "task_dir": "zinc-whisker-subvoxel-mass-load",
+              "task_name": "codimango/zinc-whisker-subvoxel-mass-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
             }
           ],
-          "task_count": 88
+          "task_count": 90
         },
         {
           "name": "purple29th-tbench",
@@ -1210,15 +1222,15 @@
   "totals": {
     "users": 25,
     "repos": 75,
-    "tasks": 88
+    "tasks": 90
   },
   "domain_coverage": {
     "bug-fixing": 17,
-    "data-science": 63,
+    "data-science": 64,
     "reverse-engineering": 1,
     "algorithms": 3,
     "build-infrastructure": 1,
-    "software-engineering": 1,
+    "software-engineering": 2,
     "software_engineering": 1,
     "scientific-computing": 1
   },
@@ -1227,8 +1239,8 @@
     "database_internals": 3,
     "unknown": 4,
     "security_and_privacy": 1,
-    "multimedia_and_signal_processing": 53,
-    "distributed_systems": 2,
+    "multimedia_and_signal_processing": 54,
+    "distributed_systems": 3,
     "systems_and_infra": 1,
     "build_and_ci": 1,
     "backend_services": 1,

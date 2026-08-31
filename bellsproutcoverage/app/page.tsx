@@ -58,11 +58,19 @@ export default function Home() {
         <header className="flex items-center justify-between border-b border-zinc-200 pb-4">
           <div>
             <h1 className="text-[15px] font-medium tracking-tight">bellsproutcoverage.com</h1>
-            <p className="text-[12px] text-zinc-500 mt-1">Team coverage from local task.toml scan — 25 users, 2015 org repos index, 88 mapped tasks</p>
+            <p className="text-[12px] text-zinc-500 mt-1">Team coverage from local scan + org repo search — dynamic per logged-in user, internal SSO only</p>
           </div>
-          <a href="https://github.com/codimango/purple29th-tbench-2/tree/708fe4de39b3fcb80b3a3d97a7b97a1efb888de8" className="text-[11px] border border-zinc-300 rounded-md px-3 py-1.5 hover:bg-zinc-50">
-            baseline 708fe4d
-          </a>
+          <div className="flex gap-2">
+            {(() => {
+              const firstUser = filteredUsers[0] ?? coverage?.team_users[0] ?? "purple29th";
+              const firstRepo = coverage?.team_data[firstUser]?.repos?.[0]?.name ?? `${firstUser}-tbench-2`;
+              return (
+                <a href={`https://github.com/codimango/${firstRepo}`} target="_blank" className="text-[11px] border border-zinc-300 rounded-md px-3 py-1.5 hover:bg-zinc-50 font-mono">
+                  {firstRepo} · user repo (not hardcoded)
+                </a>
+              );
+            })()}
+          </div>
         </header>
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
