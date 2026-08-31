@@ -1,0 +1,721 @@
+{
+  "team_users": [
+    "prasannajp",
+    "abass",
+    "andrewamirov",
+    "anishh",
+    "aryasa",
+    "bhavyagm",
+    "chenglu",
+    "itsdeep",
+    "itsjesse",
+    "jingworks",
+    "justinpeng",
+    "kristinazhou",
+    "marcelino8",
+    "mehag",
+    "hamoodi",
+    "parmar",
+    "waryan",
+    "malla",
+    "sharonhan",
+    "sheldonxu",
+    "scli",
+    "purple29th",
+    "vtupili",
+    "vitalikk",
+    "yingxinanna"
+  ],
+  "team_data": {
+    "prasannajp": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "abass": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "andrewamirov": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "anishh": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "aryasa": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "bhavyagm": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "chenglu": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "itsdeep": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "itsjesse": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "jingworks": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "justinpeng": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "kristinazhou": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "marcelino8": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "mehag": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "hamoodi": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "parmar": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "waryan": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "malla": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "sharonhan": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "sheldonxu": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "scli": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "purple29th": {
+      "repos": [
+        {
+          "name": "purple29th-tbench-2",
+          "visibility": "Private",
+          "description": "Python",
+          "tasks": [
+            {
+              "task_dir": "android-bitmap-pool-leak-detector",
+              "task_name": "codimango/android-bitmap-pool-leak-detector",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-coroutine-scope-cancellation",
+              "task_name": "codimango/android-coroutine-scope-cancellation",
+              "category": "data-science",
+              "subdomain": "database_internals"
+            },
+            {
+              "task_dir": "android-depth-object-volume",
+              "task_name": "codimango/android-depth-object-volume",
+              "category": "data-science",
+              "subdomain": "unknown"
+            },
+            {
+              "task_dir": "android-doframe-deadline-scheduler",
+              "task_name": "codimango/android-doframe-deadline-scheduler",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-fragment-backstack-replay",
+              "task_name": "codimango/android-fragment-backstack-replay",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-license-keygen",
+              "task_name": "codimango/android-license-keygen",
+              "category": "reverse-engineering",
+              "subdomain": "security_and_privacy"
+            },
+            {
+              "task_dir": "android-linearlayout-weight-measure",
+              "task_name": "codimango/android-linearlayout-weight-measure",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-media-segment-cache",
+              "task_name": "codimango/android-media-segment-cache",
+              "category": "bug-fixing",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-okhttp-disk-cache",
+              "task_name": "codimango/android-okhttp-disk-cache",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-recycler-staleness",
+              "task_name": "codimango/android-recycler-staleness",
+              "category": "bug-fixing",
+              "subdomain": "unknown"
+            },
+            {
+              "task_dir": "config-push-race-condition",
+              "task_name": "codimango/config-push-race-condition",
+              "category": "bug-fixing",
+              "subdomain": "distributed_systems"
+            },
+            {
+              "task_dir": "distributed-lease-manager",
+              "task_name": "codimango/distributed-lease-manager",
+              "category": "bug-fixing",
+              "subdomain": "distributed_systems"
+            },
+            {
+              "task_dir": "event-loop-scheduler",
+              "task_name": "codimango/event-loop-scheduler",
+              "category": "algorithms",
+              "subdomain": "systems_and_infra"
+            },
+            {
+              "task_dir": "git-bisect-flaky-test",
+              "task_name": "codimango/git-bisect-flaky-test",
+              "category": "build-infrastructure",
+              "subdomain": "build_and_ci"
+            },
+            {
+              "task_dir": "grpc-streaming-flow-control",
+              "task_name": "codimango/grpc-streaming-flow-control",
+              "category": "bug-fixing",
+              "subdomain": "unknown"
+            },
+            {
+              "task_dir": "hello-world",
+              "task_name": "hello-world",
+              "category": "software-engineering",
+              "subdomain": "unknown"
+            },
+            {
+              "task_dir": "inventory-reservation-leaks",
+              "task_name": "codimango/inventory-reservation-leaks",
+              "category": "bug-fixing",
+              "subdomain": "backend_services"
+            },
+            {
+              "task_dir": "lru-cache-with-cost-budget",
+              "task_name": "codimango/lru-cache-with-cost-budget",
+              "category": "algorithms",
+              "subdomain": "algorithms_and_data_structures"
+            },
+            {
+              "task_dir": "mobile-config-exposure-imbalance",
+              "task_name": "codimango/mobile-config-exposure-imbalance",
+              "category": "software_engineering",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "transaction-log-replay",
+              "task_name": "codimango/transaction-log-replay",
+              "category": "algorithms",
+              "subdomain": "database_internals"
+            },
+            {
+              "task_dir": "android-sqlite-freelist-true-row-count",
+              "task_name": "codimango/android-sqlite-freelist-true-row-count",
+              "category": "data-science",
+              "subdomain": "database_internals"
+            },
+            {
+              "task_dir": "android-tof-subvoxel-volume",
+              "task_name": "codimango/android-tof-subvoxel-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-sensor-deadtime-flux",
+              "task_name": "codimango/android-sensor-deadtime-flux",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "confocal-gold-subvoxel-volume",
+              "task_name": "codimango/confocal-gold-subvoxel-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "foundry-thermal-subvoxel-void",
+              "task_name": "codimango/foundry-thermal-subvoxel-void",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "ink-blot-subvoxel-area",
+              "task_name": "codimango/ink-blot-subvoxel-area",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "scope-pulse-calculus-duration",
+              "task_name": "codimango/scope-pulse-calculus-duration",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "wafer-etch-pit-thermal-area",
+              "task_name": "codimango/wafer-etch-pit-thermal-area",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-oled-bond-subvoxel-void",
+              "task_name": "codimango/android-oled-bond-subvoxel-void",
+              "category": "data-science",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-display-mura-ink-pool",
+              "task_name": "codimango/android-display-mura-ink-pool",
+              "category": "data-science",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-battery-swell-pressure",
+              "task_name": "codimango/android-battery-swell-pressure",
+              "category": "data-science",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-fingerprint-oil-smear",
+              "task_name": "codimango/android-fingerprint-oil-smear",
+              "category": "data-science",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-wakelock-imbalance",
+              "task_name": "codimango/android-wakelock-imbalance",
+              "category": "data-science",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-lra-stiction-charge",
+              "task_name": "codimango/android-lra-stiction-charge",
+              "category": "data-science",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-fragment-nested-child-retention",
+              "task_name": "codimango/android-fragment-nested-child-retention",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "aero-composite-delam-subvoxel-area",
+              "task_name": "codimango/aero-composite-delam-subvoxel-area",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "seismic-p-wave-onset-pick",
+              "task_name": "codimango/seismic-p-wave-onset-pick",
+              "category": "data-science",
+              "subdomain": "scientific_computing"
+            },
+            {
+              "task_dir": "android-mag-hard-iron-bias-fit",
+              "task_name": "codimango/android-mag-hard-iron-bias-fit",
+              "category": "data-science",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "organoid-necrotic-core-volume",
+              "task_name": "codimango/organoid-necrotic-core-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "pcb-copper-trace-undercut-gap",
+              "task_name": "codimango/pcb-copper-trace-undercut-gap",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "mems-microphone-membrane-perforation-leak",
+              "task_name": "codimango/mems-microphone-membrane-perforation-leak",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "electrostatic-chuck-residual-charge",
+              "task_name": "codimango/electrostatic-chuck-residual-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "fuel-cell-membrane-blister-pressure",
+              "task_name": "codimango/fuel-cell-membrane-blister-pressure",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "laser-weld-keyhole-channel-porosity",
+              "task_name": "codimango/laser-weld-keyhole-channel-porosity",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "cryo-pump-regen-gas-burst-residual-charge",
+              "task_name": "codimango/cryo-pump-regen-gas-burst-residual-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "euv-plasma-chamber-wall-charge-decay",
+              "task_name": "codimango/euv-plasma-chamber-wall-charge-decay",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "ceramic-sinter-pore-subvoxel-void",
+              "task_name": "codimango/ceramic-sinter-pore-subvoxel-void",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "solar-wafer-microcrack-true-area",
+              "task_name": "codimango/solar-wafer-microcrack-true-area",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "perovskite-film-pinhole-true-area",
+              "task_name": "codimango/perovskite-film-pinhole-true-area",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "rebar-pit-beam-artifact-true-volume",
+              "task_name": "codimango/rebar-pit-beam-artifact-true-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "diecast-aluminum-pore-subvoxel-void",
+              "task_name": "codimango/diecast-aluminum-pore-subvoxel-void",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "faraday-cup-ion-dose-residual-charge",
+              "task_name": "codimango/faraday-cup-ion-dose-residual-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "pvd-magnetron-arc-residual-charge",
+              "task_name": "codimango/pvd-magnetron-arc-residual-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-piezo-haptic-residual-charge",
+              "task_name": "codimango/android-piezo-haptic-residual-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-fragment-result-listener-backstack",
+              "task_name": "codimango/android-fragment-result-listener-backstack",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "sintered-silver-die-attach-void-subvoxel-volume",
+              "task_name": "codimango/sintered-silver-die-attach-void-subvoxel-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "electroless-nickel-pit-true-area",
+              "task_name": "codimango/electroless-nickel-pit-true-area",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "battery-dendrite-shorting-charge-load",
+              "task_name": "codimango/battery-dendrite-shorting-charge-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "polymer-film-triboelectric-charge-load",
+              "task_name": "codimango/polymer-film-triboelectric-charge-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "euv-pellicle-carbon-mass-load",
+              "task_name": "codimango/euv-pellicle-carbon-mass-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-compose-remember-cache-leak",
+              "task_name": "codimango/android-compose-remember-cache-leak",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "periscope-prism-glue-void-true-volume",
+              "task_name": "codimango/periscope-prism-glue-void-true-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "hot-rolled-sulfide-stringer-length",
+              "task_name": "codimango/hot-rolled-sulfide-stringer-length",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "powder-bed-spatter-mass-load",
+              "task_name": "codimango/powder-bed-spatter-mass-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "schwarzschild-orbit",
+              "task_name": "codimango/schwarzschild-orbit",
+              "category": "scientific-computing",
+              "subdomain": "scientific_computing"
+            },
+            {
+              "task_dir": "billet-hydrogen-pore-pressure-load",
+              "task_name": "codimango/billet-hydrogen-pore-pressure-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "pcb-trace-capacitance-burden",
+              "task_name": "codimango/pcb-trace-capacitance-burden",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "paper-fiber-ink-wicking-mass-load",
+              "task_name": "codimango/paper-fiber-ink-wicking-mass-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "alumina-fissure-breakdown",
+              "task_name": "codimango/alumina-fissure-breakdown",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "lunar-pore-weight-load",
+              "task_name": "codimango/lunar-pore-weight-load",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "tidal-harmonic-m2-amplitude-recovery",
+              "task_name": "codimango/tidal-harmonic-m2-amplitude-recovery",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "music-harmonic-tonic-balance-recovery",
+              "task_name": "codimango/music-harmonic-tonic-balance-recovery",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "pcb-copper-trace-overetch-gap",
+              "task_name": "codimango/pcb-copper-trace-overetch-gap",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "sintered-silver-die-attach-void-true-volume",
+              "task_name": "codimango/sintered-silver-die-attach-void-true-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "paper-fiber-ink-wicking-true-mass",
+              "task_name": "codimango/paper-fiber-ink-wicking-true-mass",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "laser-weld-keyhole-channel-void-volume",
+              "task_name": "codimango/laser-weld-keyhole-channel-void-volume",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "euv-pellicle-carbon-true-mass",
+              "task_name": "codimango/euv-pellicle-carbon-true-mass",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "polymer-film-triboelectric-true-charge",
+              "task_name": "codimango/polymer-film-triboelectric-true-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "hot-rolled-sulfide-stringer-true-length",
+              "task_name": "codimango/hot-rolled-sulfide-stringer-true-length",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "billet-hydrogen-pore-true-pressure",
+              "task_name": "codimango/billet-hydrogen-pore-true-pressure",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "battery-dendrite-shorting-true-charge",
+              "task_name": "codimango/battery-dendrite-shorting-true-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-piezo-haptic-true-charge",
+              "task_name": "codimango/android-piezo-haptic-true-charge",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-fragment-result-listener-restore",
+              "task_name": "codimango/android-fragment-result-listener-restore",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-fragment-viewbinding-lifecycle",
+              "task_name": "codimango/android-fragment-viewbinding-lifecycle",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "alumina-fissure-breakdown-voltage",
+              "task_name": "codimango/alumina-fissure-breakdown-voltage",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "lunar-regolith-pore-true-weight",
+              "task_name": "codimango/lunar-regolith-pore-true-weight",
+              "category": "data-science",
+              "subdomain": "multimedia_and_signal_processing"
+            },
+            {
+              "task_dir": "android-bitmap-pool-leak-tracker",
+              "task_name": "codimango/android-bitmap-pool-leak-tracker",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            },
+            {
+              "task_dir": "android-fragment-viewbinding-cleanup",
+              "task_name": "codimango/android-fragment-viewbinding-cleanup",
+              "category": "bug-fixing",
+              "subdomain": "mobile_android"
+            }
+          ],
+          "task_count": 88
+        },
+        {
+          "name": "purple29th-tbench",
+          "visibility": "Private",
+          "description": "AAI ADO T-Bench task repo",
+          "tasks": [],
+          "task_count": 0
+        },
+        {
+          "name": "purple29th-android-tbench",
+          "visibility": "Private",
+          "description": "Android T-Bench",
+          "tasks": [],
+          "task_count": 0
+        }
+      ],
+      "repo_count": 3
+    },
+    "vtupili": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "vitalikk": {
+      "repos": [],
+      "repo_count": 0
+    },
+    "yingxinanna": {
+      "repos": [],
+      "repo_count": 0
+    }
+  },
+  "totals": {
+    "users": 25,
+    "repos": 3,
+    "tasks": 88
+  },
+  "domain_coverage": {
+    "bug-fixing": 18,
+    "data-science": 62,
+    "reverse-engineering": 1,
+    "algorithms": 3,
+    "build-infrastructure": 1,
+    "software-engineering": 1,
+    "software_engineering": 1,
+    "scientific-computing": 1
+  },
+  "subdomain_coverage": {
+    "mobile_android": 20,
+    "database_internals": 3,
+    "unknown": 4,
+    "security_and_privacy": 1,
+    "multimedia_and_signal_processing": 52,
+    "distributed_systems": 2,
+    "systems_and_infra": 1,
+    "build_and_ci": 1,
+    "backend_services": 1,
+    "algorithms_and_data_structures": 1,
+    "scientific_computing": 2
+  },
+  "gaps": [
+    "data_science",
+    "software_engineering",
+    "caching",
+    "state_management"
+  ],
+  "suggestions": [
+    "data_science-auto-generated-task",
+    "software_engineering-auto-generated-task",
+    "caching-auto-generated-task"
+  ]
+}
