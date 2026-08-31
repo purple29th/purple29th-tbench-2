@@ -1,36 +1,34 @@
-import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(req: NextRequest) {
-  // Allow public assets and auth routes
+export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  // Allow login, api, static, public files
   if (
-    path.startsWith("/api/auth") ||
+    path.startsWith("/api") ||
     path.startsWith("/_next") ||
+    path === "/login" ||
     path.startsWith("/favicon") ||
-    path === "/login"
+    path === "/robots.txt" ||
+    path === "/security.txt" ||
+    path === "/team_coverage.json"
   ) {
     return NextResponse.next();
   }
 
-  // If NEXTAUTH_SECRET not set (local dev without env), allow all for testing
-  // In production Vercel, set NEXTAUTH_SECRET + GITHUB_ID + GITHUB_SECRET
-  if (!process.env.NEXTAUTH_SECRET) {
-    return NextResponse.next();
-  }
+  // Strict SSO before page lands — check for internal SSO cookie
+  // This simulates Meta internal device SSO: on phone without login, you get blocked at login page
+  // Real Meta SSO would check X-Meta-Device-Cert, but we simulate with cookie set after SSO button
+  const ssoCookie = req.cookies.get("bellsprout_internal_sso")?.value;
 
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
-  if (!token) {
-    // Not logged in → redirect to internal SSO login
+  if (!ssoCookie || ssoCookie !== "meta_passed") {
+    // Not logged in via internal SSO → redirect to login (strictly before page)
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // token present → org check already done in signIn callback, allow
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
