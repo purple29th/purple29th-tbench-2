@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/openanvil-manifest-stale-write-guard-purple29th"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Fix OpenAnvil S3 manifest stale write guard. S3 manifests with generation token get overwritten by stale heartbeats after terminal state. Requires generation counter + heartbeat recency check + terminal guard, inspired by android-recycler-staleness pattern. Genuine OpenAnvil provisioner bug."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["openanvil", "manifest", "s3", "stale-write", "generation-token", "recycler-staleness", "provisioner"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "software-engineering"
+category_subdomain = "distributed_systems"
+category_usecase = "lifecycle_and_concurrency"
+reward_type = "binary"
+tags = ["openanvil", "s3", "manifest-store", "stale-write", "generation-counter", "android-recycler-staleness", "provisioner", "from-scratch-logic"]
+expert_time_estimate_min = 45.0
+junior_time_estimate_min = 120.0
+
+[verifier]
+timeout_sec = 60.0
+
+[agent]
+timeout_sec = 600.0
+
+[environment]
+build_timeout_sec = 600.0
+cpus = 2
+memory_mb = 2048
+storage_mb = 10240
+gpus = 0
+allow_internet = false
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]

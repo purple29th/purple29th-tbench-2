@@ -108,7 +108,8 @@ def solve(p):
         if is_elong and mass >= 0.35 * largest:
             main_groups.append(comp)
     if not main_groups:
-        main_groups = [comps_with_shape[0][1]] if comps_with_shape else []
+        print(0)
+        return
     best = []
     for g in main_groups:
         best.extend(g)

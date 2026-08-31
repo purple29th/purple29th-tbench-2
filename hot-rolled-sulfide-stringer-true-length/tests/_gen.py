@@ -107,6 +107,7 @@ def pack(cfg, field):
     nx,ny,nz=cfg["dims"]
     sx,sy,sz=cfg["spacing"]
     dtype=cfg["dtype"]
+    data_offset=cfg.get("data_offset",64)
     n=nx*ny*nz
     hdr=bytearray(64)
     hdr[0:4]=MAGIC
@@ -114,12 +115,15 @@ def pack(cfg, field):
     struct.pack_into("<I",hdr,8,dtype)
     struct.pack_into("<III",hdr,12,nx,ny,nz)
     struct.pack_into("<fff",hdr,24,sx,sy,sz)
-    struct.pack_into("<I",hdr,36,64)
+    struct.pack_into("<I",hdr,36,data_offset)
     if dtype==2:
         vals=[max(-32768,min(32767,int(round(v)))) for v in field]
         body=struct.pack("<%dh"%n,*vals)
     else:
         body=struct.pack("<%df"%n,*field)
+    if data_offset>64:
+        pad=bytes(data_offset-64)
+        return bytes(hdr)+pad+body
     return bytes(hdr)+body
 
 def geometric_truth_mm(cfg, v_true):

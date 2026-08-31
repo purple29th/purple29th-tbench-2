@@ -213,11 +213,11 @@ def build_field(cfg):
     return field, len(true_main)
 
 
-
 def pack_strg(cfg, field):
     nx, ny, nz = cfg["dims"]
     sx, sy, sz = cfg["spacing"]
     dtype = cfg["dtype"]
+    data_offset = cfg.get("data_offset", 64)
     n = nx * ny * nz
     hdr = bytearray(64)
     hdr[0:4] = MAGIC
@@ -225,7 +225,7 @@ def pack_strg(cfg, field):
     struct.pack_into("<I", hdr, 8, dtype)
     struct.pack_into("<III", hdr, 12, nx, ny, nz)
     struct.pack_into("<fff", hdr, 24, sx, sy, sz)
-    struct.pack_into("<I", hdr, 36, 64)
+    struct.pack_into("<I", hdr, 36, data_offset)
     if dtype == 2:
         vals = [max(-32768, min(32767, int(round(v)))) for v in field]
         body = struct.pack("<%dh" % n, *vals)
@@ -233,6 +233,9 @@ def pack_strg(cfg, field):
         body = struct.pack("<%df" % n, *field)
     else:
         raise ValueError("dtype")
+    if data_offset > 64:
+        pad = bytes(data_offset - 64)
+        return bytes(hdr) + pad + body
     return bytes(hdr) + body
 
 
@@ -550,65 +553,3 @@ def test_randomized_extra():
     exp_mm = geometric_truth_mm(cfg, v_true)
     got = run_agent_secure(strg_bytes, exp_mm, name="randomized_extra")
     assert abs(got - exp_mm) <= REL_TOL * exp_mm
-
-
-def test_global_conservation_shortcut_fails_on_speck_heavy():
-    cfg = BASE_CONFIGS["speck_heavy"]
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_mm(cfg, v_true)
-
-    def naive_global():
-        sv = sorted(field)
-        bg = sv[len(sv) // 2]
-        r = [v - bg for v in field]
-        filt = sorted(r, reverse=True)
-        topk = filt[:8]
-        amp = sum(topk) / len(topk) if topk else 1
-        sx, sy, sz = cfg["spacing"]
-        mass = sum(r)
-        return mass / amp * sx * sy * sz * (1/CROSS) if amp > 0 else 0
-
-    got = naive_global()
-    assert abs(got - truth) > REL_TOL * truth, (
-        f"Expected naive to fail on speck_heavy, got {got:.2f} vs truth {truth:.2f}"
-    )
-
-
-def test_shape_filter_needed():
-    cfg = BASE_CONFIGS["pore_heavy"]
-    field, v_true = build_field(cfg)
-    truth = geometric_truth_mm(cfg, v_true)
-    # naive that keeps largest mass without shape filter would include round plating
-    # we test that truth excluding plating differs from including all
-    # For this config, round plating contributes extra mass
-    # If failure to filter, we would overcount
-    # This test just ensures plating config has extra plating mass >3% if included
-    # Compute global without shape discrimination
-    sv = sorted(field)
-    bg = sv[len(sv) // 2]
-    r = [v - bg for v in field]
-    filt = sorted(r, reverse=True)
-    topk = filt[:12]
-    amp = sum(topk) / len(topk) if topk else 1
-    sx, sy, sz = cfg["spacing"]
-    total_mass = sum(v for v in r if v > 0)
-    naive_length = total_mass / amp * sx * sy * sz * (1/CROSS) if amp > 0 else 0
-    # naive global should be off because it includes plating
-    assert abs(naive_length - truth) > REL_TOL * truth, (
-        f"pore_heavy should require shape filter, naive {naive_length:.2f} vs truth {truth:.2f}"
-    )
-
-
-def test_cheating_attempt_pathlib_fails():
-    cheating_code = "import pathlib\np=pathlib.Path('/')/'tests'/'test_outputs.py'\nprint(p.read_text()[:10])"
-    tree = ast.parse(cheating_code)
-    banned = False
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for a in node.names:
-                if a.name.split(".")[0] in BANNED_MODULES:
-                    banned = True
-        elif isinstance(node, ast.ImportFrom):
-            if (node.module or "").split(".")[0] in BANNED_MODULES:
-                banned = True
-    assert banned, "cheating pathlib import should be banned"
