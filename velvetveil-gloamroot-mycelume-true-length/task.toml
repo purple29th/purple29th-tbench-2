@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/velvetveil-gloamroot-mycelume-true-length"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Mycology field lab grading of bioluminescent Armillaria rhizomorphs (foxfire) in forest duff. Low-light sCMOS maps of photon veil are smeared by fog scattering and lens PSF; total glow length requires recovery of halo via energy conservation. Custom 2D container MYCR with magic, variable payload_start, pixel pitch sx sy, and post veil gain multiplier at offset 40 that scales mm. Task asks total illuminated cord length mm via pooled area / 0.4 mm repeat * gain, ignoring round bacterial colonies and far corner soil dust, summing two distant cords when present. 3% tolerance, stdlib only."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["mycelium", "rhizomorph", "bioluminescence", "foxfire", "binary-parsing", "from-scratch", "forest-ecology", "photon-veil"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["mycology", "rhizomorph", "bioluminescence", "foxfire", "binary-parsing", "from-scratch", "glow-recovery", "elongated-filter"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 220.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
