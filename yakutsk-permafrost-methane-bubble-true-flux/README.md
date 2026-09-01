@@ -1,39 +1,48 @@
-yakutsk-permafrost-methane-bubble-true-flux
+# yakutsk permafrost methane bubble true flux
 
-Description
+## Description
 
-I am Anya from Yakutsk in Sakha. My father works on permafrost methane. We drill 1m cores in Batagay crater and at 1am we image methane bubbles that glow with infrared dye, rig writes PMBF magic PMBF. Inside are elongated bubbles along ice veins that are real flux plus round water inclusion pores to ignore plus far dust specks from drill dust. Some cores have two distant bubble fields both count. I need true flux mg per m2 per day.
+I am Anya from Yakutsk in Sakha, my father studies permafrost methane in Batagay crater, biggest permafrost crater that grows each year. We drill one meter ice cores at one am when it is minus forty and image methane bubbles that glow with infrared dye that we inject. The rig writes PMBF magic PMBF with variable payload start forty eight sixty four eighty ninety six one twenty eight at twenty eight and multiplier at forty that scales mg per m2 per day zero point eight five to one point three five hidden one point two two at ninety six. Ignore either fails twenty two percent and fails on ninety six one twenty eight.
 
-Please make file at /app/solve.py. We call python /app/solve.py path and last token is answer.
+Inside are elongated methane bubbles along ice veins that are real flux plus round water inclusion pores compact round to skip plus far drill dust specks from auger that add six to twelve percent each if summed. Some cores have two distant bubble fields both counted, biggest only fails forty to fifty percent. Fog scattering plus lens smear halo, low threshold doubles flux, high clips half.
 
-Example at /app/data/scene.pmbf about eight mg per m2 per day. Hidd
+What works is photons conserved. Estimate base from dimmest seventy percent so glow does not bias, noise from lower half median absolute deviation, mark candidates above background, twenty six connected flood in three dimensions, keep elongated groups with mass filter dropping round and far dust, plateau mean of brightest inside kept bubbles, grow shells outward collecting residual until ring mean near noise floor while skipping dust groups to prevent bridging. Then volume mm3 times zero point seven two times multiplier mg per m2 per day. Sample seven twenty nine mg per m2 per day.
 
-Inside are elongated signal along natural grain that is real plus round distractors compact to skip plus far specks.
+Completion oracle three of three deterministic twelve of twelve pytest including ninety six one twenty eight plus random plus extra. Avocado zero to one of five due to gain plus multi component plus shape plus halo. Opus four of five GPT three of five.
 
-Energy preserved. Optics do not create photons only move them. So sum residual over expanded region divided by plateau gives true count. Then volume times 0.72 times multiplier equals mg per m2 per day.
+Model Analysis failure modes: no background subtraction overcounts forty to ninety, fixed cutoff low eighty to one thirty over high thirty to fifty under, no speck isolation overcounts six to twelve per far dust, no shape keeps round water pores, no halo under fifteen to twenty five, hardcoded offset sixty four fails ninety six one twenty eight, hardcoded gain fails twenty two.
 
-Files
+Anti cheating varied width height depth spacing amp bg sig noise seed placement random temp names input_a3f9.pmbf so constant fails. Secure runner audit hook blocks tests and b64decode and pathlib tricks. Reward via python I S ctrf json.
 
-* /app/solve.py you write last token mg per m2 per day
-* /app/data/scene.pmbf sample
-* Dockerfile installs pytest copies sample
+Tags yakutsk permafrost methane bubble flux Batagay PMBF halo recovery gain calibration payload offset human story
+Author Tosin Daniel Jimoh purple29th at meta.com
+
+
+## Files
+
+* /app/solve.py you write last token
+* /app/data/scene sample
+* Dockerfile
 * solution/solve.py oracle
-* _gen.py generates
+* tests/_gen.py generates
 * test_outputs.py secure verifier random names
 
-Completion Rates
+## Completion Rates
 
-Oracle three of three deterministic twelve of twelve pytest including ninety six one twenty eight
-Avocado zero to one of five due to gain plus multi component plus shape
+Oracle three of three deterministic
+Avocado zero to one of five
 Opus four of five GPT three of five
 
-Model Analysis
+## Model Analysis
 
-No background overcounts, fixed cutoff over and under, no speck keeps far dust overcounts six to twelve percent per speck, no shape keeps round overcounts, no halo under fifteen to twenty five, hardcoded data offset sixty four fails ninety six one twenty eight, hardcoded multiplier fails twenty two percent.
+No background overcounts, fixed cutoff over and under, no speck keeps far dust, no shape keeps round, no halo under, hardcoded offset fails 96/128, hardcoded gain fails 22 percent.
 
-Anti Cheating
+## Anti-Cheating
 
-Varied dims spacing amp bg sig noise seed random temp names input_a3f9.pmbf so constant fails. Secure runner blocks tests.
+Varied dims spacing amp bg sig noise seed random temp names so constant fails. Secure runner blocks tests.
 
-Tags pmbf methane-bubble-flux halo recovery payload offset human story
+## Tags
+
+Tags yakutsk permafrost methane bubble true flux human story
+
 Author Tosin Daniel Jimoh purple29th at meta.com

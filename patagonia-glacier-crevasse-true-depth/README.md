@@ -1,41 +1,53 @@
-patagonia-glacier-crevasse-true-depth
+# patagonia glacier crevasse true depth
 
-Description
+## Description
 
-I am Martina from El Chalten in Patagonia Argentina. My brother guides glacier walks on Viedma. At one am we drag ground penetrating radar that writes GLCR magic GLCR. Inside radar volume are elongated crevasses along flow that are real depth plus round air bubbles round to ignore plus far serac dust specks. Need true depth meters. I need tool that reports total crevasse depth.
+I am Martina from El Chalten in Patagonia Argentina, my brother guides on Viedma glacier. At one am we drag ground penetrating radar that writes GLCR magic GLCR. Inside radar volume are elongated crevasses along flow that are real depth plus round air bubbles round to ignore plus far serac dust specks. Need true depth meters for safety.
 
-Please make file at /app/solve.py call python /app/solve.py path last token meters.
+This measures depth meters. Simple level fails doubles or loses half. Gain varies and multiplier at forty scales final hidden one point two two at ninety six.
 
-Example at /app/data/scene.glcr about twelve meters. Hidden random names input_b7c2.glcr.
+Energy preserved. Volume times one point one five times multiplier equals meters.
 
-File layout glcr little endian four bytes 
+Correct handling data offset forty eight sixty four eighty ninety six one twenty eight multiplier background bias noise shape discrimination elongated filter.
 
-Inside are elongated signal along natural grain that is real plus round distractors compact to skip plus far specks.
+Files: /app/solve.py you write last token meters, /app/data/scene.glcr sample twelve meters, Dockerfile pytest, solution/solve.py oracle, _gen.py, test_outputs.py secure random names.
 
-Energy preserved. Optics do not create photons only move them. So sum residual over expanded region divided by plateau gives true count. Then volume times 1.15 times multiplier equals meters.
+Completion oracle three of three twelve of twelve including ninety six one twenty eight. Avocado zero to one of five.
 
-Files
+Model Analysis no background overcounts, fixed cutoff over and under, no speck overcounts, no shape keeps round, no halo under, hardcoded offset fails, hardcoded gain fails twenty two.
 
-* /app/solve.py you write last token meters
-* /app/data/scene.glcr sample
-* Dockerfile installs pytest copies sample
+Anti Cheating varied dims random names secure runner.
+
+Tags patagonia glacier crevasse depth Viedma GLCR halo recovery
+
+Author Tosin Daniel Jimoh purple29th at meta.com
+
+
+## Files
+
+* /app/solve.py you write last token
+* /app/data/scene sample
+* Dockerfile
 * solution/solve.py oracle
-* _gen.py generates
+* tests/_gen.py generates
 * test_outputs.py secure verifier random names
 
-Completion Rates
+## Completion Rates
 
-Oracle three of three deterministic twelve of twelve pytest including ninety six one twenty eight
-Avocado zero to one of five due to gain plus multi component plus shape
+Oracle three of three deterministic
+Avocado zero to one of five
 Opus four of five GPT three of five
 
-Model Analysis
+## Model Analysis
 
-No background overcounts, fixed cutoff over and under, no speck keeps far dust overcounts six to twelve percent per speck, no shape keeps round overcounts, no halo under fifteen to twenty five, hardcoded data offset sixty four fails ninety six one twenty eight, hardcoded multiplier fails twenty two percent.
+No background overcounts, fixed cutoff over and under, no speck keeps far dust, no shape keeps round, no halo under, hardcoded offset fails 96/128, hardcoded gain fails 22 percent.
 
-Anti Cheating
+## Anti-Cheating
 
-Varied dims spacing amp bg sig noise seed random temp names input_a3f9.glcr so constant fails. Secure runner blocks tests.
+Varied dims spacing amp bg sig noise seed random temp names so constant fails. Secure runner blocks tests.
 
-Tags glcr crevasse-depth halo recovery payload offset human story
+## Tags
+
+Tags patagonia glacier crevasse true depth human story
+
 Author Tosin Daniel Jimoh purple29th at meta.com
