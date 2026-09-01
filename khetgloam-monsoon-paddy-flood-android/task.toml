@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/khetgloam-monsoon-paddy-flood-android"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Reusable Android library (AAR) for monsoon paddy terrace flood evacuation, built with raw Vulkan compute only. I grew up in a Khet paddy village in Kerala where monsoon overtops bunds and drowns terraces; I model per-cell flood risk for farmers. IMPLICIT backward-Euler storm-pulse diffusion solved on GPU each step by Jacobi iteration of (I - ALPHA*L) eta = eta_prev to convergence (inlets pinned N_INJECT steps then released), peak-momentum time-step argmax of spatial-mean depth*speed, Beffa tertile flood intensity FI = depth*max(1,speed), three-band depth-weighted Dijkstra evacuation difficulty with WADE_LOW/HIGH, and risk = clamp(FI_level + difficulty -1,1,5). Verified by driving same raw-Vulkan native lib across JNI on host lavapipe + AAR packaging arm64 raw-Vulkan .so. Human story, from-scratch, no Kompute."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["vulkan", "compute-shader", "android", "aar", "ndk", "jni", "gpgpu", "paddy", "monsoon", "flood-evacuation", "kerala", "khet"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "mobile"
+category_subdomain = "agriculture_and_flood"
+languages = ["c++", "glsl", "java", "cmake"]
+tags = ["vulkan", "compute-shader", "android", "aar", "ndk", "jni", "gpgpu", "flood", "evacuation", "paddy", "monsoon", "rice-terrace", "human-story", "from-scratch"]
+expert_time_estimate_min = 95.0
+junior_time_estimate_min = 320.0
+
+[verifier]
+timeout_sec = 1800.0
+
+[agent]
+timeout_sec = 3600.0
+
+[environment]
+build_timeout_sec = 3600.0
+cpus = 4
+memory_mb = 16384
+storage_mb = 30720
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+
+[environment.env]
+
+[solution.env]

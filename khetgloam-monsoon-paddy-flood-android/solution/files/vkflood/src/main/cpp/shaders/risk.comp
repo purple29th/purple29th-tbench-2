@@ -1,0 +1,55 @@
+#version 450
+
+// One IMPLICIT-diffusion Jacobi sweep of the water-surface elevation eta.
+// Each outer time step solves (I - alpha*L) eta = rhs (rhs = eta of the previous
+// step; L = no-flux graph Laplacian over open cells) by iterating this sweep:
+//     eta_out_i = (rhs_i + alpha * sum_{open neighbours} eta_in_j) / (1 + alpha*deg_i)
+// The host runs N_JACOBI sweeps (ping-ponging eta_in/eta_out) until converged.
+// Walls are passed through unchanged; during injection (pc.inject > 0.5) inlet cells
+// are pinned to eta = bottom + INFLOW (Dirichlet, i.e. water DEPTH = INFLOW).
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(std430, binding = 0) readonly buffer BottomBuf { float bottom[]; };
+layout(std430, binding = 1) readonly buffer EtaInBuf  { float etain[]; };
+layout(std430, binding = 2) readonly buffer OpenBuf   { float openm[]; };
+layout(std430, binding = 3) readonly buffer InletBuf  { float inlet[]; };
+layout(std430, binding = 4) readonly buffer RhsBuf    { float rhs[]; };
+layout(std430, binding = 5) writeonly buffer EtaOutBuf { float etaout[]; };
+
+layout(push_constant) uniform PC {
+    float frows;
+    float fcols;
+    float alpha;
+    float inflow;
+    float inject;   // 1.0 during the injection phase, 0.0 after inlet release
+} pc;
+
+void main() {
+    int R = int(pc.frows);
+    int C = int(pc.fcols);
+    int c = int(gl_GlobalInvocationID.x);
+    int r = int(gl_GlobalInvocationID.y);
+    if (c >= C || r >= R) return;
+    int idx = r * C + c;
+
+    if (openm[idx] <= 0.5) { etaout[idx] = etain[idx]; return; }  // wall: pass through
+    // Dirichlet source during injection: inlet eta fixed at bottom + INFLOW.
+    if (pc.inject > 0.5 && inlet[idx] > 0.5) {
+        etaout[idx] = bottom[idx] + pc.inflow;
+        return;
+    }
+
+    float ssum = 0.0;
+    float deg = 0.0;
+    const int dr[4] = int[4](-1, 1, 0, 0);
+    const int dc[4] = int[4](0, 0, -1, 1);
+    for (int k = 0; k < 4; ++k) {
+        int nr = r + dr[k];
+        int nc = c + dc[k];
+        if (nr >= 0 && nr < R && nc >= 0 && nc < C && openm[nr * C + nc] > 0.5) {
+            ssum += etain[nr * C + nc];
+            deg += 1.0;
+        }
+    }
+    etaout[idx] = (rhs[idx] + pc.alpha * ssum) / (1.0 + pc.alpha * deg);
+}
