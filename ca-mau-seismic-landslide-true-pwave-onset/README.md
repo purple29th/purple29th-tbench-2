@@ -8,25 +8,29 @@ I need tool that tells me true onset ns.
 
 Please make file at /app/solve.py. We call python /app/solve.py path and last token ns.
 
-Example at /app/data/scene.seis about 1520 ns. Hidden random names input_*.seis with new sizes gain blur.
+Example at /app/data/scene.seis about one hundred twenty five ns. Hidden random names input_*.seis with new num samples dt gain blur data offset forty eight sixty four eighty ninety six one twenty eight.
 
-File layout seis little endian four bytes ascii SEIS four bytes uint32 version four bytes uint32 dtype two int16 sixteen float32 four bytes uint32 num samples four bytes float32 sampling interval ns four bytes uint32 data offset forty eight to one twenty eight four bytes float32 multiplier at forty scales final sample one point zero hidden at ninety six one point two two ignore fails twenty two percent.
+File layout seis little endian.
+Four bytes ascii SEIS.
+Four bytes uint32 version one.
+Four bytes uint32 dtype two means int16 sixteen means float32.
+Four bytes uint32 num samples n.
+Four bytes float32 sampling interval dt ns per sample changes per file must read.
+Four bytes uint32 data offset at byte twenty eight where samples start can be forty eight sixty four eighty ninety six one twenty eight must parse.
+Four bytes float32 multiplier at offset forty scales final ns sample one point zero hidden at ninety six is one point two two ignore fails twenty two percent.
+At data offset you get n samples in dtype announced.
 
-Inside each trace p wave onset is sharp rise but smear makes it look broad. Tiny aftershock specks far away ignore.
+Inside each trace p wave onset is sharp rise but sensor shaper smears via Gaussian PSF so threshold overcounts smeared tails or undercounts thin extensions. Correct recovery is charge conservation integral true width samples equals sum baseline subtracted over pulse plus halo divided by plateau amplitude onset equals width times dt times multiplier plus baseline offset. Tiny aftershock specks far away ignore via mass filter keep mass greater than zero point three five times biggest.
 
-We use connectivity one dimension.
+Naive threshold fails thirty to fifty percent.
 
-Calibration onset equals integral over baseline removed divided by plateau.
+Energy preserved blur conserves sum.
 
-Naive threshold fails.
-
-Energy preserved.
-
-Coding rules only stdlib struct sys math.
+Coding rules parse bytes yourself only stdlib struct sys math random tempfile re no numpy scipy skimage cv2 PIL etc. No tests access.
 
 Print ns as last token.
 
-Files: /app/solve.py you write last token ns, /app/data/scene.seis sample fifteen twenty ns, Dockerfile python slim pytest, solution/solve.py oracle bespoke reading payload start and multiplier, _gen.py only scene stale avoidance, test_outputs.py secure verifier runtime random names input_a3f9.seis plus payload ninety six one twenty eight and gain variants.
+Files: /app/solve.py you write last token ns, /app/data/scene.seis sample about one hundred twenty five ns about fifty samples, Dockerfile python slim pytest, solution/solve.py oracle bespoke reading payload start at twenty eight and multiplier at forty and robust background dimmest thirty percent plus MAD sigma plus component mass filter plus plateau top eight average plus halo growth sixty steps, _gen.py only scene stale avoidance, test_outputs.py secure verifier runtime random names input_a3f9.seis plus payload ninety six one twenty eight forty eight eighty and gain variants thirteen configs.
 
 Completion Oracle three of three, Avocado zero to one of five due to onset pick plus multiplier plus halo.
 

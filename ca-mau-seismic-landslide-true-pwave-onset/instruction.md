@@ -4,7 +4,7 @@ I need tool that tells true onset in nanoseconds as last token.
 
 Please make file at /app/solve.py. We call python /app/solve.py path and last token ns.
 
-Example at /app/data/scene.seis about one thousand five hundred twenty ns. Hidden evaluation uses totally different traces I made with new num samples sampling interval gain blur with random temp file names like input_g7h2.seis.
+Example at /app/data/scene.seis about one hundred twenty five ns. Hidden evaluation uses totally different traces I made with new num samples sampling interval gain blur with random temp file names like input_g7h2.seis payload offset forty eight to one twenty eight and gain.
 
 File layout seis little endian.
 

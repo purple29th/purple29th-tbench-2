@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/ca-mau-seismic-landslide-true-pwave-onset"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no numpy/scipy) that parses a custom oscilloscope photodiode pulse dump (binary .plse) and reports true original pulse duration in ns. The front-end shaper smears the square pulse via normalized Gaussian PSF, so thresholding overcounts smeared tails or undercounts thin extensions. Correct recovery is calculus - charge conservation: true width samples = sum(baseline-subtracted over pulse+halo) / plateau amplitude; duration = width * sampling_interval. Graded on held-out pulses at 3% tolerance."
+description = "Write a from-scratch Python script (no numpy/scipy) that parses a custom geophone seismic trace dump (binary .seis SEIS) and reports true p-wave onset in ns. The geophone shaper smears the rupture via normalized Gaussian PSF, conserves energy. File header SEIS little endian with dtype at 8, n at 12, dt at 16, data_offset at 28 can be 48/64/80/96/128, gain at 40 scales ns 0.85-1.35 hidden 1.22 at offset 96. Recover true samples = sum(baseline-subtracted over pulse+halo)/plateau; onset = samples*dt*gain. Tiny aftershock specks far to ignore via mass filter. Graded held-out at 3% tolerance."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["oscilloscope", "photodiode", "pulse", "shaper", "charge", "duration", "calculus", "integral", "binary-parsing", "from-scratch"]
+keywords = ["seismic", "geophone", "p-wave", "onset", "landslide", "charge", "duration", "calculus", "integral", "binary-parsing", "from-scratch", "SEIS"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["oscilloscope", "photodiode", "pulse-duration", "shaper-psf", "charge-conservation", "calculus-integral", "from-scratch", "binary-parsing", "baseline-drift", "afterpulse", "particle-detector"]
+tags = ["seismic", "geophone", "pwave-onset", "landslide", "shaper-psf", "charge-conservation", "calculus-integral", "from-scratch", "binary-parsing", "SEIS", "gain-calibration", "payload-offset"]
 expert_time_estimate_min = 55.0
 junior_time_estimate_min = 180.0
 
