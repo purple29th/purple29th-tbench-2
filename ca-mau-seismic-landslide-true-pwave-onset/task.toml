@@ -4,7 +4,7 @@ schema_version = "1.1"
 name = "codimango/ca-mau-seismic-landslide-true-pwave-onset"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Write a from-scratch Python script (no numpy/scipy) that parses a custom geophone seismic trace dump (binary .seis SEIS) and reports true p-wave onset in ns. The geophone shaper smears the rupture via normalized Gaussian PSF, conserves energy. File header SEIS little endian with dtype at 8, n at 12, dt at 16, data_offset at 28 can be 48/64/80/96/128, gain at 40 scales ns 0.85-1.35 hidden 1.22 at offset 96. Recover true samples = sum(baseline-subtracted over pulse+halo)/plateau; onset = samples*dt*gain. Tiny aftershock specks far to ignore via mass filter. Graded held-out at 3% tolerance."
+description = "ca-mau-seismic-landslide-true-pwave-onset landslide early warning p-wave onset from geophone custom SEIS binary trace smeared by shaper PSF energy conserved. Tiny aftershock specks far away ignore via mass filter, two distant ruptures summed when present. Header SEIS little endian variable payload start 48-128 at 28 and multiplier at 40 scales ns 0.85-1.35 hidden 1.22 at 96. Total onset ns via recovered width times dt times gain, ignoring far dust. Blur conserves photons. 3 percent tolerance stdlib only from-scratch."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
 keywords = ["seismic", "geophone", "p-wave", "onset", "landslide", "binary-parsing", "from-scratch", "halo-recovery", "SEIS", "gain-calibration"]
 
