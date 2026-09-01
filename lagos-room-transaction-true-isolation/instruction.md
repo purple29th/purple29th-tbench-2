@@ -1,36 +1,57 @@
-I am Chinedu from Lagos Nigeria, I build market app for Balogun market traders where each stall has inventory count in Room database with WAL. Problem is transaction isolation: two concurrent writes to same stall inventory cause lost update, one write disappears, need proper transaction generation and isolation plus checkpoint.
+I am Chinedu from Lagos Nigeria, I build market app for Balogun market traders. Each stall has a small reusable cell in a list that shows stall photo that loads async. At one am we scroll fast to count inventory and we see wrong photo: a result fetched for a stall the cell used to show sometimes writes through after the cell has been recycled or rebound to another stall. When several results land on same tick a cell can show superseded image. Some contract tests fail.
 
-App has StallDao with inventory column, async update scheduled at tick with scenario JSON that contains bind and resolve events. Requirement: only latest binding for same stall should win but stale that was scheduled before must still consume WAL token, similar to recycler staleness but for Room.
+This project simulates a RecyclerView-style list where a small set of reusable cells are repeatedly bound to different items as you scroll. Binding a cell updates its visible fields immediately and also schedules an asynchronous image result that may arrive on a later tick. The bug shows cells display wrong image: a result fetched for an item the cell used to show sometimes writes through after the cell has already been recycled or rebound, and when several results land on same tick a cell can end up showing a value that was already superseded.
 
-We have twenty three scenarios like simple_bind, concurrent_write_lost_update, isolation_repeatable_read etc. Must handle generation tracking per stall and WAL token budget.
+Please fix `app/src/main/java/com/example/recycler/RecyclerPool.kt` and `FetchScheduler.kt`? Actually check `src/com/example/recycler/RecyclerPool.kt` and `FetchScheduler.kt` in environment. The reference solution is in solution/.
 
-Please fix app/src/main/java/com/example/room/StallRepository.kt.
+# Input operations (stdin)
 
-Sample db in environment/src. Hidden tests in tests/expected check isolation.
+The program reads one operation per line:
 
-File layout android Room no binary, Kotlin.
+- `BIND <cell_id> <item_id> <title> <fetch_at_tick>` — attach the cell to the item, set its title immediately, and schedule an image fetch for that item due at `fetch_at_tick`.
+- `REFETCH <cell_id> <fetch_at_tick>` — schedule another image fetch for the cell's current binding (retry), due at `fetch_at_tick`. If the cell is unbound this does nothing.
+- `BUDGET <num> <den> <cap>` — put the loader under a decode budget. Without this op, decoding is unlimited.
+- `RECYCLE <cell_id>` — detach the cell from any item (it becomes unbound).
+- `RESOLVE <item_id> <image_url>` — provide a deterministic image URL for the next pending fetch of that `item_id`.
+- `TICK <new_now>` — advance logical time to `new_now` and process pending fetches now due (`fetch_at_tick <= new_now`). When several are due, they resolve in scheduling order then by `cell_id`.
+- `QUERY <cell_id>` — record snapshot of cell's current state.
 
-Coding rules Kotlin.
+# Output format
 
-If you get generation and WAL checkpoint right you pass.
+At end of input, print one line per QUERY, in query order:
 
-Author Tosin Daniel Jimoh purple29th at meta.com
+- Bound cell: `<cell_id> item=<item_id> title=<title> imageUrl=<url_or_NONE>`
+- Unbound cell that holds no image: `<cell_id> unbound`
+- Unbound cell that still holds an image: `<cell_id> unbound imageUrl=<url>` (this only happens if stale result corrupted detached cell — correct behaviour never produces it)
 
+# Expected behaviour
 
-We use Room with SQLite WAL mode. Our test harness writes scenario JSON that contains lines like BIND stall_id item_id at tick, RESOLVE fetch_id, QUERY stall_id, RECYLCE cell_id, TICK. The output is expected transaction log that must match. The generation tracking must ensure stale bind does not overwrite newer inventory even if stale resolves later. Also budget for WAL checkpoints must cap at cap and carry fractional remainder.
+A cell must only ever display an image that was fetched for its current binding. Recycling a cell, rebinding it to a different item, or rebinding it to same item again all start a new binding: any fetch scheduled under previous binding must not write to the cell, even though it may still carry same item id. When multiple fetches for one cell come due on same tick, only the one belonging to binding still in effect at moment of writing may apply; once a cell has taken its image for current binding, later result from superseded fetch on same tick must not overwrite it. A recycled cell that no async result has touched is simply `unbound`. Pending fetches that come due are handled in scheduling order, and handling a fetch always consumes next queued resolution for its item (or deterministic `auto:<item_id>` fallback when none remain). This holds even when fetch is stale: result that arrives for binding that has since changed is consumed and discarded, never put back, so later valid fetch for same item does not receive it.
 
-Our table is stalls with columns id, inventory, generation, last_modified. When you bind stall 5 with inventory 12 at tick 10, you schedule async fetch at tick 12 with generation 2. If at tick 11 you recycle cell for stall 5, that generation 2 must be invalidated. Any RESOLVE for generation 1 that arrives at tick 13 must be ignored as write but must still consume one token from checkpoint queue.
+When BUDGET has been set, decoding an image costs one credit. Loader accrues decode credits continuously at `<num>/<den>` credits per tick of elapsed time — single running quantity that carries fractional part across ticks rather than recomputed per tick — capped at `<cap>` credits. At a tick, after crediting elapsed time, due fetches are taken in usual order and each valid non-stale fetch pays one credit to decode its image; when next valid fetch in order cannot afford credit, decoding stops for that tick and that fetch and everything behind it stays pending for later tick. Stale fetch never decodes and costs nothing, but still consumes its queued resolution. With no BUDGET op budget is unlimited.
 
-Bug we see: lost update happens when two concurrent writes both read old inventory 10, then both write 12 and 13, final is 13 not 15 that accounts for both increments. Need proper transaction isolation repeatable read.
+# Lagos market story
 
-We have twenty three scenarios like simple_bind_resolve, concurrent_write_lost_update, isolation_repeatable_read, phantom_read, write_skew, budget checks. Our current code in StallRepository.kt has missing synchronized and generation check.
+Balogun market stalls have photos that load async from server. Traders scroll fast, cells recycled, stale photo must not overwrite new stall. Generation tracking per cell and WAL-like budget for decode tokens must be correct. Twenty three scenarios like simple_bind_resolve, recycle_invalidates_pending, rebind_same_item_invalidates_old, budget_carry_decode, stale_consumes_then_fresh.
 
-A correct fix must use synchronized block around inventory read-modify-write, keep generation map per stall, check generation equals current before applying, but still call consumeCheckpointToken() even for stale.
+# Contract tests
 
-If you get generation and WAL right you pass all twenty three.
+Intended behaviour is captured by contract tests in:
 
-Files: app/src/main/java/com/example/room/StallRepository.kt you fix, environment/src has Main.kt ScenarioParser etc, solution has correct FetchScheduler and RecyclerPool reference, tests/expected has twenty three expected files, test_outputs.py runs bash src/run.sh that writes /app/output.txt.
+  /app/src/com/example/recycler/test/RecyclerContract.kt
 
-Coding rules Kotlin, no Thread.sleep blocking, use coroutines? But we use simple.
+Run them with:
+
+  bash /app/src/run-contract.sh
+
+Your goal is to make all contract tests pass.
+
+# Build / run
+
+Run program with:
+
+  bash /app/src/run.sh
+
+It reads `/app/scenario.json` and writes `/app/output.txt` (verifier checks that output).
 
 Author Tosin Daniel Jimoh purple29th at meta.com
