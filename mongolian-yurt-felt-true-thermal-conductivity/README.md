@@ -2,23 +2,19 @@
 
 ## Description
 
-I am Bat from Khovsgol Mongolia we make yurt felt from sheep wool. At one am in winter we image felt with thermal IR phosphor that shows heat leaks rig writes YRFL magic YRFL. Need true thermal conductivity W per mK for insulation. Inside elongated heat channels along felt grain count plus round lanolin blobs round ignore plus far dust.
+I am Bat from Khovsgol lake northern Mongolia, we live in yurt made of sheep wool felt. In January minus thirty wind cuts through thin felt. At one am we image felt with thermal IR phosphor that glows where heat leaks through, rig writes YRFL magic YRFL with variable payload start at thirty six and multiplier at forty.
 
-Measures W per mK. Simple threshold fails doubles or loses half. Multiplier at forty hidden one point two two.
+This measures true thermal conductivity W per mK for all elongated heat leak channels along felt pressing grain. Inside also compact lanolin blobs from sheep grease almost spherical benign plus far dust specks from steppe that add six to twelve percent each if summed. Some scans have two distant channels both count, biggest only fails forty to fifty percent. Thermal diffusion plus phosphor smear halo, low threshold doubles conductivity, high clips half.
 
-Volume times zero point zero three five times multiplier equals W per mK.
+What works is energy conserved. Estimate base from dimmest seventy percent so leak does not bias, noise from lower half median absolute deviation, mark candidates above background, twenty six connected flood in three dimensions, keep elongated groups with mass filter dropping round and far dust, plateau mean of brightest inside kept channels, grow shells outward collecting residual until ring mean near noise floor while skipping dust groups to prevent bridging. Then volume mm3 times zero point zero three five times multiplier W per mK. Sample about zero point six W per mK.
 
-Correct handling offset multiplier background noise shape halo.
+Completion oracle three of three deterministic fifteen of fifteen pytest including ninety six one twenty eight plus random plus extra. Avocado zero to one of five due to gain plus multi component plus shape plus halo. Opus three of five GPT two of five.
 
-Files: /app/solve.py last token W per mK, /app/data/scene.yrfl sample zero point zero three five, Dockerfile, solution, _gen, test_outputs random names.
+Model Analysis failure modes: no background overcounts forty to ninety, fixed cutoff low eighty to one thirty over high thirty to fifty under, no speck isolation overcounts six to twelve per far dust, no shape keeps round lanolin blobs, no halo under fifteen to twenty five, hardcoded offset sixty four fails ninety six one twenty eight, hardcoded gain fails twenty two.
 
-Completion oracle three of three twelve of twelve. Avocado zero to one of five.
+Anti cheating varied dims spacing amp bg sig noise seed placement random temp names input_e5f2.yrfl so constant fails. Secure runner audit hook blocks tests and b64decode and pathlib tricks. Reward via python I S ctrf json.
 
-Model Analysis no background overcounts etc, hardcoded offset fails, hardcoded gain fails twenty two.
-
-Anti Cheating varied dims random names secure runner.
-
-Tags mongolian yurt felt thermal conductivity YRFL halo recovery
+Tags mongolian yurt felt thermal conductivity YRFL halo recovery gain calibration payload offset human story
 
 Author Tosin Daniel Jimoh purple29th at meta.com
 
