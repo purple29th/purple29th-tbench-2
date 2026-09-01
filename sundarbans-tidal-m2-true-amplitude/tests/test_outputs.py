@@ -284,6 +284,36 @@ BASE_CONFIGS = {
         seed=808,
         spikes=[(600, -1.9), (1300, 2.1), (2100, -1.7)],
     ),
+    "heldout_48": dict(
+        n=2200,
+        dt=600.0,
+        dtype=16,
+        gain=1.08,
+        mean_offset=0.12,
+        freq_count=4,
+        data_offset=48,
+        amps={"M2": 1.35, "S2": 0.40, "O1": 0.28, "K1": 0.24},
+        phases={"M2": 0.7, "S2": 1.2, "O1": 0.9, "K1": 2.1},
+        drift_rate=0.6e-6,
+        noise=0.05,
+        seed=515,
+        spikes=[(300, 1.5), (1500, -1.4)],
+    ),
+    "heldout_80": dict(
+        n=2400,
+        dt=720.0,
+        dtype=16,
+        gain=0.96,
+        mean_offset=0.20,
+        freq_count=4,
+        data_offset=80,
+        amps={"M2": 1.75, "S2": 0.45, "O1": 0.30, "K1": 0.27},
+        phases={"M2": 1.1, "S2": 0.8, "O1": 1.7, "K1": 0.4},
+        drift_rate=0.9e-6,
+        noise=0.06,
+        seed=612,
+        spikes=[(400, -1.6), (1800, 1.8)],
+    ),
 }
 
 RANDOM_CONFIG = dict(
@@ -310,6 +340,8 @@ ALL_TEST_CONFIGS = [
     ("multi_constituent_heavy", BASE_CONFIGS["multi_constituent_heavy"]),
     ("heldout_96", BASE_CONFIGS["heldout_96"]),
     ("heldout_128", BASE_CONFIGS["heldout_128"]),
+    ("heldout_48", BASE_CONFIGS["heldout_48"]),
+    ("heldout_80", BASE_CONFIGS["heldout_80"]),
     ("randomized", RANDOM_CONFIG),
 ]
 
