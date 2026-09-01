@@ -1,52 +1,38 @@
-# Atacama Salar Brine True Lithium Mass — Lickanantay Salt Harvester
+I am Elena from Toconao on the edge of Salar de Atacama. My family are Lickanantay and we have scraped salt since my grandfather. Now the pools are for lithium. At one am we take glass slides to the crust and tag brine with fluorescein, lithium carbonate needles glow under four eight eight nm. The Atacama wind is cold and the salt dust gets everywhere. I have a small microscope with a sCMOS that writes a file I call BRIN.
 
-I am Elena, a Lickanantay atacameña from Toconao, working the Salar de Atacama lithium brine pools at 2300m. At 1am we sample brine crust on glass slides, fluorescein-tagged lithium carbonate glows under 488nm. My family has harvested salt for generations, now lithium for batteries. The rig writes BRIN container, magic BRIN, with payload_start 48/64/80/96/128 and brine_multiplier at 40-43 (0.85-1.35, hidden 1.22 at 96). One debug slab is at /app/data/scene.brin, about 12-18 mg in sample. You must output true lithium mass mg as last token. Random temp names input_*.brin with varying dims, spacing, gain, blur.
+I need a small tool that tells me total lithium mass in milligrams for all elongated brine needles that are real crystallization. The pools sometimes have two distant needle fields far apart that both matter, sum them, biggest only fails half.
 
-File format BRIN: 0-3 SAP? actually BRIN magic, 4-7 version=1, 8-11 dtype 2=int16 16=float32, 12-15 width, 16-19 height, 20-23 sx mm/px, 24-27 sy, 28-31 payload_start, 40-43 post_brine_multiplier. Payload at payload_start width*height samples.
+Please make a file at /app/solve.py. We call it like python /app/solve.py path and final token is answer.
 
-What crystallizes: real brine crystals are ragged elongated needles along salt grain, longer than wide, sometimes two distant pools both count. False are round halite dust compact circles and far corner salar dust specks from wind.
+There is one example you can try at /app/data/scene.brin inside container, about one point zero nine mg. Hidden uses totally different slides with new sizes spacings brightness diffusion and pitch with random temp names like input_c7d2.brin.
 
-Why naive fails: low threshold includes salt aureole fog doubling mass, high clips dim needle tails losing 1/3-1/2.
+File layout brin. My own tiny format, everything little endian.
 
-Physical principle: photons conserved. Count = sum(residual)/plateau, area = count*sx*sy, thickness assumed 0.15 mm, density 2.11 mg/mm3, mass = area*thickness*density*multiplier = area*0.3165*multiplier mg. Need robust background median dimmest %, MAD noise, connectivity, shape+glow filter, core plateau from brightest interior, halo growth to noise floor skipping far dust.
+Four bytes ascii BRIN.
+Four bytes uint32 version.
+Four bytes uint32 dtype code. Two means int16, sixteen means float32.
+Four bytes uint32 width.
+Four bytes uint32 height.
+Four bytes float32 sx mm per pixel x.
+Four bytes float32 sy mm per pixel y.
+Four bytes uint32 data offset where array starts, can be forty eight sixty four eighty ninety six one twenty eight.
+Four bytes float32 multiplier at offset forty that scales final mg, changes per file, sample one point zero, hidden at ninety six is one point two two, ignore and you fail by twenty two percent.
+At offset you get width times height samples, X fastest.
 
+Inside each slide there is brine. Real is long needles along salt grain that count. There are also compact halite dust that is round and benign, do not count. Plus one to three tiny specks far away that are wind dust on window, ignore.
 
-## File format BRIN — little endian, byte ranges, you must parse yourself
+We use eight neighbour connectivity.
 
-| Bytes | Type | Meaning |
-|-------|------|---------|
-| 0-3 | ASCII | magic `BRIN` |
-| 4-7 | uint32 | version (=1) |
-| 8-11 | uint32 | dtype id: 2=int16, 16=float32 |
-| 12-15 | uint32 | width (voxels x) |
-| 16-19 | uint32 | height (voxels y) |
-| 20-23 | float32 | sx mm per pixel x — anisotropic |
-| 24-27 | float32 | sy mm per pixel y |
-| 28-31 | uint32 | payload_start — offset where voxel block begins, can be 48,64,80,96,128 |
-| 40-43 | float32 | multiplier — scales mg result 0.85-1.35, sample 1.0, hidden lot at offset 96 uses 1.22 — ignore and you fail by 22% |
+Calibration. Thickness assumed zero point one five mm, density two point one one mg per mm3, so mass mg equals area mm2 times zero point fifteen times two point one one times multiplier equals area times zero point three one six five times multiplier. You first recover true area from smeared cloud.
 
-Bytes between header and payload are zero padding. At `payload_start` you have `width*height` samples in declared dtype, x fastest: linear = x + width*y. `sx,sy,payload_start,multiplier` change per slab and must be read; `payload_start` >=48 so multiplier at 40-43 never overlaps payload.
+Naive levels fail. Generous counts fog and doubles mass, strict loses tails and loses third.
 
-## What matters and what must be ignored
+Energy preserved. Optics do not create photons, only move them. So sum of background removed glow over needle plus faint skirt divided by true core level gives true count.
 
-Real signal are ragged elongated components along natural grain, noticeably longer than wide, sometimes two distant components both count — keeping only biggest loses 40-50%. False are compact round distractors almost circular and far corner specks from sensor dust that add 6-12% each if summed.
+You must handle background pulled by defect, noise floor per slide, far dust to ignore, interior level hidden by blur, avoid skirt as background, avoid jumping to specks, sum all elongated pieces.
 
-## Why naive counting fails
+Within percent possible, grading three percent.
 
-Low threshold includes whole aureole from scattering + PSF and roughly doubles result. High threshold clips ragged tails that are dim from partial pixel fill and loses 1/3 to 1/2. No fixed number works because base glow, multiplier, blur width vary per lot.
+Coding rules. Parse bytes yourself, only stdlib struct sys math random tempfile re. No numpy scipy skimage cv2 PIL etc. No eval exec compile import chr ord breakpoint bytes bytearray. No subprocess os system popen exec fork walk listdir scandir open pty importlib runpy ctypes nor hiding names with chr fromhex base64 b64decode. Do not open tests folder or mention test_outputs heldout _gen geometric_truth. Work on any random temp path.
 
-Energy is conserved — photons only spread. So sum(background-subtracted glow over real + faint skirt) / true core plateau = true pixel count. Then mass = area * 0.15 mm * 2.11 mg/mm3 * multiplier = area*0.3165*multiplier mg.
-
-## Physical principles you can exploit
-
-You need robust background estimated from dimmest pixels not biased by signal, noise scale from lower half, grouping via connectivity, shape and integrated glow discrimination to reject compact and far specks, robust core plateau from brightest interior, outward growth collecting residual until skirt blends to noise while explicitly preventing far dust from bridging as a connection.
-
-## Coding rules — from-scratch, stdlib only
-
-Parse bytes yourself. Allowed: `struct sys math random tempfile re`. Forbidden: `numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath shutil ctypes importlib runpy`. Forbidden calls: `eval exec compile __import__ chr ord breakpoint bytes bytearray`. Forbidden tricks: `subprocess os.system popen exec fork walk listdir scandir rglob pty` filesystem listing or hiding forbidden names with `chr fromhex base64 b64decode bytearray`. Do not open or list `/tests`, do not mention `test_outputs heldout _gen GEOM_TRUTH geometric_truth reference` in solver. Must work on any random temp path.
-
-Print lithium brine mass mg as last token, e.g., `12.345`.
-
-This task is unique — Atacama Salar Brine True Lithium Mass — Lickanantay Salt Harvester, personalized human story, with payload_start + gain embed fix that must be read. Ignoring either fails hidden offset 96/128.
-
-Author: Tosin Daniel Jimoh purple29th@meta.com — individualized human story.
+Print mass in mg as last token.

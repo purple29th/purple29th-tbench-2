@@ -1,16 +1,51 @@
-# atacama-salar-brine-true-lithium-mass — Atacama Salar Brine True Lithium Mass — Lickanantay Salt Harvester
+atacama salar brine true lithium mass
 
-Personal story: I am Elena, a Lickanantay atacameña from Toconao, working the Salar de Atacama lithium brine pools at 2300m. At 1am we sample brine crust on glass slides, fluorescein-tagged lithium carbonate glows under 488nm. My family has harvested salt for generations, now lithium for batteries. The rig writes BRIN container, magic BRIN, with payload_start 48/64/80/96/128 and brine_multiplier at 40-43 (0.85-1....
+Description
 
-What works: photons conserved. Robust base median dimmest %, MAD sigma, candidates above background, 8-connected flood, keep elongated groups with mass filter dropping round and far dust, plateau mean of brightest interior, grow rings outward gathering residual until ring mean blends to noise while skipping dust groups to prevent bridging. mass = area * 0.15 mm * 2.11 mg/mm3 * multiplier = area*0.3165*multiplier mg. Within 1% if done right, graded 3%.
+I am Elena Lickanantay from Toconao on edge of Salar de Atacama in Chile. My family scraped salt since grandfather, now lithium pools for batteries. At one am we take glass slides to crust and tag brine with fluorescein, lithium carbonate needles glow under four eight eight nm and wind dust gets everywhere. Rig writes BRIN magic BRIN.
 
-Unique — BRIN container, mg lithium brine mass, payload_start + multiplier embed fix must be read — ignore payload_start fails 96/128, ignore gain fails 22%.
+This task measures total lithium mass in milligrams. Simple level counting fails, generous includes whole salt aureole and nearly doubles mass, strict loses thin needle tails and loses third to half. Background gain and scatter vary per slide and multiplier at offset forty scales final mg hidden at ninety six uses one point two two.
 
-## Completion Rates
-Oracle 3/3 expected on 10 configs including 96/128/48/80 + randomized + extra
-Avocado 0-1/5 due to gain + multi-component + shape filter, Opus 4/5, GPT 3/5
+Energy preservation saves us. Sum of background removed glow over needle plus faint skirt divided by true core level gives true count. Area equals count times sx times sy, thickness assumed zero point one five mm, density two point one one mg per mm3, mass equals area times thickness times density times multiplier equals area times zero point three one six five times multiplier mg.
 
-## Anti-Cheating
-Varied width height pitch brightness base blur multiplier seed far placement random temp names input_a3f9.brin so constant fails. Secure runner audit hook blocks /tests and link symlink hardlink bypass and banned imports. From-scratch stdlib only struct sys math random tempfile re.
+Correct solver must handle data offset forty eight sixty four eighty ninety six one twenty eight, multiplier, background bias, noise, distinguish elongated brine needles along salt grain from compact halite dust plus far wind dust specks. Some volumes have two distant needle fields far apart must be summed.
 
-Tags brin lithium-brine-mass mg halo-recovery gain-calibration payload-offset individualized-human-story
+Files
+
+* /app/solve.py you write last token mg
+* /app/data/scene.brin sample one point zero nine mg
+* Dockerfile installs pytest copies sample
+* solution/solve.py oracle
+* _gen.py generates volumes
+* test_outputs.py secure verifier random temp names
+
+Completion Rates
+
+Oracle three of three deterministic twelve of twelve pytest including ninety six one twenty eight
+Avocado zero to one of five due to multiplier plus shape plus multi pool
+Opus four of five
+GPT three of five
+
+Model Analysis
+
+No background subtraction overcounts forty to ninety percent.
+
+Fixed cutoff low includes halo eighty to one thirty percent over high misses tails thirty to fifty percent under.
+
+No speck isolation overcounts six to twelve percent per far dust.
+
+No shape filter keeps compact halite round overcounts.
+
+No halo undercounts fifteen to twenty five percent.
+
+Hardcoded offset sixty four fails ninety six one twenty eight.
+
+Hardcoded multiplier one fails hidden twenty two percent.
+
+Anti Cheating
+
+Varied dims spacing amp bg sig noise seed placement random names input_c7d2.brin so hardcode fails. Secure runner blocks tests, reward via python I S ctrf.
+
+Tags atacama salar brine lithium mass Lickanantay halite halo recovery payload offset
+
+Author Tosin Daniel Jimoh purple29th at meta.com

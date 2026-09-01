@@ -1,16 +1,39 @@
-# mekong-mangrove-burrow-true-oxygen-flux — Mekong Mangrove Burrow True Oxygen Flux — Ca Mau Fisher Daughter
+mekong mangrove burrow true oxygen flux
 
-Personal story: I am Linh, a fisher's daughter from Ca Mau, Mekong Delta, Vietnam. My father farms mudskippers in mangrove burrows. At 1am we image burrow cross-sections with oxygen-sensitive phosphor that glows where O2 leaks. Phosphor blur from mud turbidity smears glow but conserves photons. The rig writes BURW container, magic BURW, payload_start 48/64/80/96/128, burrow_multiplier at 40-43 (hidden 1.22 at 96)...
+Description
 
-What works: photons conserved. Robust base median dimmest %, MAD sigma, candidates above background, 8-connected flood, keep elongated groups with mass filter dropping round and far dust, plateau mean of brightest interior, grow rings outward gathering residual until ring mean blends to noise while skipping dust groups to prevent bridging. flux = area * 0.45 uL/min/mm2 * multiplier. Within 1% if done right, graded 3%.
+I am Linh from Ca Mau at tip of Mekong delta Vietnam. My father farms mudskippers in mangrove burrows that go sideways under prop roots and baby fish hide when tide low. At night we push thin mud slice into chamber with oxygen phosphor that glows where oxygen leaks from burrow walls. Mud turbidity smears glow far beyond true channel but photons conserved.
 
-Unique — BURW container, uL/min burrow oxygen flux, payload_start + multiplier embed fix must be read — ignore payload_start fails 96/128, ignore gain fails 22%.
+This task measures total oxygen flux in microliter per minute. Simple level counting fails, generous includes aureole and doubles flux, strict loses tails and loses third to half. Gain varies per slice and multiplier at offset forty scales final hidden one point two two at ninety six.
 
-## Completion Rates
-Oracle 3/3 expected on 10 configs including 96/128/48/80 + randomized + extra
-Avocado 0-1/5 due to gain + multi-component + shape filter, Opus 4/5, GPT 3/5
+Energy preservation saves us. Sum of background removed glow over channel plus skirt divided by core level gives true count. Area equals count times sx times sy, flux equals area times zero point four five microliter per minute per mm2 times multiplier.
 
-## Anti-Cheating
-Varied width height pitch brightness base blur multiplier seed far placement random temp names input_a3f9.burw so constant fails. Secure runner audit hook blocks /tests and link symlink hardlink bypass and banned imports. From-scratch stdlib only struct sys math random tempfile re.
+Correct solver must handle data offset forty eight sixty four eighty ninety six one twenty eight, multiplier, background bias, noise, distinguish elongated burrow channels along root grain from compact crab pellet blobs plus far mud specks far away. Some slices have two distant channels must be summed.
 
-Tags burw burrow-oxygen-flux uL/min halo-recovery gain-calibration payload-offset individualized-human-story
+Files
+
+* /app/solve.py you write last token microliter per minute
+* /app/data/scene.burw sample one point five five
+* Dockerfile pytest
+* solution/solve.py oracle
+* _gen.py
+* test_outputs.py secure verifier random names
+
+Completion Rates
+
+Oracle three of three twelve of twelve including ninety six one twenty eight
+Avocado zero to one of five
+Opus four of five
+GPT three of five
+
+Model Analysis
+
+No background overcounts, fixed cutoff over and under, no speck isolation overcounts six to twelve, no shape keeps round crab pellets, no halo undercounts fifteen to twenty five, hardcoded offset fails ninety six one twenty eight, hardcoded multiplier fails twenty two percent.
+
+Anti Cheating
+
+Varied dims spacing amp bg sig noise seed random names input_f2a1.burw so constant fails. Secure runner blocks tests, reward via python I S.
+
+Tags mekong mangrove burrow oxygen flux mudskipper halo recovery payload offset
+
+Author Tosin Daniel Jimoh purple29th at meta.com

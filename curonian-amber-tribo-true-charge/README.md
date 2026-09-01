@@ -1,16 +1,39 @@
-# curonian-amber-tribo-true-charge — Curonian Amber Tribo True Charge — Lithuanian Amber Hunter
+curonian amber tribo true charge
 
-Personal story: I am Jonas, an amber hunter from Nida, Curonian Spit, Lithuania. After storms I walk the Baltic surf at 1am with UV lamp — amber glows from tribo-charging against sand. We image amber grains on black paper in a dark tent, photon veil from tribo luminescence. The rig writes AMBR container, magic AMBR, payload_start 48/64/80/96/128, amber_multiplier at 40-43 (hidden 1.22). Debug at /app/data/scene.a...
+Description
 
-What works: photons conserved. Robust base median dimmest %, MAD sigma, candidates above background, 8-connected flood, keep elongated groups with mass filter dropping round and far dust, plateau mean of brightest interior, grow rings outward gathering residual until ring mean blends to noise while skipping dust groups to prevent bridging. charge = area * 0.85 nC/mm2 * multiplier. Within 1% if done right, graded 3%.
+I am Jonas from Nida on Curonian Spit Lithuania. After autumn storms Baltic throws amber on sand and we walk at one am with UV lamp. Amber glows when tribo charged against sand, faint tribo luminescence on black paper. I photograph in dark tent, rig writes AMBR magic AMBR.
 
-Unique — AMBR container, nC amber triboelectric charge, payload_start + multiplier embed fix must be read — ignore payload_start fails 96/128, ignore gain fails 22%.
+This task measures total tribo charge in nano coulomb. Simple level counting fails, generous includes aureole and doubles charge, strict loses tails and loses third to half. Multiplier at offset forty scales final hidden one point two two at ninety six.
 
-## Completion Rates
-Oracle 3/3 expected on 10 configs including 96/128/48/80 + randomized + extra
-Avocado 0-1/5 due to gain + multi-component + shape filter, Opus 4/5, GPT 3/5
+Energy preservation saves us. Sum of background removed glow over vein plus skirt divided by core level gives true count. Area equals count times sx times sy, charge equals area times zero point eight five nano coulomb per mm2 times multiplier.
 
-## Anti-Cheating
-Varied width height pitch brightness base blur multiplier seed far placement random temp names input_a3f9.ambr so constant fails. Secure runner audit hook blocks /tests and link symlink hardlink bypass and banned imports. From-scratch stdlib only struct sys math random tempfile re.
+Correct solver must handle data offset forty eight sixty four eighty ninety six one twenty eight and multiplier plus background bias noise and distinguish elongated amber veins along wood grain inclusions from compact sand grain tribo dots plus far Baltic sand dust specks.
 
-Tags ambr amber-triboelectric-charge nC halo-recovery gain-calibration payload-offset individualized-human-story
+Files
+
+* /app/solve.py you write last token nC
+* /app/data/scene.ambr sample two point nine three
+* Dockerfile
+* solution/solve.py oracle
+* _gen.py
+* test_outputs.py secure
+
+Completion Rates
+
+Oracle three of three twelve of twelve
+Avocado zero to one of five
+Opus four
+GPT three
+
+Model Analysis
+
+No background overcounts, fixed cutoff fails over and under, no speck isolation overcounts six to twelve, no shape keeps round dots, no halo under fifteen to twenty five, hardcoded offset fails, hardcoded gain fails twenty two.
+
+Anti Cheating
+
+Varied dims spacing random names input_b4e2.ambr, secure runner blocks tests.
+
+Tags curonian amber tribo charge Baltic halo recovery payload offset
+
+Author Tosin Daniel Jimoh purple29th at meta.com
