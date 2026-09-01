@@ -1,0 +1,6 @@
+{
+  "name": "bellsproutcoverage",
+  "oncall": "bellsproutcoverage_oncall",
+  "framework": "nextjs",
+  "domain": "internalmeta.com"
+}

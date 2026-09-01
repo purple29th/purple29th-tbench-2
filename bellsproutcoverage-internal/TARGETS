@@ -1,0 +1,8 @@
+load("@fbcode_macros//build_defs:nest_app.bzl", "nest_app_targets")
+
+nest_app_targets(
+    oncall("bellsproutcoverage_oncall"),
+    deps = [
+        "fbsource//third-party/python:tomllib-types",
+    ],
+)
