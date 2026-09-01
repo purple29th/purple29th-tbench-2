@@ -1,0 +1,2 @@
+c1 unbound
+c2 item=itemA title=Anna imageUrl=auto:itemA

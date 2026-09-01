@@ -1,0 +1,12 @@
+BUDGET 3 2 100
+BIND c1 itemA Alice 1
+BIND c2 itemB Bob 1
+BIND c3 itemC Carol 1
+RESOLVE itemA img://A
+RESOLVE itemB img://B
+RESOLVE itemC img://C
+TICK 1
+TICK 2
+QUERY c1
+QUERY c2
+QUERY c3

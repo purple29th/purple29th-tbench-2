@@ -1,0 +1,7 @@
+BIND c1 itemA Alice 10
+RECYCLE c1
+BIND c1 itemA Alice 11
+RESOLVE itemA img://stale
+RESOLVE itemA img://fresh
+TICK 20
+QUERY c1

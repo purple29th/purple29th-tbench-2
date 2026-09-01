@@ -1,0 +1,32 @@
+connection window=4096
+streams:
+  id=1 state=OPEN weight=16 window=50176 queued=14641 sent=15359
+  id=3 state=OPEN weight=48 window=19455 queued=3920 sent=46080
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  DATA stream=1 bytes=15359
+  DATA stream=3 bytes=46080
+connection window=51070
+streams:
+  id=1 state=OPEN weight=16 window=35535 queued=0 sent=30000
+  id=3 state=OPEN weight=48 window=15535 queued=0 sent=50000
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  DATA stream=1 bytes=15359
+  DATA stream=3 bytes=46080
+  DATA stream=1 bytes=14641
+  DATA stream=3 bytes=3920
+connection window=50970
+streams:
+  id=1 state=HALF_CLOSED_LOCAL weight=16 window=40435 queued=0 sent=30100
+  id=3 state=CLOSED weight=48 window=0 queued=0 sent=50000
+frames:
+  HEADERS stream=1 bytes=0
+  HEADERS stream=3 bytes=0
+  DATA stream=1 bytes=15359
+  DATA stream=3 bytes=46080
+  DATA stream=1 bytes=14641
+  DATA stream=3 bytes=3920
+  DATA stream=1 bytes=100

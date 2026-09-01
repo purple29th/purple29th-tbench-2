@@ -1,0 +1,10 @@
+BIND c1 itemA Alice 10
+RECYCLE c1
+BIND c1 itemB Bob 12
+RECYCLE c1
+BIND c1 itemC Carol 14
+RESOLVE itemA img://A
+RESOLVE itemB img://B
+RESOLVE itemC img://C
+TICK 20
+QUERY c1

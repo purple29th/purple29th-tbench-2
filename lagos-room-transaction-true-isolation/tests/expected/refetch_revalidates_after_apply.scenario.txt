@@ -1,0 +1,7 @@
+BIND c1 itemA Alice 10
+RESOLVE itemA img://A1
+TICK 20
+REFETCH c1 30
+RESOLVE itemA img://A2
+TICK 40
+QUERY c1

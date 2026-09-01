@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/patagonia-glacier-crevasse-true-depth"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "patagonia-glacier-crevasse-true-depth crevasse depth meters custom GLCR volume magic GLCR elongated vs round plus far specks mass via energy conservation with 1.15 factor. Data offset 48-128 multiplier at 40 hidden 1.22. 3 percent tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["powder-bed", "spatter", "additive", "binary-parsing", "from-scratch"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "parsing_lexing"
+reward_type = "binary"
+tags = ["powder-bed", "spatter-mass", "additive", "binary-parsing", "from-scratch", "intensity-conservation", "lpbf"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 200.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]

@@ -1,0 +1,41 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/sundarbans-tidal-m2-true-amplitude"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "From-scratch parser for custom coastal tide gauge binary (.thld magic THLD) containing sea-level time series contaminated by multi-constituent tides, sensor gain, linear drift, skew noise, and ship-wake spikes. The M2 lunar semidiurnal tide (period 12.4206h) is the grading quantity. Raw RMS or peak methods overestimate 30-80% due to S2/K1/O1 blending and spikes. Solver must robustly estimate background via median/MAD, detrend via linear least squares, reject far outliers, and perform multi-frequency linear least squares (M2/S2/O1/K1) via normal equations and Gaussian elimination to isolate M2 amplitude, then correct by sensor gain. Anisotropic header fields vary (data offset 48-128, gain 0.85-1.35). 3% relative tolerance."
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["ocean-tide", "tidal-harmonic", "M2", "gravimetry", "sea-level", "binary-parsing", "least-squares", "from-scratch"]
+language = "python"
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["tide", "harmonic-analysis", "M2", "gravitational", "binary-parsing", "from-scratch", "least-squares", "oceanography", "robust-statistics"]
+expert_time_estimate_min = 60.0
+junior_time_estimate_min = 180.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]

@@ -1,0 +1,13 @@
+connection window=4096
+streams:
+  id=1 state=OPEN weight=16 window=4096 queued=8561 sent=61439
+frames:
+  HEADERS stream=1 bytes=0
+  DATA stream=1 bytes=61439
+connection window=100000
+streams:
+  id=1 state=OPEN weight=16 window=0 queued=4465 sent=65535
+frames:
+  HEADERS stream=1 bytes=0
+  DATA stream=1 bytes=61439
+  DATA stream=1 bytes=4096
