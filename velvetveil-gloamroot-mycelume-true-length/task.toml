@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/velvetveil-gloamroot-mycelume-true-length"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Mycology field lab grading of bioluminescent Armillaria rhizomorphs (foxfire) in forest duff. Low-light sCMOS maps of photon veil are smeared by fog scattering and lens PSF; total glow length requires recovery of halo via energy conservation. Custom 2D container MYCR with magic, variable payload_start, pixel pitch sx sy, and post veil gain multiplier at offset 40 that scales mm. Task asks total illuminated cord length mm via pooled area / 0.4 mm repeat * gain, ignoring round bacterial colonies and far corner soil dust, summing two distant cords when present. 3% tolerance, stdlib only."
+description = "Willamette National Forest foxfire survey: Armillaria ostoyae honey fungus rhizomorphs glow faintly (gloamroot mycelume) on duff slabs imaged at 1am with low-light sCMOS writing custom MYCR container (magic MYCR, variable payload_start 48/64/80/96/128, anisotropic sx sy, post-veil multiplier at offset 40 scaling mm 0.85-1.35 with hidden 1.22 at offset 96). Task asks total active photon veil cord length mm via recovered area / 0.4 mm hyphal repeat * gain, ignoring round Bacillus bacterial colonies and far corner soil dust, summing two distant elongated cords when present. Blur conserves photons, simple thresholds fail 50-130%. Requires robust base median of dimmest 70%, MAD sigma, 4 sigma candidate, 8-connected flood, elongated filter long 10-35 ratio>1.6 mass>=0.35*biggest, plateau from 4 brightest, halo growth to noise floor. 3% tolerance, stdlib only, from-scratch binary parsing."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["mycelium", "rhizomorph", "bioluminescence", "foxfire", "binary-parsing", "from-scratch", "forest-ecology", "photon-veil"]
+keywords = ["willamette", "foxfire", "gloamroot", "mycelume", "armillaria", "rhizomorph", "photon-veil", "binary-parsing", "from-scratch", "halo-recovery", "forest-mycology", "bioluminescence"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "data_analysis"
 reward_type = "binary"
-tags = ["mycology", "rhizomorph", "bioluminescence", "foxfire", "binary-parsing", "from-scratch", "glow-recovery", "elongated-filter"]
+tags = ["willamette", "foxfire", "gloamroot", "mycelume", "honey-fungus", "armillaria", "rhizomorph", "photon-veil", "duff-slab", "binary-parsing", "from-scratch", "halo-recovery", "elongated-filter", "bacillus-filter", "dust-filter", "gain-calibration", "payload-offset"]
 expert_time_estimate_min = 65.0
 junior_time_estimate_min = 220.0
 

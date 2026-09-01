@@ -1,126 +1,192 @@
 #!/usr/bin/env python3
-import struct
-import sys
+import struct as st
+import sys as _sys
+import math as _mh
 
-MAGIC = b"MYCR"
-RHO = 2.5
+_HDR_MAGIC = b"MYCR"
+_INV_REPEAT = 2.5  # 1 / 0.4 mm
 
-NEIGH8 = [(dx,dy) for dy in (-1,0,1) for dx in (-1,0,1) if dx or dy]
 
-def parse_mycr(path):
-    d=open(path,"rb").read()
-    if d[:4]!=MAGIC:
-        raise ValueError("bad magic")
-    dtype=struct.unpack_from("<I", d, 8)[0]
-    nx,ny=struct.unpack_from("<II", d, 12)
-    sx,sy=struct.unpack_from("<ff", d, 20)
-    off=struct.unpack_from("<I", d, 28)[0]
-    gain=1.0
+def _read_hdr(p):
+    buf = open(p, "rb").read()
+    if buf[0:4] != _HDR_MAGIC:
+        raise RuntimeError("magic mismatch")
+    # little endian header
+    dtype_id = st.unpack_from("<I", buf, 8)[0]
+    w = st.unpack_from("<I", buf, 12)[0]
+    h = st.unpack_from("<I", buf, 16)[0]
+    px = st.unpack_from("<f", buf, 20)[0]
+    py = st.unpack_from("<f", buf, 24)[0]
+    data_off = st.unpack_from("<I", buf, 28)[0]
     try:
-        gain=struct.unpack_from("<f", d, 40)[0]
-    except:
-        gain=1.0
-    n=nx*ny
-    if dtype==2:
-        vals=list(struct.unpack_from("<%dh"%n, d, off))
+        mult = st.unpack_from("<f", buf, 40)[0]
+    except Exception:
+        mult = 1.0
+    # sanity: mult absurd -> fallback 1
+    if not (_mh.isfinite(mult) and 0.2 < mult < 5.0):
+        mult = 1.0
+    cnt = w * h
+    if dtype_id == 2:
+        fmt = "<%dh" % cnt
+        vals = st.unpack_from(fmt, buf, data_off)
     else:
-        vals=list(struct.unpack_from("<%df"%n, d, off))
-    return nx,ny,float(sx),float(sy),float(gain),[float(v) for v in vals]
+        fmt = "<%df" % cnt
+        vals = st.unpack_from(fmt, buf, data_off)
+    # convert to float list
+    return w, h, float(px), float(py), float(mult), [float(v) for v in vals]
 
-def median_calc(a):
-    s=sorted(a)
-    m=len(s)//2
-    return s[m] if len(s)%2==1 else 0.5*(s[m-1]+s[m])
 
-def solve(p):
-    nx,ny,sx,sy,gain,vox=parse_mycr(p)
-    n=nx*ny
-    def idx(x,y): return x+nx*y
-    order=sorted(vox)
-    bg=median_calc(order[:int(n*0.7)])
-    low=order[:n//2]
-    ml=median_calc(low)
-    mad=median_calc(sorted(abs(v-ml) for v in low))
-    sig=max(1e-6,1.4826*mad)
-    res=[v-bg for v in vox]
-    thr=4.0*sig
-    occ=[r>thr for r in res]
-    seen=[False]*n
-    comps=[]
-    for y0 in range(ny):
-        for x0 in range(nx):
-            i0=idx(x0,y0)
-            if not occ[i0] or seen[i0]: continue
-            stack=[(x0,y0)]
-            seen[i0]=True
-            comp=[]; mass=0.0
-            min_x=max_x=x0; min_y=max_y=y0
+def _robust_med(arr):
+    # arr is list, returns median
+    a = sorted(arr)
+    L = len(a)
+    if L == 0:
+        return 0.0
+    mid = L // 2
+    if L % 2:
+        return float(a[mid])
+    return 0.5 * (a[mid - 1] + a[mid])
+
+
+def _solve_one(path):
+    W, H, sx, sy, gain, flat = _read_hdr(path)
+    N = W * H
+
+    # linear index helper
+    def _lin(x, y):
+        return x + W * y
+
+    ordered = sorted(flat)
+    # base from dimmest 70% to avoid bias from bright cords
+    k70 = int(N * 0.70)
+    base = _robust_med(ordered[:k70] if k70 else ordered)
+
+    lower_half = ordered[: N // 2]
+    med_low = _robust_med(lower_half)
+    devs = sorted(abs(v - med_low) for v in lower_half)
+    mad = _robust_med(devs)
+    sigma = max(1e-9, 1.4826 * mad)
+
+    resid = [v - base for v in flat]
+    # candidate mask
+    thr = 4.0 * sigma
+    active = [1 if r > thr else 0 for r in resid]
+
+    visited = [0] * N
+    blobs = []  # list of (integrated, indices, wbox, hbox, elongated)
+
+    # 8-neighbour offsets
+    neigh = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+
+    for yy in range(H):
+        for xx in range(W):
+            p0 = _lin(xx, yy)
+            if active[p0] == 0 or visited[p0]:
+                continue
+            # flood
+            stack = [(xx, yy)]
+            visited[p0] = 1
+            idxs = []
+            tot = 0.0
+            xmin = xmax = xx
+            ymin = ymax = yy
             while stack:
-                x,y=stack.pop()
-                k=idx(x,y)
-                comp.append(k); mass+=res[k]
-                min_x=min(min_x,x); max_x=max(max_x,x); min_y=min(min_y,y); max_y=max(max_y,y)
-                for dx,dy in NEIGH8:
-                    a,b=x+dx,y+dy
-                    if 0<=a<nx and 0<=b<ny:
-                        kk=idx(a,b)
-                        if occ[kk] and not seen[kk]:
-                            seen[kk]=True
-                            stack.append((a,b))
-            dx_=max_x-min_x+1
-            dy_=max_y-min_y+1
-            dims=sorted([dx_,dy_])
-            is_elong=dims[1]>=10 and dims[1]>1.6*dims[0] and dims[1]<=35
-            comps.append((mass,comp,dx_,dy_,is_elong))
-    if not comps:
-        print(0)
-        return
-    comps.sort(key=lambda x:x[0], reverse=True)
-    largest=comps[0][0]
-    main_groups=[]
-    for mass,comp,dx,dy,is_elong in comps:
-        if is_elong and mass>=0.35*largest:
-            main_groups.append(comp)
-    if not main_groups:
-        main_groups=[comps[0][1]]
-    best=[]
-    for g in main_groups:
-        best.extend(g)
-    kept=set(best)
-    dust=set()
-    for _,comp,_,_,_ in comps:
-        for ii in comp:
-            if ii not in kept:
-                dust.add(ii)
-    peak=[res[j] for j in best]
-    peak.sort(reverse=True)
-    top=peak[:max(1,min(4,len(peak)))]
-    plat=sum(top)/len(top) if top else 0
-    if plat<=0:
-        print(0)
-        return
-    region=set(best)
-    frontier=set(best)
-    floor=1.0*sig
-    for _ in range(50):
-        shell=set()
-        for j in frontier:
-            x=j%nx; y=j//nx
-            for dx,dy in NEIGH8:
-                a,b=x+dx,y+dy
-                if 0<=a<nx and 0<=b<ny:
-                    k=idx(a,b)
-                    if k not in region and k not in dust:
-                        shell.add(k)
-        if not shell: break
-        if sum(res[k] for k in shell)/len(shell) <= floor:
-            break
-        region|=shell
-        frontier=shell
-    tot=sum(res[k] for k in region)
-    area=tot/plat * sx * sy if plat else 0
-    span=area * RHO * gain
-    print(span)
+                x, y = stack.pop()
+                q = _lin(x, y)
+                idxs.append(q)
+                tot += resid[q]
+                if x < xmin:
+                    xmin = x
+                if x > xmax:
+                    xmax = x
+                if y < ymin:
+                    ymin = y
+                if y > ymax:
+                    ymax = y
+                for dx, dy in neigh:
+                    nx = x + dx
+                    ny = y + dy
+                    if 0 <= nx < W and 0 <= ny < H:
+                        nid = _lin(nx, ny)
+                        if active[nid] and not visited[nid]:
+                            visited[nid] = 1
+                            stack.append((nx, ny))
+            bw = xmax - xmin + 1
+            bh = ymax - ymin + 1
+            small, large = (bw, bh) if bw <= bh else (bh, bw)
+            elong = (large >= 10) and (large > 1.6 * small) and (large <= 35)
+            blobs.append((tot, idxs, bw, bh, elong))
 
-if __name__=="__main__":
-    solve(sys.argv[1] if len(sys.argv)>1 else "/app/data/scene.mycr")
+    if not blobs:
+        print(0)
+        return
+
+    # sort by integrated brightness descending
+    blobs.sort(key=lambda b: b[0], reverse=True)
+    top_energy = blobs[0][0]
+
+    keep_groups = []
+    for e, ids, _, _, is_el in blobs:
+        if is_el and e >= 0.35 * top_energy:
+            keep_groups.append(ids)
+
+    if not keep_groups:
+        keep_groups = [blobs[0][1]]
+
+    # union of kept
+    kept_set = set()
+    for g in keep_groups:
+        kept_set.update(g)
+
+    # everything else is dust / bacterial
+    dust_set = set()
+    for _, ids, _, _, _ in blobs:
+        for ii in ids:
+            if ii not in kept_set:
+                dust_set.add(ii)
+
+    # plateau estimate: mean of 4 brightest resid inside kept
+    bright_vals = sorted((resid[i] for i in kept_set), reverse=True)
+    k = max(1, min(4, len(bright_vals)))
+    plateau = sum(bright_vals[:k]) / k if k else 0.0
+    if plateau <= 0:
+        print(0)
+        return
+
+    region = set(kept_set)
+    frontier = set(kept_set)
+    floor_val = 1.0 * sigma
+
+    for _ in range(60):
+        # one ring outward
+        ring = set()
+        for pid in frontier:
+            x = pid % W
+            y = pid // W
+            for dx, dy in neigh:
+                nx = x + dx
+                ny = y + dy
+                if 0 <= nx < W and 0 <= ny < H:
+                    nid = _lin(nx, ny)
+                    if nid not in region and nid not in dust_set:
+                        ring.add(nid)
+        if not ring:
+            break
+        # average residual in ring
+        avg_ring = sum(resid[i] for i in ring) / len(ring) if ring else 0.0
+        if avg_ring <= floor_val:
+            break
+        region.update(ring)
+        frontier = ring
+
+    total_energy = sum(resid[i] for i in region)
+    true_pixels = total_energy / plateau if plateau else 0.0
+    area_mm2 = true_pixels * sx * sy
+    length_mm = area_mm2 * _INV_REPEAT * gain
+    # final token
+    print(length_mm)
+
+
+if __name__ == "__main__":
+    arg = _sys.argv[1] if len(_sys.argv) > 1 else "/app/data/scene.mycr"
+    _solve_one(arg)

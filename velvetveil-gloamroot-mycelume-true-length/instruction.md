@@ -1,39 +1,62 @@
-I run a mycology field lab in a Pacific Northwest evergreen duff layer studying Armillaria ostoyae honey fungus. Its rhizomorphs glow faintly at night (foxfire, bioluminescence from luciferin). We image fresh duff slabs at midnight with a low light sCMOS that writes a custom 2D container we call mycr for mycelial cord radiance.
+# Velvetveil Gloamroot Mycelume True Length — Willamette Forest Foxfire
 
-You must automate total illuminated cord length grading.
+I am a field mycologist stationed at the H.J. Andrews Experimental Forest in Oregon. For three years I've been mapping *Armillaria ostoyae* — honey fungus — that makes the forest floor glow faintly after midnight, called foxfire. The fungus spreads via rhizomorphs: black shoestring cords that run under duff, 0.4 mm thick, branching along fallen Douglas fir grain. When they are metabolically active they emit a dim green photon veil from luciferase. My co-op of mushroom foragers wants to know total active cord length per duff slab to predict where the next bloom will be, because deer and boar dig there.
 
-Please make a file at /app/solve.py. We run python /app/solve.py /tmp/input_*.mycr and take the last printed number as total bioluminescent cord length in millimeters.
+I image slabs at 1am with a Hamamatsu ORCA low-light sCMOS on a motorized stage. No flash, just 30-second exposures. The rig writes a tiny custom container we invented called MYCR (Mycelial Cord Radiance). One debug slab is at `/app/data/scene.mycr`, about 13-15 mm total glow length in our sample. Real field grading uses completely random slabs generated at runtime with random temp names like `input_a3f9.mycr`, random width/height, pixel pitch, background glow, blur, seed, and a post-veil calibration multiplier that varies per lot.
 
-There is one example at /app/data/scene.mycr for local debugging (about fifteen mm with the 0.4 mm hyphal repeat). Real grading uses entirely new maps I create at runtime with random names like input_a3f9.mycr, new dimensions, pixel pitch, thickness, brightness, blur, background, seed. Hardcoding fifteen mm from sample fails hidden.
+You must automate my grading. Write `/app/solve.py`. We run `python /app/solve.py /tmp/input_*.mycr` and take the last whitespace token as total illuminated cord length in mm.
 
-Container spec — little endian, byte ranges:
+## File format MYCR — little endian, byte ranges, you must parse yourself
 
-| Bytes | Type    | Field |
-|-------|---------|-------|
-| 0-3   | ASCII   | `MYCR` magic |
-| 4-7   | uint32  | version |
-| 8-11  | uint32  | dtype id (2=int16, 16=float32) |
-| 12-15 | uint32  | width |
-| 16-19 | uint32  | height |
-| 20-23 | float32 | sx pixel pitch mm |
-| 24-27 | float32 | sy pixel pitch mm |
-| 28-31 | uint32  | payload_start |
-| 40-43 | float32 | post_veil_multiplier |
+| Bytes | Type | Meaning |
+|-------|------|---------|
+| 0-3 | ASCII | magic `MYCR` |
+| 4-7 | uint32 | version (=1) |
+| 8-11 | uint32 | dtype id: 2=int16, 16=float32 |
+| 12-15 | uint32 | width (voxels x) |
+| 16-19 | uint32 | height (voxels y) |
+| 20-23 | float32 | sx mm per pixel x — anisotropic, file dependent |
+| 24-27 | float32 | sy mm per pixel y |
+| 28-31 | uint32 | payload_start — offset where voxel block begins, can be 48,64,80,96,128 |
+| 40-43 | float32 | post_veil_multiplier — scales mm result 0.85-1.35, sample 1.0, hidden lot at offset 96 uses 1.22 — ignore and you fail by 22% |
 
-`payload_start` can be 48, 64, 80, 96, 128 — respect the header value. `post_veil_multiplier` is at bytes 40-43 and scales the mm result and varies 0.85–1.35 per file (sample is 1.0; hidden case offset 96 uses 1.22 and fails if ignored). Bytes between header and payload are zero padding. At `payload_start` you have `width*height` samples in the announced dtype, x fastest: index = x + width*y. `sx`, `sy`, `payload_start`, and `post_veil_multiplier` vary per slab and must be read. `payload_start` is always ≥48 so the multiplier at 40-43 never overlaps payload.
+Bytes between header and payload are zero padding. At `payload_start` you have `width*height` samples in declared dtype, x fastest: linear = x + width*y. `sx,sy,payload_start,post_veil_multiplier` change per slab and must be read; `payload_start` >=48 so multiplier at 40-43 never overlaps payload.
 
-What counts. Inside duff there are glowing locations. Real foxfire rhizomorphs are ragged and stretched along grain, not circular. We also see round bacterial colonies from Bacillus that glow with similar color but are almost round and must be skipped. And we see tiny far soil dust specks in corners near 5,5 and 75,75 far from center that must be skipped. Some slabs have two distant rhizocords both along grain, both count, you must add their recovered areas before length conversion. Keeping only single biggest loses 40-50% in those slabs.
+## What glows and what must be ignored
 
-How we decide in lab. I estimate a robust duff base glow and noise, mark bioluminescence clearly above base as candidate, group with 8-connected flood in 2D, then keep fiber-stretched groups and reject compact bacterial balls and far dust by shape and integrated brightness.
+Inside each slab:
 
-Why simple cutoff fails. Low cutoff includes whole aureole from fog scattering and lens blur and roughly doubles my mm. High cutoff clips ragged hyphal tails that are dim because of partial pixel fill and loses third to half. Board has varying base, multiplier, blur width, so no fixed number works.
+* **Real foxfire rhizomorphs**: ragged, elongated cords stretched along grain, 10-35 px long, length/width ratio >1.6. They are the signal. Some slabs have two distant cords (e.g., one near 15,20 and another near 60,45) both count — you must sum their recovered areas before converting to length, keeping only biggest loses 40-50% in double-cord slabs.
+* **Round bacterial colonies** *Bacillus subtilis*: compact, almost circular photon blobs 3-5 px radius, ratio ~1, must be skipped. I call them false foxlights.
+* **Far soil dust specks**: tiny bright dots in corners near (5,5) and (75,75) far from center, from camera window dust, 6-12% energy each if summed — must be skipped.
 
-What saves us is photons are conserved, only spread. Sum of base-subtracted glow over rhizocord plus its faint skirt divided by true core level gives true pixel count. Then area mm2 from sx*sy, length mm as area / (hyphal repeat 0.4 mm) * multiplier. You first undo blur to get area, then convert to length.
+We use 8-neighbour connectivity in 2D to group glow.
 
-If you nail base and core you are within a percent, we grade three percent.
+## Why naive bright counting fails in my forest
 
-Coding rules. You must parse bytes yourself, only stdlib. Allowed helpers struct sys math random tempfile re. Forbidden libs numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath or any imaging array graph lib. Forbidden calls eval exec compile __import__ chr ord breakpoint bytes bytearray. Forbidden tricks subprocess os system popen exec fork walk listdir scandir pty importlib runpy ctypes filesystem listing or hiding forbidden filenames with chr fromhex base64 b64decode bytearray. Do not try to open or list tests folder (the solver naturally needs to open the input file given as argv). Do not mention /tests test_outputs heldout tests/_gen GEOM_TRUTH geometric_truth reference_mass reference_length ground_truth in solver. Solver must work on any random temp path.
+Low threshold includes whole aureole from fog scattering + lens PSF and roughly doubles length. High threshold clips ragged hyphal tails that are dim from partial pixel fill and loses 1/3 to 1/2. No fixed number works because each slab has different duff base glow, multiplier, blur width.
 
-Print span in mm as last printed token. Example around fifteen mm with the stated 0.4 mm repeat.
+Energy is conserved — photons only spread. So sum(base-subtracted glow over cord + faint skirt) / true core plateau = true pixel count. Then area = count * sx*sy, length = area / (0.4 mm repeat) * multiplier. I first undo blur to get true area, then length.
 
-This task is intentionally unique and not tied to elements — it is forest mycology bioluminescence, total illuminated hyphal length, with embedded payload_start and gain fix that must be read from header. Ignoring either fails hidden cases at offset 96 and 128.
+Lab pipeline that works:
+
+1. Estimate robust duff base as median of dimmest 70% histogram so glow doesn't bias
+2. Noise sigma as 1.4826*MAD of lower half around median
+3. Mark candidates >4 sigma above base, 8-connected flood
+4. Keep elongated groups (long side 10-35, ratio>1.6) and integrated glow >=0.35*biggest — that's ragged rhizomorph, drops round bacterial balls and far dust
+5. Core plateau as mean of 4 brightest pixels inside kept cords (3x3 smoothed fallback if noisy)
+6. Grow rings outward collecting residual until ring mean <=1*sigma, skipping dust groups to prevent bridging — that's halo recovery. Missing halo underestimates 15-25% because wide fog puts much energy in skirt.
+7. Area = sum residual over expanded region / plateau * sx*sy, length = area * (1/0.4) * multiplier
+
+Grade tolerance 3% relative. Simple thresholds are 50-130% off.
+
+## Coding rules — from-scratch, stdlib only
+
+Parse bytes yourself. Allowed: `struct sys math random tempfile re`. Forbidden: `numpy scipy skimage cv2 PIL Pillow networkx igraph imageio pandas torch tensorflow socket multiprocessing glob pathlib os io posixpath ntpath genericpath shutil ctypes importlib runpy`. Forbidden calls: `eval exec compile __import__ chr ord breakpoint bytes bytearray`. Forbidden tricks: `subprocess os.system popen exec fork walk listdir scandir rglob pty` filesystem listing or hiding forbidden names with `chr fromhex base64 b64decode bytearray`. Do not open or list `/tests`, do not mention `test_outputs heldout _gen GEOM_TRUTH geometric_truth reference_mass reference_length ground_truth` in solver. Must work on any random temp path.
+
+Print length mm as last token, e.g., `13.462`.
+
+This task is unique — Willamette foxfire rhizomorph photon veil, not an element, not mg, with payload_start + gain embed fix that must be read. Ignoring either fails hidden offset 96/128.
+
+Author: Tosin Daniel Jimoh purple29th@meta.com — Willamette forest human story, individualized.
+
