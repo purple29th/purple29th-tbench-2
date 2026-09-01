@@ -6,16 +6,24 @@ Please make file at /app/solve.py. We call python /app/solve.py path and last to
 
 Example at /app/data/scene.seis about one hundred twenty five ns. Hidden evaluation uses totally different traces I made with new num samples sampling interval gain blur with random temp file names like input_g7h2.seis payload offset forty eight to one twenty eight and gain.
 
-File layout seis little endian.
+File layout seis little endian with embed fix.
 
-Four bytes ascii SEIS.
-Four bytes uint32 version.
-Four bytes uint32 dtype code two means int16 sixteen means float32.
-Four bytes uint32 num samples.
-Four bytes float32 sampling interval ns per sample, changes per file must read.
-Four bytes uint32 data offset where samples start can be forty eight sixty four eighty ninety six one twenty eight.
-Four bytes float32 multiplier at offset forty scales final ns sample one point zero hidden at ninety six is one point two two ignore fails twenty two percent.
-At data offset you get num samples in dtype announced.
+Four bytes ascii SEIS at zero.
+Four bytes uint32 version at four.
+Four bytes uint32 dtype code two means int16 sixteen means float32 at eight.
+Four bytes uint32 num samples n at twelve.
+Four bytes float32 sampling interval dt ns per sample at sixteen changes per file must read.
+Four bytes float32 sx placeholder at twenty.
+Four bytes float32 sy placeholder at twenty four.
+Four bytes uint32 data offset at byte twenty eight where samples start can be forty eight sixty four eighty ninety six one twenty eight must parse not hardcoded sixty four.
+Four bytes float32 multiplier gain at offset forty byte forty scales final ns sample one point zero hidden at ninety six is one point two two ignore fails twenty two percent.
+At data offset you get n samples in dtype announced.
+
+Scene file at /app/data/scene.seis uses offset sixty four gain one point zero but hidden uses ninety six one twenty eight plus forty eight eighty.
+
+Inside each trace p wave onset is sharp rise but sensor shaper smears via Gaussian point spread so threshold overcounts smeared tails or undercounts thin extensions. Correct recovery is charge conservation calculus integral, true width samples equals sum baseline subtracted over pulse plus halo divided by plateau amplitude, onset equals width times sampling interval times multiplier plus baseline offset. Tiny aftershock specks far away ignore via mass filter.
+
+Dockerfile python slim copies scene.seis not plse.
 
 Inside each trace p wave onset is sharp rise but sensor shaper smears via Gaussian point spread so threshold overcounts smeared tails or undercounts thin extensions. Correct recovery is charge conservation calculus integral, true width samples equals sum baseline subtracted over pulse plus halo divided by plateau amplitude, onset equals width times sampling interval times multiplier plus baseline offset. Tiny aftershock specks far away ignore via mass filter.
 
