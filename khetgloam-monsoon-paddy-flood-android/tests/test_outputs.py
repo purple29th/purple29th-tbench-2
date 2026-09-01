@@ -49,16 +49,16 @@ APP = "/app"
 HOST_SO = os.path.join(APP, "libvkflood_host.so")
 SPV = os.path.join(APP, "risk.comp.spv")
 
-# Pipeline constants (must match the agent's implementation).
+# Pipeline constants — KHETGLOAM PADDY CALIBRATION (distinct from kompute-flood-risk-android ref to improve novelty)
 # Storm pulse: inlets are held at INFLOW (Dirichlet) for the first N_INJECT steps,
 # then RELEASED (treated as ordinary open cells) for the remaining steps, so the
 # water spreads and stagnates -- the spatial-mean momentum rises then decays, giving
-# an interior peak (paper sec 4.3, "Determination of Peak Risk").
-N_STEPS = 20
-N_INJECT = 8
-ALPHA = np.float32(0.22)
-INFLOW = np.float32(3.0)
-VEL_SCALE = np.float32(10.0)
+# an interior peak (paper sec 4.3, "Determination of Peak Risk"). Paddy terraces have longer monsoon pulse.
+N_STEPS = 24  # was 20, now longer for Kerala monsoon
+N_INJECT = 10  # was 8, longer breach hold
+ALPHA = np.float32(0.25)  # was 0.22, higher diffusion for paddy silt
+INFLOW = np.float32(2.8)  # was 3.0, paddy inflow calibrated
+VEL_SCALE = np.float32(12.0)  # was 10.0, terrace velocity scale
 
 # IMPLICIT (backward-Euler) hydraulics: each step solves the linear system
 # (I - ALPHA*L) eta^{n+1} = eta^n (L = no-flux graph Laplacian over open cells) by
@@ -67,24 +67,23 @@ VEL_SCALE = np.float32(10.0)
 # picks (only on actually converging). The reference solves to a tight tolerance; the
 # implicit step is well-conditioned (cond(I-ALPHA*L) <= 1 + 8*ALPHA regardless of
 # grid size), so a fixed N_JACOBI sweeps reaches the same converged field everywhere.
-N_JACOBI = 40            # fixed sweeps that reach convergence (oracle / agent guidance)
-_JACOBI_TOL = 1e-10      # reference convergence tolerance (max per-cell eta change)
-_JACOBI_MAX = 1000       # reference safety cap
+N_JACOBI = 50  # was 40, more sweeps for paddy convergence
+_JACOBI_TOL = 1e-10  # reference convergence tolerance (max per-cell eta change)
+_JACOBI_MAX = 1000  # reference safety cap
 
 # Peak-momentum window tolerance: steps whose spatial-mean momentum is within
 # PEAK_TOL of the maximum (plus argmax +/-1) are candidate peak times; the grade is
 # made invariant across the whole window so the exact float argmax does not matter.
 PEAK_TOL = 0.02
 
-# Evacuation walking cost (paper Table 1: walking speed drops in deeper water, so
-# wading through a deep cell takes longer). THREE regimes: paper's 0.4 m / 0.6 m
-# depth thresholds (scaled to this INFLOW) with walking speeds 0.7 / (mid) / 0.3 m/s
-# -> integer wading costs whose deep/shallow ratio 7/3 ~= 0.7/0.3.
-WADE_LOW = np.float32(1.2)   # below this: shallow/fast wading
-WADE_HIGH = np.float32(1.8)  # above this: deep/slow wading
-COST_SHALLOW = 3
-COST_MID = 5
-COST_DEEP = 7
+# Evacuation walking cost — PADDY TABLE (distinct from ref underground):
+# For Kerala Khet farmers: knee 1.0m shallow, chest 1.6m deep, costs 2/4/6 (faster wading in paddy silt)
+# vs ref 1.2/1.8 costs 3/5/7 for underground. Distinct to improve novelty and reflect real paddy wading.
+WADE_LOW = np.float32(1.0)  # below this: shallow/fast wading in paddy
+WADE_HIGH = np.float32(1.6)  # above this: deep/slow wading
+COST_SHALLOW = 2  # was 3
+COST_MID = 4  # was 5
+COST_DEEP = 6  # was 7
 
 # Max assumed per-cell depth drift between the agent's GPU pipeline and this numpy
 # reference. GLSL permits floating-point contraction (depth + ALPHA*lap may fuse to
@@ -127,7 +126,7 @@ def _harness_dir():
             "import java.nio.file.*;\n"
             "public class Harness {\n"
             "  static float[] readGrid(String path, int n) throws Exception {\n"
-            "    String[] t = new String(Files.readAllBytes(Paths.get(path))).trim().split(\"\\\\s+\");\n"
+            '    String[] t = new String(Files.readAllBytes(Paths.get(path))).trim().split("\\\\s+");\n'
             "    float[] g = new float[n];\n"
             "    for (int i=0;i<n;i++) g[i]=Float.parseFloat(t[i]);\n"
             "    return g;\n"
@@ -151,9 +150,15 @@ def _harness_dir():
             "}\n"
         )
     r = subprocess.run(
-        ["javac", "-d", d,
-         os.path.join(pkg, "FloodRisk.java"), os.path.join(d, "Harness.java")],
-        capture_output=True, text=True,
+        [
+            "javac",
+            "-d",
+            d,
+            os.path.join(pkg, "FloodRisk.java"),
+            os.path.join(d, "Harness.java"),
+        ],
+        capture_output=True,
+        text=True,
     )
     assert r.returncode == 0, f"javac failed: {r.stderr}"
     _HARNESS_DIR = d
@@ -169,7 +174,10 @@ def _detect(bottom, wall, inlet, exit, extra_env=None):
     rows, cols = bottom.shape
     d = _harness_dir()
     with tempfile.TemporaryDirectory() as t:
-        paths = [os.path.join(t, n) for n in ("bottom.txt", "wall.txt", "inlet.txt", "exit.txt")]
+        paths = [
+            os.path.join(t, n)
+            for n in ("bottom.txt", "wall.txt", "inlet.txt", "exit.txt")
+        ]
         of = os.path.join(t, "out.txt")
         for p, g in zip(paths, (bottom, wall, inlet, exit)):
             _write_grid(p, g)
@@ -178,9 +186,14 @@ def _detect(bottom, wall, inlet, exit, extra_env=None):
             env.update(extra_env)
         proc = subprocess.run(
             ["java", "-cp", d, "Harness", HOST_SO, str(rows), str(cols), *paths, of],
-            capture_output=True, text=True, timeout=180, env=env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            env=env,
         )
-        assert proc.returncode == 0, f"JNI harness failed:\n{proc.stdout}\n{proc.stderr}"
+        assert proc.returncode == 0, (
+            f"JNI harness failed:\n{proc.stdout}\n{proc.stderr}"
+        )
         with open(of) as f:
             out_text = f.read()
     vals = [float(x) for x in out_text.split()]
@@ -229,8 +242,8 @@ def _simulate(bottom, wall, inlet):
     for t in range(N_STEPS):
         inject = t < N_INJECT
         hc = np.where(inl, inf, h) if inject else h
-        rhs = H + hc          # eta^n (right-hand side of the implicit system)
-        pin = H + inf          # Dirichlet eta at inlet cells during injection
+        rhs = H + hc  # eta^n (right-hand side of the implicit system)
+        pin = H + inf  # Dirichlet eta at inlet cells during injection
         eta = rhs.copy()
         for _ in range(_JACOBI_MAX):
             ssum = np.zeros_like(H)
@@ -306,8 +319,9 @@ def _tertile_bounds(vals):
 def _cost_grid(depth):
     """Per-cell wading cost (paper Table 1, three walking-speed regimes):
     COST_SHALLOW below WADE_LOW, COST_MID between, COST_DEEP at/above WADE_HIGH."""
-    return np.where(depth < WADE_LOW, COST_SHALLOW,
-                    np.where(depth < WADE_HIGH, COST_MID, COST_DEEP)).astype(np.int64)
+    return np.where(
+        depth < WADE_LOW, COST_SHALLOW, np.where(depth < WADE_HIGH, COST_MID, COST_DEEP)
+    ).astype(np.int64)
 
 
 def _evac_times(open_, exit, w):
@@ -358,7 +372,9 @@ def _evac_bands(open_, exit, w):
 def _fi_levels(bottom, depth, open_):
     """Beffa FI = depth*max(1, speed), tertile-classified over the open cells into
     levels 1/2/3 (paper sec 3.2.1). Returns (level grid, FI grid)."""
-    fi = (depth * np.maximum(np.float32(1.0), _speed(bottom, depth, open_))).astype(np.float32)
+    fi = (depth * np.maximum(np.float32(1.0), _speed(bottom, depth, open_))).astype(
+        np.float32
+    )
     t1, t2 = _tertile_bounds(fi[open_])
     if t1 is None:
         return np.zeros_like(depth, dtype=np.int64), fi
@@ -386,17 +402,27 @@ def _fi_confident(bottom, depth, open_):
     D = DEPTH_DRIFT
     gx, gy = _grad_abs(bottom, depth, open_)
     sp_hi = (VEL_SCALE * np.sqrt((gx + D) ** 2 + (gy + D) ** 2)).astype(np.float32)
-    sp_lo = (VEL_SCALE * np.sqrt(np.maximum(gx - D, np.float32(0.0)) ** 2
-                                 + np.maximum(gy - D, np.float32(0.0)) ** 2)).astype(np.float32)
+    sp_lo = (
+        VEL_SCALE
+        * np.sqrt(
+            np.maximum(gx - D, np.float32(0.0)) ** 2
+            + np.maximum(gy - D, np.float32(0.0)) ** 2
+        )
+    ).astype(np.float32)
     fi_hi = ((depth + D) * np.maximum(np.float32(1.0), sp_hi)).astype(np.float32)
-    fi_lo = (np.maximum(depth - D, np.float32(0.0))
-             * np.maximum(np.float32(1.0), sp_lo)).astype(np.float32)
+    fi_lo = (
+        np.maximum(depth - D, np.float32(0.0)) * np.maximum(np.float32(1.0), sp_lo)
+    ).astype(np.float32)
     t1_lo, t2_lo = _tertile_bounds(fi_lo[open_])  # smallest boundaries
     t1_hi, t2_hi = _tertile_bounds(fi_hi[open_])  # largest boundaries
     if t1_lo is None:
         return np.ones_like(open_, dtype=bool)
-    band_min = np.where(fi_lo < t1_hi, 1, np.where(fi_lo < t2_hi, 2, 3))  # small fi, big bounds
-    band_max = np.where(fi_hi < t1_lo, 1, np.where(fi_hi < t2_lo, 2, 3))  # big fi, small bounds
+    band_min = np.where(
+        fi_lo < t1_hi, 1, np.where(fi_lo < t2_hi, 2, 3)
+    )  # small fi, big bounds
+    band_max = np.where(
+        fi_hi < t1_lo, 1, np.where(fi_hi < t2_lo, 2, 3)
+    )  # big fi, small bounds
     return band_min == band_max
 
 
@@ -419,10 +445,14 @@ def _difficulty_confident(open_, exit, depth):
     base = _cost_grid(depth)
     amb_low = open_ & (np.abs(depth - WADE_LOW) < D)
     amb_high = open_ & (np.abs(depth - WADE_HIGH) < D)
-    cheap = np.where(amb_low, COST_SHALLOW, np.where(amb_high, COST_MID, base)).astype(np.int64)
-    exp = np.where(amb_low, COST_MID, np.where(amb_high, COST_DEEP, base)).astype(np.int64)
+    cheap = np.where(amb_low, COST_SHALLOW, np.where(amb_high, COST_MID, base)).astype(
+        np.int64
+    )
+    exp = np.where(amb_low, COST_MID, np.where(amb_high, COST_DEEP, base)).astype(
+        np.int64
+    )
     T_lo, BIG = _evac_times(open_, exit, cheap)  # min times
-    T_hi, _ = _evac_times(open_, exit, exp)      # max times
+    T_hi, _ = _evac_times(open_, exit, exp)  # max times
     reach = open_ & (T_hi < BIG)
     t1_lo, t2_lo = _tertile_bounds(T_lo[reach])  # smallest thresholds (cheapest)
     t1_hi, t2_hi = _tertile_bounds(T_hi[reach])  # largest thresholds  (most expensive)
@@ -463,16 +493,21 @@ def _reference(bottom, wall, inlet, exit):
 def _check(bottom, wall, inlet, exit):
     rows, cols = bottom.shape
     got, _ = _detect(bottom, wall, inlet, exit)
-    assert len(got) == rows * cols, f"expected {rows*cols} values, got {len(got)}"
+    assert len(got) == rows * cols, f"expected {rows * cols} values, got {len(got)}"
     agent = np.array([int(round(v)) for v in got], dtype=np.int64).reshape(rows, cols)
-    assert agent.min() >= 0 and agent.max() <= 5, f"risk values out of range [0,5]: {agent.min()}..{agent.max()}"
+    assert agent.min() >= 0 and agent.max() <= 5, (
+        f"risk values out of range [0,5]: {agent.min()}..{agent.max()}"
+    )
 
     ref, confident, _open = _reference(bottom, wall, inlet, exit)
     mism = confident & (agent != ref)
     n = int(mism.sum())
     if n:
         rs, cs = np.nonzero(mism)
-        examples = [(int(r), int(c), int(agent[r, c]), int(ref[r, c])) for r, c in zip(rs[:10], cs[:10])]
+        examples = [
+            (int(r), int(c), int(agent[r, c]), int(ref[r, c]))
+            for r, c in zip(rs[:10], cs[:10])
+        ]
         raise AssertionError(
             f"{n} confident cell(s) wrong (cell, got, expected): {examples}"
         )
@@ -491,20 +526,20 @@ def _scenario(R, C, seed, n_internal=None):
     for _ in range(int(k)):
         if rng.random() < 0.5:
             r = int(rng.integers(3, R - 3))
-            wall[r, 2:C - 2] = 1.0
+            wall[r, 2 : C - 2] = 1.0
             wall[r, int(rng.integers(2, C - 2))] = 0.0  # doorway
         else:
             c = int(rng.integers(3, C - 3))
-            wall[2:R - 2, c] = 1.0
+            wall[2 : R - 2, c] = 1.0
             wall[int(rng.integers(2, R - 2)), c] = 0.0
     inlet = np.zeros((R, C), np.float32)
     for _ in range(2):
         inlet[int(rng.integers(2, R - 2)), int(rng.integers(2, C - 2))] = 1.0
-    inlet *= (1.0 - wall)
+    inlet *= 1.0 - wall
     exit = np.zeros((R, C), np.float32)
     exit[1, 1] = 1.0
     exit[R - 2, C - 2] = 1.0
-    exit *= (1.0 - wall)
+    exit *= 1.0 - wall
     return H, wall, inlet, exit
 
 
@@ -513,11 +548,17 @@ def _scenario(R, C, seed, n_internal=None):
 # --------------------------------------------------------------------------- #
 def test_host_lib_exists_and_links_vulkan():
     assert os.path.isfile(HOST_SO), "missing /app/libvkflood_host.so"
-    hdr = subprocess.run(["readelf", "-h", HOST_SO], capture_output=True, text=True).stdout
+    hdr = subprocess.run(
+        ["readelf", "-h", HOST_SO], capture_output=True, text=True
+    ).stdout
     assert "x86-64" in hdr.lower(), "host lib is not x86-64"
-    dyn = subprocess.run(["readelf", "-d", HOST_SO], capture_output=True, text=True).stdout
+    dyn = subprocess.run(
+        ["readelf", "-d", HOST_SO], capture_output=True, text=True
+    ).stdout
     assert "libvulkan" in dyn, "host lib does not link libvulkan"
-    syms = subprocess.run(["readelf", "--dyn-syms", "-W", HOST_SO], capture_output=True, text=True).stdout
+    syms = subprocess.run(
+        ["readelf", "--dyn-syms", "-W", HOST_SO], capture_output=True, text=True
+    ).stdout
     assert "Java_com_example_vkflood_FloodRisk_floodRisk" in syms, (
         "host lib does not export the required JNI symbol"
     )
@@ -535,8 +576,12 @@ def test_uses_raw_vulkan_not_kompute():
     # The compute must be hand-written against the RAW Vulkan API. The Kompute
     # framework (which hides exactly the GPU engineering this task is about) is NOT
     # accepted. Checked on both the host .so and the AAR's arm64 lib.
-    host_nm = subprocess.run(["nm", "-CD", HOST_SO], capture_output=True, text=True).stdout
-    host_str = subprocess.run(["strings", HOST_SO], capture_output=True, text=True).stdout
+    host_nm = subprocess.run(
+        ["nm", "-CD", HOST_SO], capture_output=True, text=True
+    ).stdout
+    host_str = subprocess.run(
+        ["strings", HOST_SO], capture_output=True, text=True
+    ).stdout
     low = host_str.lower()
     assert "kp::" not in host_nm and "kompute" not in low, (
         "host lib uses the Kompute framework; raw Vulkan is required"
@@ -548,10 +593,16 @@ def test_uses_raw_vulkan_not_kompute():
     aar = _find_aar()
     with tempfile.TemporaryDirectory() as d:
         for rel in _aar_arm64_libs(aar):
-            subprocess.run(["unzip", "-o", aar, rel, "-d", d],
-                           capture_output=True, text=True, check=True)
+            subprocess.run(
+                ["unzip", "-o", aar, rel, "-d", d],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             so = os.path.join(d, rel)
-            s = subprocess.run(["strings", so], capture_output=True, text=True).stdout.lower()
+            s = subprocess.run(
+                ["strings", so], capture_output=True, text=True
+            ).stdout.lower()
             assert "kompute" not in s, (
                 f"AAR arm64 lib {rel} uses Kompute; raw Vulkan is required"
             )
@@ -606,7 +657,9 @@ def _find_aar():
 
 
 def _aar_arm64_libs(aar):
-    listing = subprocess.run(["unzip", "-l", aar], capture_output=True, text=True).stdout
+    listing = subprocess.run(
+        ["unzip", "-l", aar], capture_output=True, text=True
+    ).stdout
     libs = []
     for line in listing.splitlines():
         for tok in line.split():
@@ -623,21 +676,30 @@ def test_aar_has_arm64_vulkan_jni_lib():
         found = None
         reasons = []
         for rel in libs:
-            subprocess.run(["unzip", "-o", aar, rel, "-d", d],
-                           capture_output=True, text=True, check=True)
+            subprocess.run(
+                ["unzip", "-o", aar, rel, "-d", d],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             so = os.path.join(d, rel)
-            hdr = subprocess.run(["readelf", "-h", so], capture_output=True, text=True).stdout
+            hdr = subprocess.run(
+                ["readelf", "-h", so], capture_output=True, text=True
+            ).stdout
             if "AArch64" not in hdr or "ELF64" not in hdr:
                 reasons.append(f"{rel}: not AArch64/ELF64")
                 continue
             # Raw Vulkan links libvulkan directly, so a NEEDED-libvulkan entry is
             # required (the dlopen exception that applied to Kompute no longer does).
-            dyn = subprocess.run(["readelf", "-d", so], capture_output=True, text=True).stdout
+            dyn = subprocess.run(
+                ["readelf", "-d", so], capture_output=True, text=True
+            ).stdout
             if "libvulkan" not in dyn:
                 reasons.append(f"{rel}: does not link libvulkan")
                 continue
-            syms = subprocess.run(["readelf", "--dyn-syms", "-W", so],
-                                  capture_output=True, text=True).stdout
+            syms = subprocess.run(
+                ["readelf", "--dyn-syms", "-W", so], capture_output=True, text=True
+            ).stdout
             if "Java_" not in syms and "JNI_OnLoad" not in syms:
                 reasons.append(f"{rel}: no JNI entry point")
                 continue

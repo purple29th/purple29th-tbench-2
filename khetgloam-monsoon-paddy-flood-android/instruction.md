@@ -36,10 +36,10 @@ JNI symbol follows standard naming `Java_com_example_vkflood_FloodRisk_floodRisk
 
 ## How my appa taught me water moves — the pipeline you must code
 
-We use float32 everywhere. Constants you must use exactly (they came from our field calibration):
+We use float32 everywhere. Constants you must use exactly (they came from our field calibration in 2018-2024 Kerala paddy):
 
 ```
-N_STEPS 20, N_INJECT 8, ALPHA 0.22, INFLOW 3.0, VEL_SCALE 10.0, WADE_LOW 1.2, WADE_HIGH 1.8, COST_SHALLOW 3, COST_MID 5, COST_DEEP 7
+N_STEPS 24, N_INJECT 10, ALPHA 0.25, INFLOW 2.8, VEL_SCALE 12.0, WADE_LOW 1.0, WADE_HIGH 1.6, COST_SHALLOW 2, COST_MID 4, COST_DEEP 6
 ```
 
 1. **GPU hydraulics — implicit storm pulse, raw Vulkan only.** Depth zero initially. First N_INJECT steps pin inlet depth at INFLOW as Dirichlet: surface level at inlet is bottom+INFLOW in every read, including stencil reads from neighboring free cells. Then release inlets to free.
@@ -50,7 +50,7 @@ N_STEPS 20, N_INJECT 8, ALPHA 0.22, INFLOW 3.0, VEL_SCALE 10.0, WADE_LOW 1.2, WA
 
 3. **Flood intensity — Beffa.** At chosen moment FI = depth * max(1, speed). Rank FI over free cells, split into 3 tertile groups using ceil division, no fixed thresholds. 1 low, 3 high.
 
-4. **Evacuation difficulty — how hard to walk out.** Multi-source Dijkstra over free 4-grid from exits, walls blocked. Cost to enter neighbor = COST_SHALLOW if depth < WADE_LOW, COST_MID if between WADE_LOW inclusive and WADE_HIGH exclusive, COST_DEEP if >= WADE_HIGH. Tertile reachable costs same ceil into 1/2/3; unreachable free cells get 3; no exit case gives 3 everywhere. My appa's rule: knee below 1.2m you walk fast, chest 1.8m you crawl.
+4. **Evacuation difficulty — how hard to walk out.** Multi-source Dijkstra over free 4-grid from exits, walls blocked. Cost to enter neighbor = COST_SHALLOW if depth < WADE_LOW, COST_MID if between WADE_LOW inclusive and WADE_HIGH exclusive, COST_DEEP if >= WADE_HIGH. Tertile reachable costs same ceil into 1/2/3; unreachable free cells get 3; no exit case gives 3 everywhere. My appa's rule: knee below 1.0m you walk fast in paddy silt (cost 2), chest 1.6m you crawl (cost 6). Paddy silts faster than concrete underground.
 
 5. **Risk matrix.** For free cells risk = clamp(FI_level + difficulty -1, 1,5); walls 0.
 

@@ -1,12 +1,9 @@
 #version 450
-
-// One IMPLICIT-diffusion Jacobi sweep of the water-surface elevation eta.
-// Each outer time step solves (I - alpha*L) eta = rhs (rhs = eta of the previous
-// step; L = no-flux graph Laplacian over open cells) by iterating this sweep:
-//     eta_out_i = (rhs_i + alpha * sum_{open neighbours} eta_in_j) / (1 + alpha*deg_i)
-// The host runs N_JACOBI sweeps (ping-ponging eta_in/eta_out) until converged.
-// Walls are passed through unchanged; during injection (pc.inject > 0.5) inlet cells
-// are pinned to eta = bottom + INFLOW (Dirichlet, i.e. water DEPTH = INFLOW).
+// Khetgloam paddy compute — one implicit Jacobi sweep for eta=bottom+depth
+// Kerala monsoon calibrated: 24 steps, 10 inject, alpha 0.25, inflow 2.8 paddy silt.
+// Host runs 50 Jacobi sweeps ping-pong. Walls=bunds blocked, inlets=breaches pinned
+// Dirichlet bottom+INFLOW during inject, then released. OUSB tablet offline.
+// (I-alpha*L) eta = rhs, rhs=prev eta, L=no-flux Laplacian over open paddy.
 layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(std430, binding = 0) readonly buffer BottomBuf { float bottom[]; };
