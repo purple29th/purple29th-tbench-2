@@ -1,51 +1,49 @@
-atacama salar brine true lithium mass
+# atacama salar brine true lithium mass
 
-Description
+## Description
 
-I am Elena Lickanantay from Toconao on edge of Salar de Atacama in Chile. My family scraped salt since grandfather, now lithium pools for batteries. At one am we take glass slides to crust and tag brine with fluorescein, lithium carbonate needles glow under four eight eight nm and wind dust gets everywhere. Rig writes BRIN magic BRIN.
+I am Elena Lickanantay from Toconao on edge of Salar de Atacama Chile, family scraped salt since grandfather now lithium pools. At one am we take glass slides to crust and tag brine with fluorescein needles glow under four eight eight nm wind dust everywhere. Rig writes BRIN magic BRIN with variable payload start forty eight sixty four eighty ninety six one twenty eight at twenty eight and multiplier at forty that scales mg zero point eight five to one point three five hidden one point two two at ninety six. Ignore either fails twenty two percent and fails on ninety six one twenty eight.
 
-This task measures total lithium mass in milligrams. Simple level counting fails, generous includes whole salt aureole and nearly doubles mass, strict loses thin needle tails and loses third to half. Background gain and scatter vary per slide and multiplier at offset forty scales final mg hidden at ninety six uses one point two two.
+Inside are elongated brine needles along salt grain that count plus round halite dust compact round to skip plus far wind dust specks from wind that add six to twelve percent each if summed. Some slides have two distant needle fields both counted, biggest only fails forty to fifty percent. Fog scattering plus lens smear halo, low threshold doubles mass, high clips half.
 
-Energy preservation saves us. Sum of background removed glow over needle plus faint skirt divided by true core level gives true count. Area equals count times sx times sy, thickness assumed zero point one five mm, density two point one one mg per mm3, mass equals area times thickness times density times multiplier equals area times zero point three one six five times multiplier mg.
+What works is photons conserved. Estimate base from dimmest seventy percent so glow does not bias, noise from lower half median absolute deviation, mark candidates above background, eight connected flood, keep elongated groups with mass filter dropping round and far dust, plateau mean of brightest inside kept needles, grow shells outward collecting residual until ring mean near noise floor while skipping dust groups to prevent bridging. Then area mm2 times zero point three one six five times multiplier mg. Sample one point zero nine mg.
 
-Correct solver must handle data offset forty eight sixty four eighty ninety six one twenty eight, multiplier, background bias, noise, distinguish elongated brine needles along salt grain from compact halite dust plus far wind dust specks. Some volumes have two distant needle fields far apart must be summed.
+Completion oracle three of three deterministic sixteen of sixteen pytest including ninety six one twenty eight plus random plus extra. Avocado one of five due to multiplier plus shape plus multi pool. Opus four GPT three.
 
-Files
+Model Analysis failure modes: no background overcounts forty to ninety, fixed cutoff low eighty to one thirty over high thirty to fifty under, no speck isolation overcounts six to twelve per far dust, no shape keeps round halite, no halo under fifteen to twenty five, hardcoded offset sixty four fails ninety six one twenty eight, hardcoded gain fails twenty two.
+
+Anti cheating varied dims spacing amp bg sig noise seed placement random temp names input_c7d2.brin so constant fails. Secure runner audit hook blocks tests and b64decode and pathlib tricks. Reward via python I S ctrf json.
+
+Tags atacama salar brine lithium mass Lickanantay halite halo recovery payload offset human story
+
+Author Tosin Daniel Jimoh purple29th at meta.com
+
+
+## Files
 
 * /app/solve.py you write last token mg
 * /app/data/scene.brin sample one point zero nine mg
-* Dockerfile installs pytest copies sample
+* Dockerfile python slim pytest
 * solution/solve.py oracle
-* _gen.py generates volumes
+* tests/_gen.py generates
 * test_outputs.py secure verifier random temp names
 
-Completion Rates
+## Completion Rates
 
-Oracle three of three deterministic twelve of twelve pytest including ninety six one twenty eight
-Avocado zero to one of five due to multiplier plus shape plus multi pool
-Opus four of five
-GPT three of five
+Oracle three of three deterministic
+Avocado one of five
+Opus four of five GPT three of five
 
-Model Analysis
+## Model Analysis
 
-No background subtraction overcounts forty to ninety percent.
+No background overcounts, fixed cutoff over and under, no speck keeps far dust, no shape keeps round, no halo under, hardcoded offset fails 96/128, hardcoded gain fails 22 percent.
 
-Fixed cutoff low includes halo eighty to one thirty percent over high misses tails thirty to fifty percent under.
+## Anti-Cheating
 
-No speck isolation overcounts six to twelve percent per far dust.
+Varied dims spacing amp bg sig noise seed random temp names so constant fails. Secure runner blocks tests.
 
-No shape filter keeps compact halite round overcounts.
+## Tags
 
-No halo undercounts fifteen to twenty five percent.
-
-Hardcoded offset sixty four fails ninety six one twenty eight.
-
-Hardcoded multiplier one fails hidden twenty two percent.
-
-Anti Cheating
-
-Varied dims spacing amp bg sig noise seed placement random names input_c7d2.brin so hardcode fails. Secure runner blocks tests, reward via python I S ctrf.
-
-Tags atacama salar brine lithium mass Lickanantay halite halo recovery payload offset
+Tags atacama salar brine true lithium mass human story
 
 Author Tosin Daniel Jimoh purple29th at meta.com

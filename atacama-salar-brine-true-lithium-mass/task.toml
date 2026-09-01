@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/atacama-salar-brine-true-lithium-mass"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "Atacama Salar Brine True Lithium Mass — Lickanantay Salt Harvester: magic BRIN variable payload_start 48/64/80/96/128 anisotropic sx sy multiplier at 40 scaling mg 0.85-1.35 hidden 1.22 at 96. Task asks total lithium brine mass mg via recovered area * factor 0.3165 * gain, ignoring round distractors and far dust, summing two distant elongated components when present. Blur conserves photons. 3% tolerance stdlib only from-scratch"
+description = "Atacama Salar Brine True Lithium Mass — Lickanantay Salt Harvester: magic BRIN variable payload_start 48/64/80/96/128 at 28 anisotropic sx sy multiplier at 40 scaling mg 0.85-1.35 hidden 1.22 at 96. Total lithium mass mg via recovered area * 0.3165 * gain, ignoring round halite and far wind dust, summing two distant elongated needle fields. Blur conserves photons. 3% tolerance stdlib only from-scratch"
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["willamette", "foxfire", "gloamroot", "mycelume", "armillaria", "rhizomorph", "photon-veil", "binary-parsing", "from-scratch", "halo-recovery", "forest-mycology", "bioluminescence"]
+keywords = ["atacama", "salar", "brine", "lithium", "binary-parsing", "from-scratch", "halo-recovery", "mass"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "data_analysis"
 reward_type = "binary"
-tags = ["willamette", "foxfire", "gloamroot", "mycelume", "honey-fungus", "armillaria", "rhizomorph", "photon-veil", "duff-slab", "binary-parsing", "from-scratch", "halo-recovery", "elongated-filter", "bacillus-filter", "dust-filter", "gain-calibration", "payload-offset"]
+tags = ["atacama", "salar-brine", "lithium", "binary-parsing", "from-scratch", "halo-recovery", "elongated-filter", "dust-filter", "gain-calibration", "payload-offset", "mass"]
 expert_time_estimate_min = 65.0
 junior_time_estimate_min = 220.0
 
