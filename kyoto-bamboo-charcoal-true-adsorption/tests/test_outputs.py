@@ -326,6 +326,59 @@ BASE_CONFIGS = {
         ],
         specks=[(48, 6, 4, 1.2), (6, 40, 26, 1.0)],
     ),
+
+    "heldout_4": dict(
+        dims=(38, 42, 20),
+        spacing=(0.85, 0.85, 2.4),
+        dtype=16,
+        amp=1120,
+        bg=48,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=4,
+        seed=712,
+        gain=1.08,
+        object=[
+            ("box", 6, 16, 8, 16, 4, 10, True),
+            ("ell", 12, 32, 8, 4.0, 4.0, 3.0, False),
+        ],
+        specks=[(32, 6, 4, 1.2), (6, 36, 14, 1.0)],
+    ),
+    "dust_heavy": dict(
+        dims=(42, 38, 22),
+        spacing=(0.9, 0.9, 2.6),
+        dtype=16,
+        amp=1000,
+        bg=48,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=4,
+        seed=822,
+        gain=0.96,
+        object=[
+            ("box", 8, 22, 10, 18, 4, 10, True),
+            ("ell", 36, 10, 6, 4.0, 4.0, 3.0, False),
+        ],
+        specks=[(5, 5, 5, 1.6), (36, 32, 5, 1.2)],
+    ),
+    "multi_pool": dict(
+        dims=(48, 44, 24),
+        spacing=(0.8, 0.8, 2.2),
+        dtype=16,
+        amp=1180,
+        bg=52,
+        sig_xy=1.0,
+        sig_z=0.6,
+        noise=4,
+        seed=933,
+        gain=1.12,
+        object=[
+            ("box", 6, 18, 8, 16, 4, 10, True),
+            ("box", 28, 40, 22, 30, 6, 12, True),
+            ("ell", 40, 8, 6, 4.0, 4.0, 4.0, False),
+        ],
+        specks=[(44, 6, 5, 1.2), (6, 40, 18, 1.0)],
+    ),
 }
 
 RANDOM_CONFIG = dict(
@@ -352,6 +405,9 @@ ALL_TEST_CONFIGS = [
     ("heldout_3", BASE_CONFIGS["heldout_3"]),
     ("speck_heavy", BASE_CONFIGS["speck_heavy"]),
     ("pore_heavy", BASE_CONFIGS["pore_heavy"]),
+    ("heldout_4", BASE_CONFIGS["heldout_4"]),
+    ("dust_heavy", BASE_CONFIGS["dust_heavy"]),
+    ("multi_pool", BASE_CONFIGS["multi_pool"]),
     ("randomized", RANDOM_CONFIG),
 ]
 

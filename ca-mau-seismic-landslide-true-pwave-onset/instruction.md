@@ -1,25 +1,32 @@
-I am Linh from Ca Mau Mekong delta Vietnam, landslide early warning. We have seismometer that writes custom binary SEIS magic SEIS. It has velocity trace smear from sensor response but conserves energy. Need true p wave onset time in nanoseconds not smeared cloud. Contains main rupture plus tiny aftershock dots to ignore.
+I am Linh from Ca Mau at very south of Vietnam Mekong delta, we live on soft mud and landslide kills houses near river bank during monsoon. We have cheap seismometer made from geophone that writes custom binary SEIS magic SEIS with velocity trace smear from sensor response but energy conserved. Need true p wave onset time in nanoseconds for early warning, not smeared cloud. Contains main rupture that is sharp plus tiny aftershock dots far away to ignore.
 
-I need tool that tells me true onset ns.
+I need tool that tells true onset in nanoseconds as last token.
 
 Please make file at /app/solve.py. We call python /app/solve.py path and last token ns.
 
-Example at /app/data/scene.seis about 1520 ns. Hidden random names input_*.seis with new sizes gain blur.
+Example at /app/data/scene.seis about one thousand five hundred twenty ns. Hidden evaluation uses totally different traces I made with new num samples sampling interval gain blur with random temp file names like input_g7h2.seis.
 
-File layout seis little endian four bytes ascii SEIS four bytes uint32 version four bytes uint32 dtype two int16 sixteen float32 four bytes uint32 num samples four bytes float32 sampling interval ns four bytes uint32 data offset forty eight to one twenty eight four bytes float32 multiplier at forty scales final.
+File layout seis little endian.
 
-Inside each trace p wave onset is sharp rise but smear makes it look broad. Tiny aftershock specks far away ignore.
+Four bytes ascii SEIS.
+Four bytes uint32 version.
+Four bytes uint32 dtype code two means int16 sixteen means float32.
+Four bytes uint32 num samples.
+Four bytes float32 sampling interval ns per sample, changes per file must read.
+Four bytes uint32 data offset where samples start can be forty eight sixty four eighty ninety six one twenty eight.
+Four bytes float32 multiplier at offset forty scales final ns sample one point zero hidden at ninety six is one point two two ignore fails twenty two percent.
+At data offset you get num samples in dtype announced.
 
-We use connectivity one dimension.
+Inside each trace p wave onset is sharp rise but sensor shaper smears via Gaussian point spread so threshold overcounts smeared tails or undercounts thin extensions. Correct recovery is charge conservation calculus integral, true width samples equals sum baseline subtracted over pulse plus halo divided by plateau amplitude, onset equals width times sampling interval times multiplier plus baseline offset. Tiny aftershock specks far away ignore via mass filter.
 
-Calibration onset equals integral over baseline removed divided by plateau.
-
-Naive threshold fails.
+Naive threshold fails thirty to fifty percent.
 
 Energy preserved.
 
-Coding rules only stdlib struct sys math.
+Coding rules parse bytes yourself only stdlib struct sys math random tempfile re. No numpy scipy.
 
 Print ns as last token.
 
-Author Tosin Daniel Jimoh
+Files: /app/solve.py you write, /app/data/scene.seis sample, Dockerfile python slim pytest, solution/solve.py oracle bespoke reading payload start and multiplier and calculus integral plus halo growth, _gen.py only scene stale avoidance, test_outputs.py secure verifier runtime random names input_a3f9.seis plus payload ninety six one twenty eight and gain variants thirteen configs now, graded three percent.
+
+Author Tosin Daniel Jimoh purple29th at meta.com

@@ -1,15 +1,34 @@
-I am Martina from El Chalten in Patagonia Argentina. My brother guides glacier walks on Viedma. At one am we drag ground penetrating radar that writes GLCR magic GLCR. Inside radar volume are elongated crevasses along flow that are real depth plus round air bubbles round to ignore plus far serac dust specks. Need true depth meters. I need tool that reports total crevasse depth.
+I am Martina from El Chalten in Patagonia Argentina. My brother is a mountain guide on Viedma glacier, biggest glacier in Argentina. Every December we drag ground penetrating radar on sled at one am because sun never sets, radar writes GLCR magic GLCR with variable payload start and multiplier. Inside radar volume are crevasses that are elongated along ice flow that cause falls. We need true depth in meters for rope planning.
 
-Please make file at /app/solve.py call python /app/solve.py path last token meters.
+I need a small tool that tells me total crevasse depth in meters summing all elongated crevasses that are real. Some volumes have two separate crevasses far apart both count, biggest only fails half.
 
-Example at /app/data/scene.glcr about twelve meters. Hidden random names input_b7c2.glcr.
+Please make file at /app/solve.py. We call python /app/solve.py path and final token is answer meters.
 
-File layout glcr little endian four bytes ascii GLCR four bytes version four bytes dtype two int16 sixteen float32 twelve bytes three uint32 nx ny nz twelve bytes three float32 sx sy sz mm per voxel four bytes data offset can be forty eight sixty four eighty ninety six one twenty eight four bytes multiplier at offset forty scales final hidden one point two two.
+Example at /app/data/scene.glcr inside container about twelve meters depth. Hidden evaluation uses totally different volumes with new sizes spacings brightness diffusion pitch random temp names like input_b7c2.glcr.
 
-Inside elongated crevasses along flow count, compact air bubbles round ignore, tiny far serac dust ignore. Twenty six neighbour connectivity. Calibration depth equals volume times one point one five times multiplier. Energy preserved. Handle background median dimmest, noise MAD, far dust, interior.
+File layout glcr little endian.
 
-Within three percent.
+Four bytes ascii GLCR.
+Four bytes uint32 version.
+Four bytes uint32 dtype code two int16 sixteen float32.
+Twelve bytes three uint32 nx ny nz counts.
+Twelve bytes three float32 sx sy sz mm per voxel.
+Four bytes uint32 data offset where array starts can be forty eight sixty four eighty ninety six one twenty eight.
+Four bytes float32 multiplier at offset forty scales final meters sample one point zero hidden at ninety six is one point two two ignore fails twenty two percent.
+At offset you get nx times ny times nz samples X fastest.
 
-Coding rules only stdlib.
+Inside each cube elongated crevasses along flow that count. Compact air bubbles that are round and benign do not count. Tiny bright dots far away serac dust on radar window ignore.
 
-Print meters as last token.
+We use twenty six neighbour connectivity in three dimensions.
+
+Calibration depth equals volume mm3 times one point one five meters per mm3 times multiplier. So you first recover true crevasse volume from smeared cloud then convert to depth.
+
+Naive brightness levels fail. Generous counts halo and doubles depth, strict loses thin tails loses third to half. Each file has different background gain scatter width no fixed level works.
+
+Energy preserved. Total excess stays same. You must handle background bias median dimmest seventy percent, noise floor lower half median absolute deviation, far dust to ignore, interior level hidden by blur, avoid skirt as background, avoid jumping to specks, sum all elongated pieces.
+
+Within percent possible, three percent allowed.
+
+Coding rules parse bytes yourself only stdlib struct sys math random tempfile re. No numpy scipy skimage cv2 PIL etc. No eval exec compile import chr ord breakpoint bytes bytearray. No subprocess os system popen exec fork walk listdir scandir open pty importlib runpy ctypes nor hiding names. Do not open tests folder.
+
+Print depth meters as last token.
