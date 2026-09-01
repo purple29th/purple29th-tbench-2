@@ -1,0 +1,40 @@
+schema_version = "1.1"
+
+[task]
+name = "codimango/curonian-amber-tribo-true-charge"
+format = "terminal_bench_single_turn"
+workstream = "swe_public_repo"
+description = "Curonian Amber Tribo True Charge — Lithuanian Amber Hunter: magic AMBR variable payload_start 48/64/80/96/128 anisotropic sx sy multiplier at 40 scaling nC 0.85-1.35 hidden 1.22 at 96. Task asks total amber triboelectric charge nC via recovered area * factor 0.8500 * gain, ignoring round distractors and far dust, summing two distant elongated components when present. Blur conserves photons. 3% tolerance stdlib only from-scratch"
+authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
+keywords = ["willamette", "foxfire", "gloamroot", "mycelume", "armillaria", "rhizomorph", "photon-veil", "binary-parsing", "from-scratch", "halo-recovery", "forest-mycology", "bioluminescence"]
+
+[metadata]
+author_name = "Tosin Daniel Jimoh"
+author_email = "purple29th@meta.com"
+difficulty = "hard"
+category = "data-science"
+category_subdomain = "multimedia_and_signal_processing"
+category_usecase = "data_analysis"
+reward_type = "binary"
+tags = ["willamette", "foxfire", "gloamroot", "mycelume", "honey-fungus", "armillaria", "rhizomorph", "photon-veil", "duff-slab", "binary-parsing", "from-scratch", "halo-recovery", "elongated-filter", "bacillus-filter", "dust-filter", "gain-calibration", "payload-offset"]
+expert_time_estimate_min = 65.0
+junior_time_estimate_min = 220.0
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 15360
+gpus = 0
+allow_internet = true
+mcp_servers = []
+
+[verifier.env]
+[environment.env]
+[solution.env]
