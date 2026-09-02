@@ -1,54 +1,48 @@
-# nairobi compose pager stale image budget
+# nairobi compose pager stale image budget - M-Pesa loan cards recycler staleness
 
 ## Description
 
-I am Wanjiku from Nairobi Kenya I build fintech app for M-Pesa with Jetpack Compose horizontal pager showing loan cards. Each pager page has image that loads async. Binding updates title immediately and schedules image fetch at tick. Requirement cell only shows image fetched for current binding. Recycling or rebinding even to same item starts new binding. Stale fetches must be discarded but still consume queued RESOLVE token. Budget accrual num over den capped at cap with fractional carry.
+I am Wanjiku from Nairobi Kenya building fintech app for M-Pesa with Jetpack Compose horizontal pager showing loan cards. Each card has image that loads async over slow network in Kibera. At one am we swipe fast and wrong image shows: result fetched for card cell used to show writes through after cell recycled or rebound, and budget for decoding gets wrong and next card stays blank.
 
-I work on compose pager where cells reused. Bug is stale image shows for wrong card after fast swipe. Need to fix generation tracking and budget.
+Project simulates RecyclerView-style list where small set of reusable cells are repeatedly bound to different items as you scroll. Binding updates visible fields immediately and schedules async image result that may arrive later tick. Bug shows cells display wrong image and budget loses fractional remainder.
 
-Please make file at app/src/main/java/com/example/pager/PagerState.kt you fix. There is sample in app/data not needed. Hidden evaluation uses contract tests in src/com/example/test with twenty three scenarios simple_bind_resolve recycle_invalidates_pending rebind_to_different_item etc. If generation tracking missing fails half.
+What works is generation tracking per cell plus budget for decode tokens that carries fractional remainder in units of denominator. Correct fix uses capUnits = cap*den, budgetUnits that accrues dt*num and capped, checks budgetUnits < den to gate valid fetches, and afterImageApplied bumps token to enforce first-write-wins on same tick, plus stale still consumes queued resolution.
 
-File layout android. No binary. Must handle generation counters and budget remainder accumulation two thirds case.
+Completion oracle three of three deterministic twenty three scenarios including simple_bind_resolve recycle_invalidates_pending rebind_same_item_invalidates_old budget_carry_decode stale_consumes_then_fresh tie_break budget_two_thirds. Avocado zero to one of five due to generation plus budget plus stale consume. Opus three of five GPT two of five.
 
-If you get generation right you pass.
+Model Analysis failure modes: no generation tracking lets stale overwrite, no first-write-wins lets later stale overwrite valid on same tick, no stale consume causes resolution leak, no budget remainder loses fractional two_thirds, no cap fails budget.
 
-Coding rules Kotlin.
+Anti cheating varied scenarios with BIND REFETCH BUDGET RECYCLE RESOLVE TICK QUERY with random temp names scenario.json so constant fails. Secure runner blocks tests.
 
-Files: app/src/main/java/com/example/pager/PagerState.kt you fix, environment/Dockerfile builds with gradle, tests/expected twenty three scenarios, test_outputs.py runs run.sh which writes /app/output.txt.
-
-Completion Oracle three of three all scenarios pass, Avocado zero to one of five due to stale consumption plus budget carry decode, Opus four of five.
-
-Model Analysis failure modes: no generation tracking shows stale image for wrong card, no discard still consumes token fails stale_steals_resolution, no budget carry loses fractional, no remainder accumulation fails budget_two_thirds, hardcoded.
-
-Anti Cheating varied scenarios random order secure runner.
-
-Tags nairobi compose pager stale image budget M-Pesa fintech halo not needed but generation tracking
+Tags nairobi compose pager recycler staleness M-Pesa budget generation human story
 
 Author Tosin Daniel Jimoh purple29th at meta.com
 
 
 ## Files
 
-* /app/solve.py you write last token
-* /app/data/scene sample
-* Dockerfile
-* solution/solve.py oracle
-* tests/_gen.py generates
-* test_outputs.py secure verifier random names
+* /app/src/com/example/recycler/RecyclerPool.kt you fix
+* /app/src/com/example/recycler/FetchScheduler.kt you fix
+* /app/src/run.sh reads scenario.json writes output.txt
+* /app/src/run-contract.sh runs contract tests
+* Dockerfile eclipse-temurin:17 kotlin 1.9.22
+* solution/ correct FetchScheduler and RecyclerPool
+* tests/expected twenty three scenarios
+* test_outputs.py secure verifier
 
 ## Completion Rates
 
 Oracle three of three deterministic
 Avocado zero to one of five
-Opus four of five GPT three of five
+Opus three of five GPT two of five
 
 ## Model Analysis
 
-No background overcounts, fixed cutoff over and under, no speck keeps far dust, no shape keeps round, no halo under, hardcoded offset fails 96/128, hardcoded gain fails 22 percent.
+No generation tracking fails recycle and rebind, no first-write-wins fails refetch_first_write_wins, no stale consume fails stale_steals_resolution, no budget remainder fails budget_carry_decode and budget_two_thirds, no cap fails budget.
 
 ## Anti-Cheating
 
-Varied dims spacing amp bg sig noise seed random temp names so constant fails. Secure runner blocks tests.
+Varied scenarios BIND REFETCH BUDGET RECYCLE RESOLVE TICK QUERY random names so constant fails. Secure runner blocks tests.
 
 ## Tags
 

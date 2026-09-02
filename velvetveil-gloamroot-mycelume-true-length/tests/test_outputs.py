@@ -311,7 +311,7 @@ BASE_CONFIGS = {
     "heldout_96": dict(
         dims=(42, 38),
         spacing=(0.12, 0.12),
-        dtype=16,
+        dtype=2,
         amp=1180,
         bg=48,
         sig=0.8,
