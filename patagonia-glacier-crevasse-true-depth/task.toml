@@ -4,9 +4,9 @@ schema_version = "1.1"
 name = "codimango/patagonia-glacier-crevasse-true-depth"
 format = "terminal_bench_single_turn"
 workstream = "swe_public_repo"
-description = "patagonia-glacier-crevasse-true-depth crevasse depth meters custom GLCR volume magic GLCR elongated vs round plus far specks mass via energy conservation with 1.15 factor. Data offset 48-128 multiplier at 40 hidden 1.22. 3 percent tolerance."
+description = "patagonia-glacier-crevasse-true-depth crevasse depth meters custom GLCR volume magic GLCR elongated crevasses vs round air bubbles plus far serac dust via energy conservation 1.15 factor. Data offset 48-128 at 36 multiplier at 40 hidden 1.22. 3 percent tolerance stdlib only anisotropic."
 authors = [{ name = "Tosin Daniel Jimoh", email = "purple29th@meta.com" }]
-keywords = ["powder-bed", "spatter", "additive", "binary-parsing", "from-scratch"]
+keywords = ["patagonia", "glacier", "crevasse", "binary-parsing", "from-scratch", "halo-recovery", "GLCR", "gain-calibration"]
 
 [metadata]
 author_name = "Tosin Daniel Jimoh"
@@ -16,7 +16,7 @@ category = "data-science"
 category_subdomain = "multimedia_and_signal_processing"
 category_usecase = "parsing_lexing"
 reward_type = "binary"
-tags = ["powder-bed", "spatter-mass", "additive", "binary-parsing", "from-scratch", "intensity-conservation", "lpbf"]
+tags = ["patagonia", "glacier", "crevasse", "binary-parsing", "from-scratch", "halo-recovery", "GLCR", "gain-calibration", "payload-offset", "anisotropic"]
 expert_time_estimate_min = 60.0
 junior_time_estimate_min = 200.0
 

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+"""Oracle for patagonia-glacier-crevasse-true-depth - GLCR crevasse depth with embed fix"""
+
 import struct
 import sys
+import math
 
 MAGIC = b"GLCR"
-RHO = 1.15  # factor for crevasse depth
+RHO = 1.15  # factor meters per mm3
 
 NEIGH26 = [
     (dx, dy, dz)
@@ -14,15 +17,26 @@ NEIGH26 = [
 ]
 
 
-def parse_epcm(path):
+def parse(path):
     with open(path, "rb") as f:
         data = f.read()
     if data[:4] != MAGIC:
-        raise ValueError("not SPAT")
+        raise ValueError(f"not GLCR got {data[:4]}")
     dtype = struct.unpack_from("<I", data, 8)[0]
     nx, ny, nz = struct.unpack_from("<III", data, 12)
     sx, sy, sz = struct.unpack_from("<fff", data, 24)
-    off = struct.unpack_from("<I", data, 36)[0]
+    try:
+        off = struct.unpack_from("<I", data, 36)[0]
+    except Exception:
+        off = 64
+    try:
+        gain = struct.unpack_from("<f", data, 40)[0]
+    except Exception:
+        gain = 1.0
+    if not (math.isfinite(gain) and 0.2 < gain < 5.0):
+        gain = 1.0
+    if off < 48 or off > 512:
+        off = 64
     n = nx * ny * nz
     if dtype == 2:
         vals = list(struct.unpack_from("<%dh" % n, data, off))
@@ -30,7 +44,16 @@ def parse_epcm(path):
         vals = list(struct.unpack_from("<%df" % n, data, off))
     else:
         raise ValueError("dtype")
-    return nx, ny, nz, float(sx), float(sy), float(sz), [float(v) for v in vals]
+    return (
+        nx,
+        ny,
+        nz,
+        float(sx),
+        float(sy),
+        float(sz),
+        float(gain),
+        [float(v) for v in vals],
+    )
 
 
 def _median(sorted_vals):
@@ -43,7 +66,7 @@ def _median(sorted_vals):
 
 
 def mass_from_path(path):
-    nx, ny, nz, sx, sy, sz, vox = parse_epcm(path)
+    nx, ny, nz, sx, sy, sz, gain, vox = parse(path)
     n = nx * ny * nz
 
     def idx(x, y, z):
@@ -95,7 +118,7 @@ def mass_from_path(path):
                 dy_ = max_y - min_y + 1
                 dz_ = max_z - min_z + 1
                 dims = sorted([dx_, dy_, dz_])
-                is_elong = dims[2] >= 8 and dims[2] > 1.6 * dims[0]
+                is_elong = dims[2] >= 8 and dims[2] > 1.6 * dims[0] and dims[2] <= 35
                 components.append((mass, comp, dx_, dy_, dz_, is_elong))
     if not components:
         return 0.0
@@ -145,7 +168,7 @@ def mass_from_path(path):
         frontier = shell
     total = sum(residual[j] for j in region)
     voxel_count = total / plateau
-    return voxel_count * sx * sy * sz * RHO
+    return voxel_count * sx * sy * sz * RHO * gain
 
 
 def main():
