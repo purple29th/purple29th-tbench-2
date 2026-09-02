@@ -338,7 +338,7 @@ BASE_CONFIGS = {
     ),
     "heldout_48": dict(
         dims=(42, 38),
-        spacing=(0.12, 0.12),
+        spacing=(0.12, 0.10),
         dtype=16,
         amp=1180,
         bg=48,
@@ -364,10 +364,24 @@ BASE_CONFIGS = {
         object=[("box", 8, 26, 14, 22, True), ("ell", 38, 10, 4, 4, False)],
         specks=[(5, 5, 1.2), (38, 32, 1.0)],
     ),
+    "heldout_aniso": dict(
+        dims=(48, 44),
+        spacing=(0.13, 0.09),
+        dtype=16,
+        amp=1150,
+        bg=45,
+        sig=1.0,
+        noise=4,
+        seed=723,
+        data_offset=64,
+        gain=1.05,
+        object=[("box", 8, 28, 12, 20, True), ("ell", 36, 8, 4, 4, False)],
+        specks=[(5, 5, 1.2), (40, 34, 1.0)],
+    ),
 }
 RANDOM_CONFIG = dict(
     dims=(38, 40),
-    spacing=(0.13, 0.13),
+    spacing=(0.13, 0.11),
     dtype=16,
     amp=1210,
     bg=60,
@@ -388,6 +402,7 @@ ALL_TEST_CONFIGS = [
     ("heldout_128", BASE_CONFIGS["heldout_128"]),
     ("heldout_48", BASE_CONFIGS["heldout_48"]),
     ("heldout_80", BASE_CONFIGS["heldout_80"]),
+    ("heldout_aniso", BASE_CONFIGS["heldout_aniso"]),
     ("randomized", RANDOM_CONFIG),
 ]
 SECURE_RUNNER_CODE = r"""
@@ -537,21 +552,22 @@ def test_heldout_secure(cfg_name, cfg):
 
 def test_randomized_extra():
     cfg = dict(
-        dims=(38, 40),
-        spacing=(0.13, 0.13),
+        dims=(80, 80),
+        spacing=(0.12, 0.10),
         dtype=16,
         amp=1150,
         bg=60,
         sig=0.8,
         noise=3,
         seed=999,
+        data_offset=64,
         gain=0.88,
         object=[
-            ("box", 6, 24, 12, 20, True),
-            ("box", 24, 42, 20, 28, True),
-            ("ell", 76, 8, 4, 4, False),
+            ("box", 6, 22, 12, 20, True),
+            ("box", 30, 48, 30, 38, True),
+            ("ell", 60, 60, 4, 4, False),
         ],
-        specks=[(5, 5, 1.4), (75, 5, 1.2)],
+        specks=[(5, 5, 1.2), (70, 70, 1.0)],
     )
     field, v_true = build_field(cfg)
     b = pack_mycr(cfg, field)
